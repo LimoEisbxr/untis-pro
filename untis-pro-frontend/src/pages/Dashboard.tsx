@@ -18,12 +18,8 @@ export default function Dashboard({
     dark: boolean;
     setDark: (v: boolean) => void;
 }) {
-    const [start, setStart] = useState<string>(() =>
-        fmtLocal(startOfWeek(new Date()))
-    );
-    const [end, setEnd] = useState<string>(() =>
-        fmtLocal(addDays(startOfWeek(new Date()), 6))
-    );
+    // Selected date (week is derived from this)
+    const [start, setStart] = useState<string>(() => fmtLocal(new Date()));
     const [mine, setMine] = useState<TimetableResponse | null>(null);
     const [loadError, setLoadError] = useState<string | null>(null);
     const [queryText, setQueryText] = useState('');
@@ -38,13 +34,24 @@ export default function Dashboard({
     const abortRef = useRef<AbortController | null>(null);
     const [loading, setLoading] = useState(false);
 
+    // Compute the week range based on the selected date
+    const weekStartDate = useMemo(() => startOfWeek(new Date(start)), [start]);
+    const weekStartStr = useMemo(
+        () => fmtLocal(weekStartDate),
+        [weekStartDate]
+    );
+    const weekEndStr = useMemo(
+        () => fmtLocal(addDays(weekStartDate, 6)),
+        [weekStartDate]
+    );
+
     const query = useMemo(() => {
         const p = new URLSearchParams();
-        if (start) p.set('start', start);
-        if (end) p.set('end', end);
+        if (weekStartStr) p.set('start', weekStartStr);
+        if (weekEndStr) p.set('end', weekEndStr);
         const q = p.toString();
         return q ? `?${q}` : '';
-    }, [start, end]);
+    }, [weekStartStr, weekEndStr]);
 
     const loadMine = useCallback(async () => {
         setLoading(true);
@@ -60,14 +67,14 @@ export default function Dashboard({
             setLoadError(msg);
             setMine({
                 userId: user.id,
-                rangeStart: start,
-                rangeEnd: end,
+                rangeStart: weekStartStr,
+                rangeEnd: weekEndStr,
                 payload: [],
             });
         } finally {
             setLoading(false);
         }
-    }, [query, token, user.id, start, end]);
+    }, [query, token, user.id, weekStartStr, weekEndStr]);
 
     const loadUser = useCallback(
         async (userId: string) => {
@@ -84,20 +91,22 @@ export default function Dashboard({
                 setLoadError(msg);
                 setMine({
                     userId,
-                    rangeStart: start,
-                    rangeEnd: end,
+                    rangeStart: weekStartStr,
+                    rangeEnd: weekEndStr,
                     payload: [],
                 });
             } finally {
                 setLoading(false);
             }
         },
-        [query, token, start, end]
+        [query, token, weekStartStr, weekEndStr]
     );
 
     useEffect(() => {
-        loadMine();
-    }, [loadMine]);
+        if (selectedUser && selectedUser.id !== user.id)
+            loadUser(selectedUser.id);
+        else loadMine();
+    }, [loadUser, loadMine, selectedUser, user.id]);
 
     useEffect(() => {
         const q = queryText.trim();
@@ -203,11 +212,7 @@ export default function Dashboard({
                                     const ns = fmtLocal(
                                         addDays(new Date(start), -7)
                                     );
-                                    const ne = fmtLocal(
-                                        addDays(new Date(end), -7)
-                                    );
                                     setStart(ns);
-                                    setEnd(ne);
                                 }}
                             >
                                 ← Prev week
@@ -215,9 +220,7 @@ export default function Dashboard({
                             <button
                                 className="btn-secondary"
                                 onClick={() => {
-                                    const s = startOfWeek(new Date());
-                                    setStart(fmtLocal(s));
-                                    setEnd(fmtLocal(addDays(s, 6)));
+                                    setStart(fmtLocal(new Date()));
                                 }}
                             >
                                 This week
@@ -228,11 +231,7 @@ export default function Dashboard({
                                     const ns = fmtLocal(
                                         addDays(new Date(start), 7)
                                     );
-                                    const ne = fmtLocal(
-                                        addDays(new Date(end), 7)
-                                    );
                                     setStart(ns);
-                                    setEnd(ne);
                                 }}
                             >
                                 Next week →
@@ -321,21 +320,12 @@ export default function Dashboard({
                             </div>
                         </div>
                         <div>
-                            <label className="label">Start</label>
+                            <label className="label">Week</label>
                             <input
                                 type="date"
                                 className="input"
                                 value={start}
                                 onChange={(e) => setStart(e.target.value)}
-                            />
-                        </div>
-                        <div>
-                            <label className="label">End</label>
-                            <input
-                                type="date"
-                                className="input"
-                                value={end}
-                                onChange={(e) => setEnd(e.target.value)}
                             />
                         </div>
                         <button
@@ -350,7 +340,7 @@ export default function Dashboard({
                             Reload
                         </button>
                         <div className="ml-auto text-sm text-slate-600 dark:text-slate-300">
-                            Week: {start} → {end}
+                            Week: {weekStartStr} → {weekEndStr}
                         </div>
                     </div>
                     <div className="mt-4">
@@ -359,7 +349,7 @@ export default function Dashboard({
                                 {loadError}
                             </div>
                         )}
-                        <Timetable data={mine} weekStart={new Date(start)} />
+                        <Timetable data={mine} weekStart={weekStartDate} />
                     </div>
                 </section>
             </main>

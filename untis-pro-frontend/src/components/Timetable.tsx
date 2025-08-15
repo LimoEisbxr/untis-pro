@@ -5,11 +5,11 @@ import {
     clamp,
     fmtHM,
     fmtLocal,
-    hourMarks,
     startOfWeek,
     untisToMinutes,
     yyyymmddToISO,
 } from '../utils/dates';
+import { DEFAULT_PERIODS } from '../utils/periods';
 
 function FitText({
     children,
@@ -102,6 +102,7 @@ export default function Timetable({
     const DAY_HEADER_PX = 28;
     const containerHeight =
         totalMinutes * SCALE + BOTTOM_PAD_PX + DAY_HEADER_PX;
+    const timesHeight = totalMinutes * SCALE;
 
     useEffect(() => {
         function computeScale() {
@@ -116,6 +117,62 @@ export default function Timetable({
 
     const monday = startOfWeek(weekStart);
     const days = Array.from({ length: 5 }, (_, i) => addDays(monday, i));
+
+    // Build unique timestamp labels (dedupe touching boundaries) with a minimum vertical gap.
+    const timeLabelPositions = useMemo(() => {
+        const minGapPx = 15;
+        const toY = (min: number) => (min - START_MIN) * SCALE;
+        const maxY = (END_MIN - START_MIN) * SCALE;
+        type L = { y: number; label: string };
+        const labels: L[] = [];
+        let prevEnd: number | null = null;
+        for (let i = 0; i < DEFAULT_PERIODS.length; i++) {
+            const p = DEFAULT_PERIODS[i];
+            const s = untisToMinutes(p.start);
+            const e = untisToMinutes(p.end);
+            // Add start if it's not equal to previous period's end
+            if (i === 0 || prevEnd === null || s !== prevEnd) {
+                labels.push({ y: toY(s), label: fmtHM(s) });
+            }
+            // Always add end (next start will be skipped if equal)
+            labels.push({ y: toY(e), label: fmtHM(e) });
+            prevEnd = e;
+        }
+        labels.sort((a, b) => a.y - b.y);
+
+        // Cluster nearby labels and distribute them evenly around their mean to avoid overlaps
+        const clusters: L[][] = [];
+        let current: L[] = [];
+        for (const l of labels) {
+            if (current.length === 0) current.push({ ...l });
+            else {
+                const last = current[current.length - 1];
+                if (l.y - last.y < minGapPx) current.push({ ...l });
+                else {
+                    clusters.push(current);
+                    current = [{ ...l }];
+                }
+            }
+        }
+        if (current.length) clusters.push(current);
+
+        const out: L[] = [];
+        for (const c of clusters) {
+            if (c.length === 1) {
+                out.push(c[0]);
+                continue;
+            }
+            const mean = c.reduce((s, v) => s + v.y, 0) / c.length;
+            const span = (c.length - 1) * minGapPx;
+            let start = mean - span / 2;
+            // Clamp entire cluster within bounds
+            if (start < 0) start = 0;
+            if (start + span > maxY) start = Math.max(0, maxY - span);
+            for (let i = 0; i < c.length; i++)
+                out.push({ y: start + i * minGapPx, label: c[i].label });
+        }
+        return out;
+    }, [SCALE, START_MIN, END_MIN]);
 
     const lessonsByDay = useMemo(() => {
         const byDay: Record<string, Lesson[]> = {};
@@ -155,8 +212,8 @@ export default function Timetable({
     return (
         <div className="w-full overflow-x-auto">
             <div
-                className="min-w-[800px] grid gap-x-3"
-                style={{ gridTemplateColumns: '80px repeat(5, 1fr)' }}
+                className="min-w-[820px] grid gap-x-3"
+                style={{ gridTemplateColumns: '64px repeat(5, 1fr)' }}
             >
                 <div />
                 {days.map((d) => (
@@ -165,22 +222,60 @@ export default function Timetable({
                         className="px-1.5 first:pl-3 last:pr-3 h-0"
                     />
                 ))}
+                {/* Left-side column with lesson-based markers (numbers + times). */}
                 <div
                     className="relative"
                     style={{
                         height: containerHeight,
-                        paddingTop: DAY_HEADER_PX,
                     }}
                 >
-                    {hourMarks(START_MIN, END_MIN).map((m) => (
-                        <div
-                            key={m.min}
-                            className="absolute right-2 -translate-y-1/2 text-xs text-slate-500 dark:text-slate-400"
-                            style={{ top: (m.min - START_MIN) * SCALE }}
-                        >
-                            {m.label}
+                    {/* Centered outlined container for timestamps and lesson numbers */}
+                    <div
+                        className="absolute left-0 right-0"
+                        style={{
+                            top: 0,
+                            height: DAY_HEADER_PX + timesHeight + BOTTOM_PAD_PX,
+                        }}
+                    >
+                        <div className="mx-1 h-full rounded-md ring-1 ring-slate-900/10 dark:ring-white/10 shadow-sm overflow-hidden bg-gradient-to-b from-slate-50/85 via-slate-100/80 to-sky-50/70 dark:bg-slate-800/40 dark:bg-none relative">
+                            {/* Unique time labels (deduped & gapped) */}
+                            {timeLabelPositions.map((t, i) => (
+                                <div
+                                    key={i}
+                                    className="absolute left-0 right-0 -translate-y-1/2 text-[11px] leading-none text-slate-500 dark:text-slate-400 select-none text-center"
+                                    style={{ top: t.y + DAY_HEADER_PX }}
+                                >
+                                    {t.label}
+                                </div>
+                            ))}
+                            {/* Big period numbers */}
+                            {DEFAULT_PERIODS.map((p) => {
+                                const sMin = untisToMinutes(p.start);
+                                const eMin = untisToMinutes(p.end);
+                                return (
+                                    <div
+                                        key={p.number}
+                                        className="absolute left-0 right-0"
+                                    >
+                                        <div
+                                            className="absolute left-0 right-0 -translate-y-1/2 select-none text-slate-400 dark:text-slate-500 text-center"
+                                            style={{
+                                                top:
+                                                    ((sMin + eMin) / 2 -
+                                                        START_MIN) *
+                                                        SCALE +
+                                                    DAY_HEADER_PX,
+                                                fontSize: 22,
+                                                fontWeight: 800,
+                                            }}
+                                        >
+                                            {p.number}.
+                                        </div>
+                                    </div>
+                                );
+                            })}
                         </div>
-                    ))}
+                    </div>
                 </div>
                 {days.map((d) => {
                     const key = fmtLocal(d);
@@ -309,6 +404,7 @@ export default function Timetable({
                                     (b.endMin - b.startMin) * SCALE
                                 );
                                 const cancelled = l.code === 'cancelled';
+                                const irregular = l.code === 'irregular';
                                 const subject =
                                     l.su?.[0]?.name ?? l.activityType ?? '—';
                                 const room = l.ro
@@ -336,6 +432,8 @@ export default function Timetable({
                                         className={`absolute rounded-md p-2 text-xs ring-1 ring-slate-900/15 dark:ring-white/20 overflow-hidden ${
                                             cancelled
                                                 ? 'bg-rose-500/90 text-white'
+                                                : irregular
+                                                ? 'bg-emerald-500/90 text-white'
                                                 : 'bg-gradient-to-r from-indigo-500 to-emerald-600 text-white'
                                         }`}
                                         style={{
@@ -355,9 +453,7 @@ export default function Timetable({
                                                 <FitText
                                                     mode="both"
                                                     maxScale={1.8}
-                                                    reserveBottom={
-                                                        cancelled ? 16 : 0
-                                                    }
+                                                    reserveBottom={0}
                                                     className="min-w-0 self-stretch"
                                                 >
                                                     <div className="font-semibold">
@@ -380,7 +476,10 @@ export default function Timetable({
                                                         mode="both"
                                                         maxScale={1.8}
                                                         reserveBottom={
-                                                            cancelled ? 16 : 0
+                                                            cancelled ||
+                                                            irregular
+                                                                ? 16
+                                                                : 0
                                                         }
                                                         align="right"
                                                         className="min-w-0 max-w-[45%] text-right self-stretch"
@@ -392,6 +491,11 @@ export default function Timetable({
                                             {cancelled && (
                                                 <div className="absolute bottom-1 right-2 text-right text-[10px] font-semibold uppercase tracking-wide">
                                                     Cancelled
+                                                </div>
+                                            )}
+                                            {irregular && (
+                                                <div className="absolute bottom-1 right-2 text-right text-[10px] font-semibold uppercase tracking-wide">
+                                                    Irregular
                                                 </div>
                                             )}
                                         </div>
