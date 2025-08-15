@@ -1,0 +1,50 @@
+// Prisma schema for Untis Pro backend
+// Auto-migrated to keep DB in sync
+
+generator client {
+    provider = "prisma-client-js"
+}
+
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+model User {
+    id        String   @id @default(uuid())
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    username String
+    // hashed or encrypted password at rest; for demo we store as text. Replace with vault/KMS in prod.
+    password String
+
+    displayName String?
+
+    // Relationships
+    timetables Timetable[]
+    sessions   SessionToken[]
+
+    @@unique([username])
+}
+
+model Timetable {
+    id        String   @id @default(uuid())
+    createdAt DateTime @default(now())
+    ownerId   String
+    owner     User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+    // Cached JSON from WebUntis; keep flexible
+    rangeStart DateTime?
+    rangeEnd   DateTime?
+    payload    Json
+}
+
+model SessionToken {
+    id        String   @id @default(uuid())
+    createdAt DateTime @default(now())
+    userId    String
+    user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    token     String   @unique
+    expiresAt DateTime
+}

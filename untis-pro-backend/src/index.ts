@@ -1,17 +1,10 @@
-// Importing module
-import express from 'express';
+import dotenv from 'dotenv';
+import app from './app.js';
 
-const app = express();
-const PORT: Number = 3000;
+dotenv.config();
 
-// Handling GET / Request
-app.get('/', (req, res) => {
-    res.send('Welcome to typescript backend!');
-});
+const port = Number(process.env.PORT || 3001);
 
-// Server setup
-app.listen(PORT, () => {
-    console.log(
-        'The application is listening ' + 'on port http://localhost:' + PORT
-    );
+app.listen(port, () => {
+    console.log(`Backend running on http://localhost:${port}`);
 });
