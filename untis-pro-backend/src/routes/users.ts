@@ -8,6 +8,7 @@ const router = Router();
 const querySchema = z.object({ q: z.string().trim().min(1).max(100) });
 
 // Authenticated user search (by username/displayName)
+// NOTE: Consider adding rate limiting in front of this route in production.
 router.get('/search', authMiddleware, async (req, res) => {
     const parsed = querySchema.safeParse({ q: req.query.q ?? '' });
     if (!parsed.success) return res.json({ users: [] });

@@ -14,8 +14,8 @@ body,
 }
 
 body {
-    /* Global gradient background (light by default) */
-    @apply bg-gradient-to-br from-indigo-50 via-sky-50 to-emerald-50;
+    /* Light: modern gray/blue background */
+    @apply bg-gradient-to-br from-slate-50 via-slate-100 to-sky-50 text-slate-800;
 }
 
 /* Dark gradient when .dark is on the root */
@@ -40,7 +40,7 @@ html.dark body {
     @apply outline-none ring-2 ring-offset-2 ring-indigo-400;
 }
 .btn-secondary {
-    @apply inline-flex items-center rounded-lg bg-slate-200 px-4 py-2 font-medium text-slate-900 hover:bg-slate-300 disabled:opacity-50 shadow-sm;
+    @apply inline-flex items-center rounded-lg bg-slate-200/90 px-4 py-2 font-medium text-slate-900 hover:bg-slate-300 disabled:opacity-50 shadow-sm;
 }
 html.dark .btn-secondary {
     @apply bg-slate-700 text-slate-100;
@@ -49,7 +49,7 @@ html.dark .btn-secondary:hover {
     @apply bg-slate-600;
 }
 .input {
-    @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-500;
+    @apply w-full rounded-lg border border-slate-300 bg-white/95 px-3 py-2 text-slate-900 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-sky-500;
 }
 html.dark .input {
     @apply bg-slate-800 border-slate-700 text-slate-100 placeholder:text-slate-400;
@@ -63,17 +63,21 @@ html.dark .label {
 
 /* Reusable surfaces */
 .header-blur {
-    @apply border-b bg-white/80 backdrop-blur;
+    /* Light: subtle gray/blue tint */
+    @apply border-b border-slate-200/60 bg-gradient-to-br from-white/85 via-slate-50/80 to-sky-50/70 backdrop-blur;
 }
 html.dark .header-blur {
-    @apply bg-slate-900/80;
+    /* Dark: remove gradient and use dark border */
+    @apply bg-slate-900/80 bg-none border-slate-700/60;
 }
 
 .card {
-    @apply rounded-xl border bg-white/80 backdrop-blur shadow-sm text-slate-900;
+    /* Light: gentle gray/blue surface */
+    @apply rounded-xl border border-slate-200/70 bg-gradient-to-br from-white/90 via-slate-50/80 to-sky-50/70 backdrop-blur shadow-sm text-slate-900;
 }
 html.dark .card {
-    @apply bg-slate-900/80 text-slate-100;
+    /* Dark: remove gradient and ensure darker border */
+    @apply bg-slate-900/80 bg-none text-slate-100 border-slate-700/70;
 }
 
 .link-admin {
@@ -81,4 +85,9 @@ html.dark .card {
 }
 html.dark .link-admin {
     @apply text-sky-300;
+}
+
+/* Reusable logo text with gradient fill and theme-aware outline */
+.logo-text {
+    @apply bg-gradient-to-r from-indigo-600 via-sky-600 to-emerald-600 bg-clip-text text-transparent font-extrabold;
 }

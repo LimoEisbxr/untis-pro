@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
 import dotenv from 'dotenv';
 import morgan from 'morgan';
 import authRoutes from './routes/auth.js';
@@ -12,6 +13,15 @@ dotenv.config();
 const app = express();
 
 const corsOrigin = process.env.CORS_ORIGIN || '*';
+// Basic security headers
+app.use(
+    helmet({
+        crossOriginResourcePolicy: { policy: 'cross-origin' },
+        contentSecurityPolicy: false, // can be enabled/tuned later
+    })
+);
+// If running behind a proxy (Docker, reverse proxy), enable to get correct client IPs
+app.set('trust proxy', 1);
 app.use(
     cors({
         origin: corsOrigin,

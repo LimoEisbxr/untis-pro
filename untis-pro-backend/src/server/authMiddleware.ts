@@ -32,6 +32,11 @@ export async function authMiddleware(
     try {
         const secret = process.env.JWT_SECRET || 'dev-secret';
         const decoded = jwt.verify(token, secret) as AuthPayload;
+        // Allow admin tokens (no DB row) and regular user tokens (validate in DB)
+        if (decoded.isAdmin) {
+            req.user = { id: decoded.userId };
+            return next();
+        }
         const user = await prisma.user.findUnique({
             where: { id: decoded.userId },
         });

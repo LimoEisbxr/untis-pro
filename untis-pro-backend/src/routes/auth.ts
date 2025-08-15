@@ -11,8 +11,18 @@ import {
 } from '../server/config.js';
 import { verifyUntisCredentials } from '../services/untisService.js';
 import { signToken, authMiddleware } from '../server/authMiddleware.js';
+import rateLimit from 'express-rate-limit';
 
 const router = Router();
+
+// Limit registration attempts since it validates against Untis
+const untisLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    limit: 10,
+    standardHeaders: 'draft-7',
+    legacyHeaders: false,
+    message: { error: 'Too many requests, please try again later.' },
+});
 
 const registerSchema = z.object({
     username: z.string().min(1),
@@ -20,7 +30,7 @@ const registerSchema = z.object({
     displayName: z.string().optional(),
 });
 
-router.post('/register', async (req, res) => {
+router.post('/register', untisLimiter, async (req, res) => {
     const parsed = registerSchema.safeParse(req.body);
     if (!parsed.success) {
         return res.status(400).json({ error: parsed.error.flatten() });

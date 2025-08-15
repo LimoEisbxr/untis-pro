@@ -24,7 +24,6 @@ export async function getOrFetchTimetableRange(args: {
         start: args.start,
         end: args.end,
     });
-    // In future, implement ACLs: for now everyone can see everyone who registered
     const target = await prisma.user.findUnique({
         where: { id: args.targetUserId },
     });
@@ -61,28 +60,45 @@ export async function getOrFetchTimetableRange(args: {
     let data: any;
     const sd = args.start ? new Date(args.start) : undefined;
     const ed = args.end ? new Date(args.end) : undefined;
-    if (sd && ed && typeof untis.getOwnTimetableForRange === 'function') {
-        console.debug('[timetable] calling getOwnTimetableForRange', {
-            start: sd,
-            end: ed,
-            startType: typeof sd,
-            endType: typeof ed,
-        });
-        data = await untis.getOwnTimetableForRange(sd, ed);
-    } else if (typeof untis.getOwnTimetableForToday === 'function') {
-        console.debug('[timetable] calling getOwnTimetableForToday');
-        data = await untis.getOwnTimetableForToday();
-    } else {
-        // fallback try generic method list
-        console.debug('[timetable] calling getTimetableForToday (fallback)');
-        data = await untis.getTimetableForToday?.();
+    try {
+        if (sd && ed && typeof untis.getOwnTimetableForRange === 'function') {
+            console.debug('[timetable] calling getOwnTimetableForRange', {
+                start: sd,
+                end: ed,
+                startType: typeof sd,
+                endType: typeof ed,
+            });
+            data = await untis.getOwnTimetableForRange(sd, ed);
+        } else if (typeof untis.getOwnTimetableForToday === 'function') {
+            console.debug('[timetable] calling getOwnTimetableForToday');
+            data = await untis.getOwnTimetableForToday();
+        } else {
+            // fallback try generic method list
+            console.debug(
+                '[timetable] calling getTimetableForToday (fallback)'
+            );
+            data = await untis.getTimetableForToday?.();
+        }
+    } catch (e: any) {
+        const msg = String(e?.message || '').toLowerCase();
+        // Treat "no result" from Untis as an empty timetable instead of erroring
+        if (
+            msg.includes("didn't return any result") ||
+            msg.includes('did not return any result') ||
+            msg.includes('no result')
+        ) {
+            console.warn('[timetable] no result from Untis, returning empty');
+            data = [];
+        } else {
+            throw new AppError('Untis fetch failed', 502, 'UNTIS_FETCH_FAILED');
+        }
     }
 
     try {
         await untis.logout?.();
     } catch {}
 
-    const payload = data ?? {};
+    const payload = data ?? [];
     const rangeStart = sd ?? null;
     const rangeEnd = ed ?? null;
 
