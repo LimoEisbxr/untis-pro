@@ -3,10 +3,6 @@
 
 generator client {
     provider = "prisma-client-js"
-    // Ensure correct engine for Debian (OpenSSL 3)
-    binaryTargets = ["debian-openssl-3.0.x"]
-    // Prefer Node-API engine (no external libssl at runtime)
-    engineType = "library"
 }
 
 datasource db {
