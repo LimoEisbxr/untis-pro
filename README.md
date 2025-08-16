@@ -25,6 +25,35 @@ Prereqs: Node 18+, npm, Docker Desktop (for Postgres). If you don't have Docker,
 
 Open http://localhost:5173.
 
+## Run the whole stack with Docker
+
+This repo includes Dockerfiles and a compose file to run Postgres, the backend (Express + Prisma), and the frontend (Nginx serving the built app and proxying /api).
+
+Ports:
+
+-   Frontend: http://localhost:8080
+-   Backend API: http://localhost:3001
+-   Postgres: localhost:5432
+
+Start everything:
+
+```cmd
+docker compose up -d --build
+```
+
+Environment variables (override as needed in compose):
+
+-   JWT_SECRET: default "change-me-please"
+-   CORS_ORIGIN: default http://localhost:8080
+-   DATABASE_URL: auto-wired to the Postgres service
+-   UNTIS_DEFAULT_SCHOOL, UNTIS_HOST
+-   Optional admin: UNTIS_ADMIN_USERNAME, UNTIS_ADMIN_PASSWORD
+
+Check health:
+
+-   API: http://localhost:3001/health
+-   Web: http://localhost:8080/health
+
 ## API
 
 -   POST /api/auth/register { username, password, displayName? }
