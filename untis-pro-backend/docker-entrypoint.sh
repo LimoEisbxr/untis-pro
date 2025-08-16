@@ -33,5 +33,15 @@ if ! npx prisma migrate deploy; then
   exit 1
 fi
 
+# Verify critical tables exist; if not, attempt to sync schema (dev-friendly fallback)
+if ! printf 'SELECT 1 FROM "User" LIMIT 1;' | npx prisma db execute --stdin >/dev/null 2>&1; then
+  echo "[entrypoint] WARNING: 'User' table not found after migrate deploy. Running 'prisma db push' to sync schema."
+  if ! npx prisma db push --accept-data-loss; then
+    echo "[entrypoint] ERROR: prisma db push failed" >&2
+    npx prisma migrate status || true
+    exit 1
+  fi
+fi
+
 echo "[entrypoint] Starting server..."
 exec node dist/index.js
