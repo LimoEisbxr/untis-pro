@@ -37,6 +37,8 @@ services:
             UNTIS_HOST: herakles.webuntis.com
             # Prisma engine (ensure Node-API engine)
             PRISMA_CLIENT_ENGINE_TYPE: library
+            PRISMA_CLI_QUERY_ENGINE_TYPE: library
+            PRISMA_CLI_QUERY_ENGINE_BINARY: node
             # Optional admin login
             UNTIS_ADMIN_USERNAME: ''
             UNTIS_ADMIN_PASSWORD: ''

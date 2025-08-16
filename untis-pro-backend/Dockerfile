@@ -32,7 +32,7 @@ ENV NODE_ENV=production \
 
 # Install tini and curl for healthchecks, openssl for Prisma
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends tini curl openssl ca-certificates \
+    && apt-get install -y --no-install-recommends tini curl openssl libssl3 ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 ENTRYPOINT ["/usr/bin/tini", "--"]
 
