@@ -1,5 +1,6 @@
 #!/bin/sh
-set -euo pipefail
+# POSIX sh: no pipefail available
+set -eu
 
 echo "[entrypoint] Starting backend container..."
 
@@ -10,12 +11,15 @@ if [ -z "${DATABASE_URL:-}" ]; then
 fi
 
 echo "[entrypoint] Waiting for database to accept connections..."
-for i in 1 2 3 4 5 6 7 8 9 10; do
-  if npx prisma db execute --stdin <<<'SELECT 1;' >/dev/null 2>&1; then
+max_tries=10
+i=1
+while [ "$i" -le "$max_tries" ]; do
+  if printf 'SELECT 1;' | npx prisma db execute --stdin >/dev/null 2>&1; then
     echo "[entrypoint] Database is ready."
     break
   fi
-  echo "[entrypoint] DB not ready yet, retry $i/10..."
+  echo "[entrypoint] DB not ready yet, retry $i/$max_tries..."
+  i=$((i+1))
   sleep 3
 done
 
