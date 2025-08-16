@@ -1,16 +1,18 @@
 # Build stage
-FROM node:20-alpine AS build
+FROM node:20-bookworm-slim AS build
 WORKDIR /app
 
 # Install OS deps
-RUN apk add --no-cache python3 make g++
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends python3 make g++ openssl ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
 # Copy manifests and install deps
 COPY package.json package-lock.json* pnpm-lock.yaml* yarn.lock* ./
 RUN if [ -f package-lock.json ]; then npm ci; \
-    elif [ -f pnpm-lock.yaml ]; then npm i -g pnpm && pnpm i --frozen-lockfile; \
-    elif [ -f yarn.lock ]; then npm i -g yarn && yarn install --frozen-lockfile; \
-    else npm i; fi
+        elif [ -f pnpm-lock.yaml ]; then npm i -g pnpm && pnpm i --frozen-lockfile; \
+        elif [ -f yarn.lock ]; then npm i -g yarn && yarn install --frozen-lockfile; \
+        else npm i; fi
 
 # Copy source
 COPY tsconfig.json ./tsconfig.json
@@ -21,13 +23,18 @@ COPY src ./src
 RUN npx prisma generate && npm run build
 
 # Runtime stage
-FROM node:20-alpine AS runtime
+FROM node:20-bookworm-slim AS runtime
 WORKDIR /app
-ENV NODE_ENV=production
+ENV NODE_ENV=production \
+    PRISMA_GENERATE_SKIP_AUTOINSTALL=1 \
+    PRISMA_CLIENT_ENGINE_TYPE=library \
+    PRISMA_CLI_QUERY_ENGINE_TYPE=library
 
-# Install tini for signal handling
-RUN apk add --no-cache tini curl
-ENTRYPOINT ["/sbin/tini", "--"]
+# Install tini and curl for healthchecks, openssl for Prisma
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends tini curl openssl ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+ENTRYPOINT ["/usr/bin/tini", "--"]
 
 # Copy built app and prisma artifacts
 COPY --from=build /app/node_modules /app/node_modules
@@ -36,9 +43,6 @@ COPY --from=build /app/dist /app/dist
 
 # App port
 EXPOSE 3001
-
-# Healthcheck optional (compose has one)
-# HEALTHCHECK CMD wget -qO- http://localhost:3001/health || exit 1
 
 # Entrypoint to run migrations and start app
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh

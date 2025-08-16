@@ -35,6 +35,8 @@ services:
             # Untis defaults (override as needed)
             UNTIS_DEFAULT_SCHOOL: hhg-zw
             UNTIS_HOST: herakles.webuntis.com
+            # Prisma engine (ensure Node-API engine)
+            PRISMA_CLIENT_ENGINE_TYPE: library
             # Optional admin login
             UNTIS_ADMIN_USERNAME: ''
             UNTIS_ADMIN_PASSWORD: ''
