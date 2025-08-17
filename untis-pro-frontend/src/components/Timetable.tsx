@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, useRef, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
 import type { Lesson, TimetableResponse } from '../types';
 import {
     addDays,
@@ -87,6 +88,253 @@ function FitText({
     );
 }
 
+// Modal component for lesson details
+function LessonModal({
+    lesson,
+    isOpen,
+    onClose,
+    isDeveloperMode,
+}: {
+    lesson: Lesson | null;
+    isOpen: boolean;
+    onClose: () => void;
+    isDeveloperMode: boolean;
+}) {
+    const [animatingOut, setAnimatingOut] = useState(false);
+    const [entered, setEntered] = useState(false);
+    const [copied, setCopied] = useState(false);
+
+    // Mount for exit animation
+    const shouldRender = isOpen || animatingOut;
+
+    useEffect(() => {
+        if (isOpen) {
+            // trigger enter animation on next tick
+            const t = setTimeout(() => setEntered(true), 0);
+            document.body.style.overflow = 'hidden';
+            return () => {
+                clearTimeout(t);
+            };
+        }
+        return;
+    }, [isOpen]);
+
+    useEffect(() => {
+        const handleEscape = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                handleClose();
+            }
+        };
+        if (shouldRender) document.addEventListener('keydown', handleEscape);
+        return () => document.removeEventListener('keydown', handleEscape);
+    }, [shouldRender]);
+
+    const handleClose = () => {
+        setEntered(false);
+        setAnimatingOut(true);
+        // allow animation to finish
+        setTimeout(() => {
+            setAnimatingOut(false);
+            document.body.style.overflow = 'unset';
+            onClose();
+        }, 200);
+    };
+
+    if (!shouldRender || !lesson) return null;
+
+    const copyToClipboard = async (text: string) => {
+        try {
+            await navigator.clipboard.writeText(text);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1500);
+        } catch (err) {
+            console.error('Failed to copy: ', err);
+        }
+    };
+
+    const subject = lesson.su?.[0]?.name ?? lesson.activityType ?? '—';
+    const subjectLong = lesson.su?.[0]?.longname ?? subject;
+    const room = lesson.ro?.map((r) => r.name).join(', ');
+    const roomLong = lesson.ro?.map((r) => r.longname || r.name).join(', ');
+    const teacher = lesson.te?.map((t) => t.name).join(', ');
+    const teacherLong = lesson.te?.map((t) => t.longname || t.name).join(', ');
+    const startTime = fmtHM(untisToMinutes(lesson.startTime));
+    const endTime = fmtHM(untisToMinutes(lesson.endTime));
+
+    // Render the modal at the document.body level to ensure the backdrop covers the entire viewport
+    return createPortal(
+        <div
+            className={`fixed inset-0 z-[9999] flex items-center justify-center p-4 transition-opacity duration-200 ${
+                entered ? 'opacity-100' : 'opacity-0'
+            }`}
+            onClick={handleClose}
+        >
+            {/* Backdrop */}
+            <div
+                aria-hidden
+                className={`absolute inset-0 bg-black/50 backdrop-blur-lg backdrop-saturate-150 backdrop-contrast-125 transition-opacity duration-200 ${
+                    entered ? 'opacity-100' : 'opacity-0'
+                }`}
+            />
+
+            {/* Panel */}
+            <div
+                className={`relative w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-2xl shadow-2xl ring-1 ring-black/10 dark:ring-white/10 bg-white/95 dark:bg-slate-900/90 backdrop-blur-md transition-all duration-200 ease-out ${
+                    entered ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
+                }`}
+                onClick={(e) => e.stopPropagation()}
+                role="dialog"
+                aria-modal="true"
+            >
+                <div className="flex items-center justify-between p-6 border-b border-slate-200/60 dark:border-slate-700/60 bg-gradient-to-r from-slate-50/60 to-white/30 dark:from-slate-800/60 dark:to-slate-900/30 rounded-t-2xl">
+                    <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">
+                        {isDeveloperMode
+                            ? 'Lesson Data (Developer Mode)'
+                            : 'Lesson Details'}
+                    </h2>
+                    <button
+                        onClick={handleClose}
+                        className="inline-flex items-center justify-center rounded-md p-2 text-slate-500 hover:text-slate-700 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-800/60 transition"
+                        aria-label="Close"
+                    >
+                        <svg
+                            className="w-5 h-5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                        >
+                            <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M6 18L18 6M6 6l12 12"
+                            />
+                        </svg>
+                    </button>
+                </div>
+
+                <div className="p-6">
+                    {isDeveloperMode ? (
+                        <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                                <h3 className="text-lg font-medium text-slate-900 dark:text-slate-100">
+                                    Raw JSON Data
+                                </h3>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={() =>
+                                            copyToClipboard(
+                                                JSON.stringify(lesson, null, 2)
+                                            )
+                                        }
+                                        className={`px-3 py-1.5 text-sm rounded-md shadow transition inline-flex items-center gap-1 ${
+                                            copied
+                                                ? 'bg-emerald-600 hover:bg-emerald-600 text-white'
+                                                : 'bg-indigo-600 hover:bg-indigo-500 text-white'
+                                        }`}
+                                        aria-live="polite"
+                                    >
+                                        {copied ? (
+                                            <>
+                                                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg>
+                                                <span>Copied</span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 16h8M8 12h8m-7 8h6a2 2 0 002-2V7a2 2 0 00-2-2h-3.5L10 3H8a2 2 0 00-2 2v13a2 2 0 002 2z" /></svg>
+                                                <span>Copy JSON</span>
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
+                            </div>
+                            <pre className="bg-slate-900/90 text-slate-100 p-4 rounded-lg text-xs overflow-x-auto ring-1 ring-black/10 dark:ring-white/10">
+                                {JSON.stringify(lesson, null, 2)}
+                            </pre>
+                        </div>
+                    ) : (
+                        <div className="space-y-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-2">
+                                        Subject
+                                    </h3>
+                                    <p className="text-slate-900 dark:text-slate-100">
+                                        {subjectLong}
+                                    </p>
+                                    {subjectLong !== subject && (
+                                        <p className="text-sm text-slate-600 dark:text-slate-400">
+                                            ({subject})
+                                        </p>
+                                    )}
+                                </div>
+                                <div>
+                                    <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-2">
+                                        Time
+                                    </h3>
+                                    <p className="text-slate-900 dark:text-slate-100">
+                                        {startTime} - {endTime}
+                                    </p>
+                                </div>
+                                {teacherLong && (
+                                    <div>
+                                        <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-2">
+                                            Teacher
+                                        </h3>
+                                        <p className="text-slate-900 dark:text-slate-100">
+                                            {teacherLong}
+                                        </p>
+                                        {teacherLong !== teacher && (
+                                            <p className="text-sm text-slate-600 dark:text-slate-400">
+                                                ({teacher})
+                                            </p>
+                                        )}
+                                    </div>
+                                )}
+                                {roomLong && (
+                                    <div>
+                                        <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-2">
+                                            Room
+                                        </h3>
+                                        <p className="text-slate-900 dark:text-slate-100">
+                                            {roomLong}
+                                        </p>
+                                        {roomLong !== room && (
+                                            <p className="text-sm text-slate-600 dark:text-slate-400">
+                                                ({room})
+                                            </p>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                            {lesson.code && (
+                                <div>
+                                    <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-2">
+                                        Status
+                                    </h3>
+                                    <p
+                                        className={`inline-block px-2 py-1 rounded-md text-xs font-semibold tracking-wide ${
+                                            lesson.code === 'cancelled'
+                                                ? 'bg-rose-100 text-rose-800 dark:bg-rose-900/60 dark:text-rose-200'
+                                                : lesson.code === 'irregular'
+                                                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200'
+                                                : 'bg-slate-100 text-slate-800 dark:bg-slate-800/60 dark:text-slate-200'
+                                        }`}
+                                    >
+                                        {lesson.code.charAt(0).toUpperCase() +
+                                            lesson.code.slice(1)}
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>,
+        document.body
+    );
+}
+
 export default function Timetable({
     data,
     weekStart,
@@ -98,6 +346,21 @@ export default function Timetable({
     const END_MIN = 17 * 60 + 15; // 17:15
     const totalMinutes = END_MIN - START_MIN;
     const [SCALE, setSCALE] = useState<number>(1);
+
+    // Check if developer mode should be available via environment variable
+    const isDeveloperModeEnabled =
+        import.meta.env.VITE_ENABLE_DEVELOPER_MODE === 'true';
+
+    // Developer mode and modal state
+    const [isDeveloperMode, setIsDeveloperMode] = useState(false);
+    const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+
+    const handleLessonClick = (lesson: Lesson) => {
+        setSelectedLesson(lesson);
+        setIsModalOpen(true);
+    };
+
     const BOTTOM_PAD_PX = 12;
     const DAY_HEADER_PX = 28;
     const containerHeight =
@@ -211,6 +474,42 @@ export default function Timetable({
 
     return (
         <div className="w-full overflow-x-auto">
+            {/* Developer Mode Toggle - only show if enabled via environment variable */}
+            {isDeveloperModeEnabled && (
+                <div className="mb-4 flex justify-end px-1.5">
+                    <button
+                        type="button"
+                        onClick={() => setIsDeveloperMode((v) => !v)}
+                        className={`group inline-flex items-center gap-2 rounded-full px-3 py-1.5 shadow ring-1 ring-slate-900/10 dark:ring-white/10 transition ${
+                            isDeveloperMode
+                                ? 'bg-indigo-600 text-white'
+                                : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200'
+                        }`}
+                        aria-pressed={isDeveloperMode}
+                        aria-label="Toggle developer mode"
+                    >
+                        <span
+                            className={`relative inline-flex h-5 w-9 items-center rounded-full transition ${
+                                isDeveloperMode
+                                    ? 'bg-indigo-500'
+                                    : 'bg-slate-300 dark:bg-slate-600'
+                            }`}
+                        >
+                            <span
+                                className={`absolute left-0 h-5 w-5 rounded-full bg-white dark:bg-slate-200 shadow transform transition-transform duration-200 ${
+                                    isDeveloperMode
+                                        ? 'translate-x-4'
+                                        : 'translate-x-0'
+                                }`}
+                            />
+                        </span>
+                        <span className="text-sm font-medium">
+                            Developer Mode
+                        </span>
+                    </button>
+                </div>
+            )}
+
             <div
                 className="min-w-[820px] grid gap-x-3"
                 style={{ gridTemplateColumns: '64px repeat(5, 1fr)' }}
@@ -367,7 +666,7 @@ export default function Timetable({
                     return (
                         <div
                             key={key}
-                            className="relative px-1.5 first:pl-3 last:pr-3"
+                            className="relative px-1.5 first:pl-3 last:pr-3 overflow-hidden"
                             style={{ height: containerHeight }}
                         >
                             <div className="absolute inset-0 rounded-xl ring-1 ring-slate-900/10 dark:ring-white/10 shadow-sm overflow-hidden transition-colors bg-gradient-to-b from-slate-50/85 via-slate-100/80 to-sky-50/70 dark:bg-slate-800/40 dark:bg-none" />
@@ -429,7 +728,7 @@ export default function Timetable({
                                 return (
                                     <div
                                         key={l.id}
-                                        className={`absolute rounded-md p-2 text-xs ring-1 ring-slate-900/15 dark:ring-white/20 overflow-hidden ${
+                                        className={`absolute rounded-md p-2 text-xs ring-1 ring-slate-900/15 dark:ring-white/20 overflow-hidden cursor-pointer transform-gpu transition duration-150 hover:shadow-lg hover:brightness-115 hover:saturate-150 hover:contrast-110 hover:-translate-y-0.5 ${
                                             cancelled
                                                 ? 'bg-rose-500/90 text-white'
                                                 : irregular
@@ -447,6 +746,7 @@ export default function Timetable({
                                         )} | ${subject} ${
                                             room ? `| ${room}` : ''
                                         } ${teacher ? `| ${teacher}` : ''}`}
+                                        onClick={() => handleLessonClick(l)}
                                     >
                                         <div className="flex h-full min-w-0 flex-col">
                                             <div className="flex items-stretch justify-between gap-2 min-w-0 h-full">
@@ -506,6 +806,17 @@ export default function Timetable({
                     );
                 })}
             </div>
+
+            {/* Lesson Detail Modal */}
+            <LessonModal
+                lesson={selectedLesson}
+                isOpen={isModalOpen}
+                onClose={() => {
+                    setIsModalOpen(false);
+                    setSelectedLesson(null);
+                }}
+                isDeveloperMode={isDeveloperMode}
+            />
         </div>
     );
 }

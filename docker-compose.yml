@@ -33,13 +33,13 @@ services:
             # Prisma
             DATABASE_URL: postgresql://postgres:postgres@db:5432/untis_pro?schema=public
             # Enter Untis defaults here
-            UNTIS_DEFAULT_SCHOOL: <school-id>
-            UNTIS_HOST: <url>.webuntis.com
+            UNTIS_DEFAULT_SCHOOL: hhg-zw
+            UNTIS_HOST: herakles.webuntis.com
             # Prisma engine (ensure Node-API engine)
             PRISMA_CLIENT_ENGINE_TYPE: library
             # Optional admin login
-            UNTIS_ADMIN_USERNAME: ''
-            UNTIS_ADMIN_PASSWORD: ''
+            UNTIS_ADMIN_USERNAME: admin
+            UNTIS_ADMIN_PASSWORD: admin
         ports:
             - '3001:3001'
         healthcheck:
@@ -54,11 +54,21 @@ services:
         build:
             context: ./untis-pro-frontend
             dockerfile: Dockerfile
+            args:
+                # Ensure Vite sees these at build time
+                VITE_API_BASE: ${VITE_API_BASE}
+                VITE_ENABLE_DEVELOPER_MODE: ${VITE_ENABLE_DEVELOPER_MODE}
         depends_on:
             backend:
                 condition: service_healthy
         ports:
             - '8080:80'
+        env_file:
+            - .env
+        # Optional: also propagate as runtime envs (not required for Vite, but useful for debugging)
+        environment:
+            - VITE_API_BASE=${VITE_API_BASE}
+            - VITE_ENABLE_DEVELOPER_MODE=${VITE_ENABLE_DEVELOPER_MODE}
         restart: unless-stopped
 
 volumes:

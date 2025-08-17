@@ -13,6 +13,9 @@ COPY . .
 # e.g. docker build --build-arg VITE_API_BASE=http://localhost:3001
 ARG VITE_API_BASE
 ENV VITE_API_BASE=${VITE_API_BASE}
+# Also allow enabling developer mode at build time
+ARG VITE_ENABLE_DEVELOPER_MODE
+ENV VITE_ENABLE_DEVELOPER_MODE=${VITE_ENABLE_DEVELOPER_MODE}
 
 RUN npm run build
 
