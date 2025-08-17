@@ -2,6 +2,12 @@
 FROM node:20-bookworm-slim AS build
 WORKDIR /app
 
+ARG DATABASE_URL
+ARG JWT_SECRET
+
+ENV DATABASE_URL=${DATABASE_URL}
+ENV JWT_SECRET=${JWT_SECRET}
+
 # Install OS deps
 RUN apt-get update \
     && apt-get install -y --no-install-recommends python3 make g++ openssl ca-certificates \
@@ -30,6 +36,12 @@ ENV NODE_ENV=production \
     PRISMA_CLIENT_ENGINE_TYPE=library \
     PRISMA_CLI_QUERY_ENGINE_TYPE=library
 
+ARG CORS_ORIGIN
+ARG PORT
+
+ENV CORS_ORIGIN=${CORS_ORIGIN}
+ENV PORT=${PORT}
+
 # Install tini and curl for healthchecks, openssl for Prisma
 RUN apt-get update \
     && apt-get install -y --no-install-recommends tini curl openssl ca-certificates \
@@ -42,7 +54,7 @@ COPY --from=build /app/prisma /app/prisma
 COPY --from=build /app/dist /app/dist
 
 # App port
-EXPOSE 3001
+EXPOSE ${PORT}
 
 # Entrypoint to run migrations and start app
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh

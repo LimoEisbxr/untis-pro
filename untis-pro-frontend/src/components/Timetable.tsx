@@ -104,6 +104,14 @@ function LessonModal({
     const [entered, setEntered] = useState(false);
     const [copied, setCopied] = useState(false);
 
+    // Lock scrolling by disabling the custom scroll container
+    const lockScroll = () => {
+        document.documentElement.classList.add('modal-open');
+    };
+    const unlockScroll = () => {
+        document.documentElement.classList.remove('modal-open');
+    };
+
     // Mount for exit animation
     const shouldRender = isOpen || animatingOut;
 
@@ -111,9 +119,11 @@ function LessonModal({
         if (isOpen) {
             // trigger enter animation on next tick
             const t = setTimeout(() => setEntered(true), 0);
-            document.body.style.overflow = 'hidden';
+            lockScroll();
             return () => {
                 clearTimeout(t);
+                // In case modal is unmounted while open
+                unlockScroll();
             };
         }
         return;
@@ -135,7 +145,7 @@ function LessonModal({
         // allow animation to finish
         setTimeout(() => {
             setAnimatingOut(false);
-            document.body.style.overflow = 'unset';
+            unlockScroll();
             onClose();
         }, 200);
     };
@@ -164,7 +174,7 @@ function LessonModal({
     // Render the modal at the document.body level to ensure the backdrop covers the entire viewport
     return createPortal(
         <div
-            className={`fixed inset-0 z-[9999] flex items-center justify-center p-4 transition-opacity duration-200 ${
+            className={`fixed inset-0 z-[9999] modal-portal flex items-center justify-center p-4 transition-opacity duration-200 ${
                 entered ? 'opacity-100' : 'opacity-0'
             }`}
             onClick={handleClose}
@@ -179,7 +189,7 @@ function LessonModal({
 
             {/* Panel */}
             <div
-                className={`relative w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-2xl shadow-2xl ring-1 ring-black/10 dark:ring-white/10 bg-white/95 dark:bg-slate-900/90 backdrop-blur-md transition-all duration-200 ease-out ${
+                className={`relative w-full max-w-2xl max-h-[85vh] overflow-y-auto no-native-scrollbar rounded-2xl shadow-2xl ring-1 ring-black/10 dark:ring-white/10 bg-white/95 dark:bg-slate-900/90 backdrop-blur-md transition-all duration-200 ease-out ${
                     entered ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
                 }`}
                 onClick={(e) => e.stopPropagation()}
@@ -236,12 +246,36 @@ function LessonModal({
                                     >
                                         {copied ? (
                                             <>
-                                                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg>
+                                                <svg
+                                                    className="w-4 h-4"
+                                                    viewBox="0 0 24 24"
+                                                    fill="none"
+                                                    stroke="currentColor"
+                                                >
+                                                    <path
+                                                        strokeLinecap="round"
+                                                        strokeLinejoin="round"
+                                                        strokeWidth="2"
+                                                        d="M5 13l4 4L19 7"
+                                                    />
+                                                </svg>
                                                 <span>Copied</span>
                                             </>
                                         ) : (
                                             <>
-                                                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 16h8M8 12h8m-7 8h6a2 2 0 002-2V7a2 2 0 00-2-2h-3.5L10 3H8a2 2 0 00-2 2v13a2 2 0 002 2z" /></svg>
+                                                <svg
+                                                    className="w-4 h-4"
+                                                    viewBox="0 0 24 24"
+                                                    fill="none"
+                                                    stroke="currentColor"
+                                                >
+                                                    <path
+                                                        strokeLinecap="round"
+                                                        strokeLinejoin="round"
+                                                        strokeWidth="2"
+                                                        d="M8 16h8M8 12h8m-7 8h6a2 2 0 002-2V7a2 2 0 00-2-2h-3.5L10 3H8a2 2 0 00-2 2v13a2 2 0 002 2z"
+                                                    />
+                                                </svg>
                                                 <span>Copy JSON</span>
                                             </>
                                         )}

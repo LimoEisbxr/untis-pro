@@ -23,23 +23,14 @@ services:
         depends_on:
             db:
                 condition: service_healthy
+        env_file:
+            - .env
         environment:
-            # Server
-            PORT: 3001
-            NODE_ENV: production
-            CORS_ORIGIN: http://localhost:8080
-            # Auth
-            JWT_SECRET: change-me-please
-            # Prisma
-            DATABASE_URL: postgresql://postgres:postgres@db:5432/untis_pro?schema=public
-            # Enter Untis defaults here
-            UNTIS_DEFAULT_SCHOOL: hhg-zw
-            UNTIS_HOST: herakles.webuntis.com
-            # Prisma engine (ensure Node-API engine)
-            PRISMA_CLIENT_ENGINE_TYPE: library
-            # Optional admin login
-            UNTIS_ADMIN_USERNAME: admin
-            UNTIS_ADMIN_PASSWORD: admin
+            # Ensure DATABASE_URL is explicitly set for the container runtime
+            DATABASE_URL: ${DATABASE_URL}
+            JWT_SECRET: ${JWT_SECRET}
+            PORT: ${PORT}
+            CORS_ORIGIN: ${CORS_ORIGIN}
         ports:
             - '3001:3001'
         healthcheck:
@@ -65,10 +56,6 @@ services:
             - '8080:80'
         env_file:
             - .env
-        # Optional: also propagate as runtime envs (not required for Vite, but useful for debugging)
-        environment:
-            - VITE_API_BASE=${VITE_API_BASE}
-            - VITE_ENABLE_DEVELOPER_MODE=${VITE_ENABLE_DEVELOPER_MODE}
         restart: unless-stopped
 
 volumes:
