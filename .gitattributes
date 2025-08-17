@@ -1,0 +1,5 @@
+# Enforce LF for shell scripts and Docker-related files to avoid Windows line endings in images
+*.sh text eol=lf
+Dockerfile text eol=lf
+*.dockerignore text eol=lf
+*.env text eol=lf

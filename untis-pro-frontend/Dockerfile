@@ -2,6 +2,10 @@
 FROM node:20-alpine AS build
 WORKDIR /app
 
+# Allow passing Vite env at build-time (used by import.meta.env)
+ARG VITE_ENABLE_DEVELOPER_MODE
+ENV VITE_ENABLE_DEVELOPER_MODE=$VITE_ENABLE_DEVELOPER_MODE
+
 COPY package.json package-lock.json* pnpm-lock.yaml* yarn.lock* ./
 RUN if [ -f package-lock.json ]; then npm ci; \
     elif [ -f pnpm-lock.yaml ]; then npm i -g pnpm && pnpm i --frozen-lockfile; \
@@ -9,14 +13,6 @@ RUN if [ -f package-lock.json ]; then npm ci; \
     else npm i; fi
 
 COPY . .
-# Ensure base is set for API if provided at build time
-# e.g. docker build --build-arg VITE_API_BASE=http://localhost:3001
-ARG VITE_API_BASE
-ENV VITE_API_BASE=${VITE_API_BASE}
-# Also allow enabling developer mode at build time
-ARG VITE_ENABLE_DEVELOPER_MODE
-ENV VITE_ENABLE_DEVELOPER_MODE=${VITE_ENABLE_DEVELOPER_MODE}
-
 RUN npm run build
 
 # Serve with nginx

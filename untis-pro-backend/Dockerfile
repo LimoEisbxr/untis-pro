@@ -53,10 +53,12 @@ COPY --from=build /app/node_modules /app/node_modules
 COPY --from=build /app/prisma /app/prisma
 COPY --from=build /app/dist /app/dist
 
-# App port
-EXPOSE ${PORT}
+# App port (documented default)
+EXPOSE 3001
 
 # Entrypoint to run migrations and start app
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+# Normalize potential Windows CRLF line-endings and ensure executable bit
+RUN sed -i 's/\r$//' /usr/local/bin/docker-entrypoint.sh \
+    && chmod +x /usr/local/bin/docker-entrypoint.sh
 CMD ["/usr/local/bin/docker-entrypoint.sh"]

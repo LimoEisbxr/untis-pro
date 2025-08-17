@@ -382,8 +382,11 @@ export default function Timetable({
     const [SCALE, setSCALE] = useState<number>(1);
 
     // Check if developer mode should be available via environment variable
+    // Be tolerant to whitespace/casing in .env values (e.g., "true ")
     const isDeveloperModeEnabled =
-        import.meta.env.VITE_ENABLE_DEVELOPER_MODE === 'true';
+        String(import.meta.env.VITE_ENABLE_DEVELOPER_MODE ?? '')
+            .trim()
+            .toLowerCase() === 'true';
 
     // Developer mode and modal state
     const [isDeveloperMode, setIsDeveloperMode] = useState(false);
