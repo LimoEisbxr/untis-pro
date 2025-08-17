@@ -32,7 +32,6 @@ services:
             PORT: ${PORT}
             # Do not override CORS_ORIGIN so env file or runtime env controls it; if unset, backend reflects Origin
             CORS_ORIGIN: ${CORS_ORIGIN}
-            VITE_ENABLE_DEVELOPER_MODE: ${VITE_ENABLE_DEVELOPER_MODE}
         ports:
             - '3001:3001'
         healthcheck:
@@ -51,11 +50,9 @@ services:
             backend:
                 condition: service_healthy
         ports:
-            - '8080:80'
+            - '${WEB_PORT:-8080}:80'
         env_file:
             - .env
-        environment:
-            - VITE_ENABLE_DEVELOPER_MODE=${VITE_ENABLE_DEVELOPER_MODE}
         restart: unless-stopped
 
 volumes:
