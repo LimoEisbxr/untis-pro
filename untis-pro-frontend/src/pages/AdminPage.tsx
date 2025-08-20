@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import MoonIcon from '../components/MoonIcon';
-import { api } from '../api';
+import { api, getDefaultLessonColors, setDefaultLessonColor } from '../api';
+import ColorPicker from '../components/ColorPicker';
+import type { LessonColors } from '../types';
 
 export default function AdminPage({
     token,
@@ -20,19 +22,26 @@ export default function AdminPage({
     >([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [defaultColors, setDefaultColors] = useState<LessonColors>({});
+    const [newLessonName, setNewLessonName] = useState('');
+    const [showColorPicker, setShowColorPicker] = useState<string | null>(null);
 
     const load = useCallback(async () => {
         setLoading(true);
         setError(null);
         try {
-            const res = await api<{
-                users: Array<{
-                    id: string;
-                    username: string;
-                    displayName: string | null;
-                }>;
-            }>('/api/admin/users', { token });
-            setUsers(res.users);
+            const [usersRes, defaultColorsRes] = await Promise.all([
+                api<{
+                    users: Array<{
+                        id: string;
+                        username: string;
+                        displayName: string | null;
+                    }>;
+                }>('/api/admin/users', { token }),
+                getDefaultLessonColors(token),
+            ]);
+            setUsers(usersRes.users);
+            setDefaultColors(defaultColorsRes);
         } catch (e) {
             setError(e instanceof Error ? e.message : String(e));
         } finally {
@@ -56,6 +65,30 @@ export default function AdminPage({
             setLoading(false);
         }
     }
+
+    const handleSetDefaultColor = useCallback(async (lessonName: string, color: string) => {
+        try {
+            await setDefaultLessonColor(token, lessonName, color);
+            setDefaultColors(prev => ({ ...prev, [lessonName]: color }));
+            setShowColorPicker(null);
+        } catch (e) {
+            setError(e instanceof Error ? e.message : String(e));
+        }
+    }, [token]);
+
+    const handleAddNewDefault = useCallback(async () => {
+        const lessonName = newLessonName.trim();
+        if (!lessonName) return;
+        
+        try {
+            const defaultColor = '#3b82f6'; // blue-500
+            await setDefaultLessonColor(token, lessonName, defaultColor);
+            setDefaultColors(prev => ({ ...prev, [lessonName]: defaultColor }));
+            setNewLessonName('');
+        } catch (e) {
+            setError(e instanceof Error ? e.message : String(e));
+        }
+    }, [token, newLessonName]);
 
     useEffect(() => {
         load();
@@ -159,6 +192,87 @@ export default function AdminPage({
                                 )}
                             </tbody>
                         </table>
+                    </div>
+                </section>
+
+                {/* Default Lesson Colors Section */}
+                <section className="card p-4 mt-6">
+                    <div className="flex items-center justify-between">
+                        <h2 className="text-lg font-semibold">Default Lesson Colors</h2>
+                        <p className="text-sm text-slate-600 dark:text-slate-400">
+                            Set default colors for lesson types
+                        </p>
+                    </div>
+                    
+                    {/* Add New Default Color */}
+                    <div className="mt-4 p-4 border border-slate-200 dark:border-slate-700 rounded-lg">
+                        <h3 className="text-md font-medium mb-3">Add New Default</h3>
+                        <div className="flex gap-3">
+                            <input
+                                type="text"
+                                value={newLessonName}
+                                onChange={(e) => setNewLessonName(e.target.value)}
+                                placeholder="Lesson name (e.g., Math, English)"
+                                className="input flex-1"
+                            />
+                            <button
+                                onClick={handleAddNewDefault}
+                                disabled={!newLessonName.trim() || loading}
+                                className="btn-primary"
+                            >
+                                Add
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Existing Default Colors */}
+                    <div className="mt-4">
+                        {Object.keys(defaultColors).length === 0 ? (
+                            <p className="text-center text-slate-500 py-8">
+                                No default colors set. Add some above.
+                            </p>
+                        ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {Object.entries(defaultColors).map(([lessonName, color]) => (
+                                    <div 
+                                        key={lessonName}
+                                        className="border border-slate-200 dark:border-slate-700 rounded-lg p-4"
+                                    >
+                                        <div className="flex items-center justify-between mb-3">
+                                            <h4 className="font-medium">{lessonName}</h4>
+                                            <button
+                                                onClick={() => setShowColorPicker(
+                                                    showColorPicker === lessonName ? null : lessonName
+                                                )}
+                                                className="btn-secondary text-xs"
+                                            >
+                                                {showColorPicker === lessonName ? 'Cancel' : 'Edit'}
+                                            </button>
+                                        </div>
+                                        
+                                        <div 
+                                            className="w-full h-12 rounded-md border border-slate-300 dark:border-slate-600 mb-3"
+                                            style={{ 
+                                                background: `linear-gradient(to right, ${color}, ${color})`
+                                            }}
+                                        />
+                                        
+                                        <p className="text-xs text-slate-500 dark:text-slate-400 text-center">
+                                            {color}
+                                        </p>
+                                        
+                                        {showColorPicker === lessonName && (
+                                            <div className="mt-3 border-t border-slate-200 dark:border-slate-700 pt-3">
+                                                <ColorPicker
+                                                    currentColor={color}
+                                                    onColorChange={(newColor) => handleSetDefaultColor(lessonName, newColor)}
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 </section>
             </main>

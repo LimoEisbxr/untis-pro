@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { authMiddleware } from '../server/authMiddleware.js';
+import { authMiddleware, adminOnly } from '../server/authMiddleware.js';
 import rateLimit from 'express-rate-limit';
 import { PrismaClient } from '@prisma/client';
 
@@ -106,7 +106,6 @@ router.delete('/remove-color', authMiddleware, colorLimiter, async (req, res) =>
 
 // Admin routes for default colors
 router.get('/defaults', authMiddleware, colorLimiter, async (req, res) => {
-    // Only allow if user is admin (we'll check this in middleware or here)
     try {
         const defaults = await prisma.defaultLessonColor.findMany({
             select: {
@@ -127,8 +126,7 @@ router.get('/defaults', authMiddleware, colorLimiter, async (req, res) => {
     }
 });
 
-router.post('/set-default', authMiddleware, colorLimiter, async (req, res) => {
-    // TODO: Add admin check middleware
+router.post('/set-default', authMiddleware, adminOnly, colorLimiter, async (req, res) => {
     const validation = colorSchema.safeParse(req.body);
     if (!validation.success) {
         return res.status(400).json({ error: validation.error.flatten() });
