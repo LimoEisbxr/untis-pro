@@ -1,6 +1,13 @@
-import { useEffect, useMemo, useState, useRef, useLayoutEffect } from 'react';
+import {
+    useEffect,
+    useMemo,
+    useState,
+    useRef,
+    useLayoutEffect,
+    useCallback,
+} from 'react';
 import { createPortal } from 'react-dom';
-import type { Lesson, TimetableResponse } from '../types';
+import type { Lesson, TimetableResponse, LessonColors } from '../types';
 import {
     addDays,
     clamp,
@@ -11,6 +18,12 @@ import {
     yyyymmddToISO,
 } from '../utils/dates';
 import { DEFAULT_PERIODS } from '../utils/periods';
+import {
+    generateGradient,
+    gradientToTailwindClasses,
+    getDefaultGradient,
+} from '../utils/colors';
+import ColorPicker from './ColorPicker';
 
 function FitText({
     children,
@@ -94,11 +107,19 @@ function LessonModal({
     isOpen,
     onClose,
     isDeveloperMode,
+    lessonColors,
+    defaultLessonColors,
+    isAdmin,
+    onColorChange,
 }: {
     lesson: Lesson | null;
     isOpen: boolean;
     onClose: () => void;
     isDeveloperMode: boolean;
+    lessonColors?: LessonColors;
+    defaultLessonColors?: LessonColors;
+    isAdmin?: boolean;
+    onColorChange?: (lessonName: string, color: string | null) => void;
 }) {
     const [animatingOut, setAnimatingOut] = useState(false);
     const [entered, setEntered] = useState(false);
@@ -129,17 +150,7 @@ function LessonModal({
         return;
     }, [isOpen]);
 
-    useEffect(() => {
-        const handleEscape = (event: KeyboardEvent) => {
-            if (event.key === 'Escape') {
-                handleClose();
-            }
-        };
-        if (shouldRender) document.addEventListener('keydown', handleEscape);
-        return () => document.removeEventListener('keydown', handleEscape);
-    }, [shouldRender]);
-
-    const handleClose = () => {
+    const handleClose = useCallback(() => {
         setEntered(false);
         setAnimatingOut(true);
         // allow animation to finish
@@ -148,7 +159,17 @@ function LessonModal({
             unlockScroll();
             onClose();
         }, 200);
-    };
+    }, [onClose]);
+
+    useEffect(() => {
+        const handleEscape = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                handleClose();
+            }
+        };
+        if (shouldRender) document.addEventListener('keydown', handleEscape);
+        return () => document.removeEventListener('keydown', handleEscape);
+    }, [shouldRender, handleClose]);
 
     if (!shouldRender || !lesson) return null;
 
@@ -360,6 +381,32 @@ function LessonModal({
                                     </p>
                                 </div>
                             )}
+
+                            {/* Color Customization Section */}
+                            {onColorChange && subject && (
+                                <div>
+                                    <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-3">
+                                        Customize Color
+                                    </h3>
+                                    <div className="border border-slate-200 dark:border-slate-700 rounded-lg p-4">
+                                        <ColorPicker
+                                            currentColor={
+                                                lessonColors?.[subject]
+                                            }
+                                            fallbackColor={
+                                                defaultLessonColors?.[subject]
+                                            }
+                                            canRemoveFallback={!!isAdmin}
+                                            onColorChange={(color) =>
+                                                onColorChange(subject, color)
+                                            }
+                                            onRemoveColor={() =>
+                                                onColorChange(subject, null)
+                                            }
+                                        />
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
@@ -372,9 +419,17 @@ function LessonModal({
 export default function Timetable({
     data,
     weekStart,
+    lessonColors = {},
+    defaultLessonColors = {},
+    isAdmin = false,
+    onColorChange,
 }: {
     data: TimetableResponse | null;
     weekStart: Date;
+    lessonColors?: LessonColors;
+    defaultLessonColors?: LessonColors;
+    isAdmin?: boolean;
+    onColorChange?: (lessonName: string, color: string | null) => void;
 }) {
     const START_MIN = 7 * 60 + 40; // 07:40
     const END_MIN = 17 * 60 + 15; // 17:15
@@ -749,6 +804,16 @@ export default function Timetable({
                                 const teacher = l.te
                                     ?.map((t) => t.name)
                                     .join(', ');
+
+                                // Get custom color or use default
+                                const effectiveColor =
+                                    lessonColors[subject] ??
+                                    defaultLessonColors[subject] ??
+                                    null;
+                                const gradient = effectiveColor
+                                    ? generateGradient(effectiveColor)
+                                    : getDefaultGradient();
+
                                 const GAP_PCT = 2.25;
                                 const widthPct =
                                     (100 - GAP_PCT * (b.colCount - 1)) /
@@ -762,21 +827,29 @@ export default function Timetable({
                                     12,
                                     height - (PAD_TOP + PAD_BOTTOM)
                                 );
+
                                 return (
                                     <div
                                         key={l.id}
-                                        className={`absolute rounded-md p-2 text-xs ring-1 ring-slate-900/15 dark:ring-white/20 overflow-hidden cursor-pointer transform-gpu transition duration-150 hover:shadow-lg hover:brightness-115 hover:saturate-150 hover:contrast-110 hover:-translate-y-0.5 ${
+                                        className={`absolute rounded-md p-2 text-xs ring-1 ring-slate-900/15 dark:ring-white/20 overflow-hidden cursor-pointer transform-gpu transition duration-150 hover:shadow-lg hover:brightness-115 hover:saturate-150 hover:contrast-110 hover:-translate-y-0.5 text-white ${
                                             cancelled
-                                                ? 'bg-rose-500/90 text-white'
+                                                ? 'bg-rose-500/90'
                                                 : irregular
-                                                ? 'bg-emerald-500/90 text-white'
-                                                : 'bg-gradient-to-r from-indigo-500 to-emerald-600 text-white'
+                                                ? 'bg-emerald-500/90'
+                                                : ''
                                         }`}
                                         style={{
                                             top: adjTop,
                                             height: adjHeight,
                                             left: `${leftPct}%`,
                                             width: `${widthPct}%`,
+                                            background: cancelled
+                                                ? undefined
+                                                : irregular
+                                                ? undefined
+                                                : gradientToTailwindClasses(
+                                                      gradient
+                                                  ),
                                         }}
                                         title={`${fmtHM(b.startMin)}–${fmtHM(
                                             b.endMin
@@ -853,6 +926,10 @@ export default function Timetable({
                     setSelectedLesson(null);
                 }}
                 isDeveloperMode={isDeveloperMode}
+                lessonColors={lessonColors}
+                defaultLessonColors={defaultLessonColors}
+                isAdmin={isAdmin}
+                onColorChange={onColorChange}
             />
         </div>
     );

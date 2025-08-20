@@ -7,6 +7,7 @@ import authRoutes from './routes/auth.js';
 import timetableRoutes from './routes/timetable.js';
 import adminRoutes from './routes/admin.js';
 import usersRoutes from './routes/users.js';
+import lessonColorsRoutes from './routes/lessonColors.js';
 
 dotenv.config();
 
@@ -65,5 +66,6 @@ app.use('/api/auth', authRoutes);
 app.use('/api/timetable', timetableRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/users', usersRoutes);
+app.use('/api/lesson-colors', lessonColorsRoutes);
 
 export default app;

@@ -1,9 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Timetable from '../components/Timetable';
 import MoonIcon from '../components/MoonIcon';
-import { api, API_BASE } from '../api';
+import {
+    api,
+    API_BASE,
+    getLessonColors,
+    setLessonColor,
+    removeLessonColor,
+    getDefaultLessonColors,
+} from '../api';
 import { addDays, fmtLocal, startOfWeek } from '../utils/dates';
-import type { TimetableResponse, User } from '../types';
+import type { TimetableResponse, User, LessonColors } from '../types';
 
 export default function Dashboard({
     token,
@@ -32,7 +39,31 @@ export default function Dashboard({
         displayName: string | null;
     } | null>(null);
     const abortRef = useRef<AbortController | null>(null);
+    const searchBoxRef = useRef<HTMLDivElement | null>(null);
     const [loading, setLoading] = useState(false);
+    const [lessonColors, setLessonColors] = useState<LessonColors>({});
+    const [defaultLessonColors, setDefaultLessonColors] =
+        useState<LessonColors>({});
+    // Short auto-retry countdown for rate limit (429)
+    const [retrySeconds, setRetrySeconds] = useState<number | null>(null);
+
+    // Derive a friendly info message for admin users when their own timetable isn't available
+    const adminInfoMessage = useMemo(() => {
+        if (!loadError || !user?.isAdmin) return null;
+        // loadError may be raw text or a JSON string like {"error":"Target user not found"}
+        let msg = loadError;
+        try {
+            const parsed = JSON.parse(loadError);
+            if (parsed && typeof parsed === 'object' && parsed.error)
+                msg = String(parsed.error);
+        } catch {
+            // ignore JSON parse errors; use loadError as-is
+        }
+        if (/target user not found/i.test(msg)) {
+            return `Admins don't have a personal timetable. Use "Find student" above to search and view a user's timetable.`;
+        }
+        return null;
+    }, [loadError, user?.isAdmin]);
 
     // Compute the week range based on the selected date
     const weekStartDate = useMemo(() => startOfWeek(new Date(start)), [start]);
@@ -64,7 +95,28 @@ export default function Dashboard({
             setMine(res);
         } catch (e) {
             const msg = e instanceof Error ? e.message : 'Failed to load';
+            // Auto-retry if rate-limited; avoid replacing timetable with an empty one
+            try {
+                const parsed = JSON.parse(msg);
+                if (parsed?.status === 429) {
+                    const retryAfterSec = Math.max(
+                        1,
+                        Number(parsed?.retryAfter || 0) || 1
+                    );
+                    setRetrySeconds(retryAfterSec);
+                    setLoadError(null); // handled by retry banner below
+                    const t = setTimeout(() => {
+                        setRetrySeconds(null);
+                        loadMine();
+                    }, retryAfterSec * 1000);
+                    // Best-effort: clear timer if component unmounts or deps change
+                    return () => clearTimeout(t);
+                }
+            } catch {
+                // ignore JSON parse errors and non-structured messages
+            }
             setLoadError(msg);
+            // Non-429: fall back to an empty timetable to keep UI consistent
             setMine({
                 userId: user.id,
                 rangeStart: weekStartStr,
@@ -88,6 +140,25 @@ export default function Dashboard({
                 setMine(res);
             } catch (e) {
                 const msg = e instanceof Error ? e.message : 'Failed to load';
+                // Auto-retry if rate-limited; avoid replacing timetable with an empty one
+                try {
+                    const parsed = JSON.parse(msg);
+                    if (parsed?.status === 429) {
+                        const retryAfterSec = Math.max(
+                            1,
+                            Number(parsed?.retryAfter || 0) || 1
+                        );
+                        setRetrySeconds(retryAfterSec);
+                        setLoadError(null);
+                        const t = setTimeout(() => {
+                            setRetrySeconds(null);
+                            loadUser(userId);
+                        }, retryAfterSec * 1000);
+                        return () => clearTimeout(t);
+                    }
+                } catch {
+                    // ignore JSON parse errors and non-structured messages
+                }
                 setLoadError(msg);
                 setMine({
                     userId,
@@ -107,6 +178,76 @@ export default function Dashboard({
             loadUser(selectedUser.id);
         else loadMine();
     }, [loadUser, loadMine, selectedUser, user.id]);
+
+    // Load user's lesson colors
+    useEffect(() => {
+        const loadLessonColors = async () => {
+            try {
+                const colors = await getLessonColors(token);
+                setLessonColors(colors);
+            } catch (error) {
+                console.error('Failed to load lesson colors:', error);
+                // Don't show error to user for colors, just use defaults
+            }
+        };
+        const loadDefaults = async () => {
+            try {
+                const defaults = await getDefaultLessonColors(token);
+                setDefaultLessonColors(defaults);
+            } catch {
+                // Ignore; fallback to hardcoded defaults in UI
+            }
+        };
+        loadLessonColors();
+        loadDefaults();
+    }, [token]);
+
+    // Handle lesson color changes
+    const handleColorChange = useCallback(
+        async (lessonName: string, color: string | null) => {
+            try {
+                const viewingUserId = selectedUser?.id;
+                if (color) {
+                    await setLessonColor(
+                        token,
+                        lessonName,
+                        color,
+                        viewingUserId
+                    );
+                    setLessonColors((prev) => ({
+                        ...prev,
+                        [lessonName]: color,
+                    }));
+                    // If admin, this sets a global default too; reflect immediately
+                    if (user.isAdmin) {
+                        setDefaultLessonColors((prev) => ({
+                            ...prev,
+                            [lessonName]: color,
+                        }));
+                    }
+                } else {
+                    await removeLessonColor(token, lessonName, viewingUserId);
+                    setLessonColors((prev) => {
+                        const updated = { ...prev };
+                        delete updated[lessonName];
+                        return updated;
+                    });
+                    // If admin, removing resets the global default; update fallback immediately
+                    if (user.isAdmin) {
+                        setDefaultLessonColors((prev) => {
+                            const updated = { ...prev };
+                            delete updated[lessonName];
+                            return updated;
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to update lesson color:', error);
+                // TODO: Show error message to user
+            }
+        },
+        [token, selectedUser?.id, user.isAdmin]
+    );
 
     useEffect(() => {
         const q = queryText.trim();
@@ -144,6 +285,28 @@ export default function Dashboard({
         }, 250);
         return () => clearTimeout(h);
     }, [queryText, token]);
+
+    // Close the search dropdown on outside click or Escape
+    useEffect(() => {
+        const handlePointer = (e: MouseEvent | TouchEvent) => {
+            const node = searchBoxRef.current;
+            if (!node) return;
+            if (!node.contains(e.target as Node)) {
+                if (results.length) setResults([]);
+            }
+        };
+        const handleKey = (e: KeyboardEvent) => {
+            if (e.key === 'Escape' && results.length) setResults([]);
+        };
+        document.addEventListener('mousedown', handlePointer);
+        document.addEventListener('touchstart', handlePointer);
+        document.addEventListener('keydown', handleKey);
+        return () => {
+            document.removeEventListener('mousedown', handlePointer);
+            document.removeEventListener('touchstart', handlePointer);
+            document.removeEventListener('keydown', handleKey);
+        };
+    }, [results.length]);
 
     return (
         <div className={'min-h-screen'}>
@@ -240,7 +403,7 @@ export default function Dashboard({
                         <div className="flex items-end gap-2">
                             <div>
                                 <label className="label">Find student</label>
-                                <div className="relative">
+                                <div className="relative" ref={searchBoxRef}>
                                     <input
                                         className="input pr-9"
                                         placeholder="Search name or username"
@@ -344,12 +507,34 @@ export default function Dashboard({
                         </div>
                     </div>
                     <div className="mt-4">
-                        {loadError && (
-                            <div className="mb-3 rounded-md border border-amber-300 bg-amber-50 p-3 text-amber-800 dark:border-amber-700 dark:bg-amber-900/40 dark:text-amber-200">
-                                {loadError}
+                        {retrySeconds !== null ? (
+                            <div className="mb-3 rounded-md border border-sky-300 bg-sky-50 p-3 text-sky-800 dark:border-sky-700 dark:bg-sky-900/40 dark:text-sky-200">
+                                Rate limit reached. Retrying in {retrySeconds}s…
                             </div>
-                        )}
-                        <Timetable data={mine} weekStart={weekStartDate} />
+                        ) : adminInfoMessage ? (
+                            <div className="mb-3 rounded-md border border-sky-300 bg-sky-50 p-3 text-sky-800 dark:border-sky-700 dark:bg-sky-900/40 dark:text-sky-200">
+                                {adminInfoMessage}
+                            </div>
+                        ) : loadError ? (
+                            <div className="mb-3 rounded-md border border-amber-300 bg-amber-50 p-3 text-amber-800 dark:border-amber-700 dark:bg-amber-900/40 dark:text-amber-200">
+                                {(() => {
+                                    try {
+                                        const parsed = JSON.parse(loadError);
+                                        return parsed?.error || loadError;
+                                    } catch {
+                                        return loadError;
+                                    }
+                                })()}
+                            </div>
+                        ) : null}
+                        <Timetable
+                            data={mine}
+                            weekStart={weekStartDate}
+                            lessonColors={lessonColors}
+                            defaultLessonColors={defaultLessonColors}
+                            isAdmin={!!user.isAdmin}
+                            onColorChange={handleColorChange}
+                        />
                     </div>
                 </section>
             </main>

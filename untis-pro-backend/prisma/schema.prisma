@@ -24,6 +24,7 @@ model User {
     // Relationships
     timetables Timetable[]
     sessions   SessionToken[]
+    lessonColors LessonColorSetting[]
 
     @@unique([username])
 }
@@ -47,4 +48,24 @@ model SessionToken {
     user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
     token     String   @unique
     expiresAt DateTime
+}
+
+model LessonColorSetting {
+    id        String   @id @default(uuid())
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+    userId    String
+    user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    lessonName String  // Subject name like "Math", "English", etc.
+    color     String   // Hex color code like "#3b82f6"
+    
+    @@unique([userId, lessonName])
+}
+
+model DefaultLessonColor {
+    id        String   @id @default(uuid())
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+    lessonName String  @unique // Subject name
+    color     String   // Default hex color code
 }

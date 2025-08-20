@@ -27,20 +27,51 @@ echo "[entrypoint] Generating Prisma client..."
 npx prisma generate
 
 echo "[entrypoint] Applying migrations (prisma migrate deploy)..."
-if ! npx prisma migrate deploy; then
-  echo "[entrypoint] ERROR: prisma migrate deploy failed" >&2
-  npx prisma -v || true
-  exit 1
-fi
+migrate_output=$(npx prisma migrate deploy 2>&1) || migrate_failed=true
 
-# Verify critical tables exist; if not, attempt to sync schema (dev-friendly fallback)
-if ! printf 'SELECT 1 FROM "User" LIMIT 1;' | npx prisma db execute --stdin >/dev/null 2>&1; then
-  echo "[entrypoint] WARNING: 'User' table not found after migrate deploy. Running 'prisma db push' to sync schema."
+if [ "${migrate_failed:-false}" = "true" ]; then
+  echo "[entrypoint] No migrations found or migrate deploy failed. This is normal for fresh installations."
+  echo "[entrypoint] Migration output: $migrate_output"
+  echo "[entrypoint] Using 'prisma db push' to initialize database schema..."
   if ! npx prisma db push --accept-data-loss; then
     echo "[entrypoint] ERROR: prisma db push failed" >&2
     npx prisma migrate status || true
     exit 1
   fi
+  echo "[entrypoint] Database schema initialized successfully."
+else
+  echo "[entrypoint] Migrations applied successfully."
+fi
+
+# Verify critical tables exist; if not, attempt another sync (dev-friendly fallback)
+echo "[entrypoint] Verifying database schema..."
+missing_tables=""
+
+# Check for User table
+if ! printf 'SELECT 1 FROM "User" LIMIT 1;' | npx prisma db execute --stdin >/dev/null 2>&1; then
+  missing_tables="$missing_tables User"
+fi
+
+# Check for LessonColorSetting table
+if ! printf 'SELECT 1 FROM "LessonColorSetting" LIMIT 1;' | npx prisma db execute --stdin >/dev/null 2>&1; then
+  missing_tables="$missing_tables LessonColorSetting"
+fi
+
+# Check for DefaultLessonColor table
+if ! printf 'SELECT 1 FROM "DefaultLessonColor" LIMIT 1;' | npx prisma db execute --stdin >/dev/null 2>&1; then
+  missing_tables="$missing_tables DefaultLessonColor"
+fi
+
+if [ -n "$missing_tables" ]; then
+  echo "[entrypoint] WARNING: Missing tables:$missing_tables. Running additional 'prisma db push' to ensure schema sync."
+  if ! npx prisma db push --accept-data-loss; then
+    echo "[entrypoint] ERROR: Additional prisma db push failed" >&2
+    npx prisma migrate status || true
+    exit 1
+  fi
+  echo "[entrypoint] Schema synchronized successfully."
+else
+  echo "[entrypoint] All required tables exist."
 fi
 
 echo "[entrypoint] Starting server..."
