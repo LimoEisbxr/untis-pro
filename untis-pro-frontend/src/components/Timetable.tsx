@@ -1,4 +1,11 @@
-import { useEffect, useMemo, useState, useRef, useLayoutEffect } from 'react';
+import {
+    useEffect,
+    useMemo,
+    useState,
+    useRef,
+    useLayoutEffect,
+    useCallback,
+} from 'react';
 import { createPortal } from 'react-dom';
 import type { Lesson, TimetableResponse, LessonColors } from '../types';
 import {
@@ -11,7 +18,11 @@ import {
     yyyymmddToISO,
 } from '../utils/dates';
 import { DEFAULT_PERIODS } from '../utils/periods';
-import { generateGradient, gradientToTailwindClasses, getDefaultGradient } from '../utils/colors';
+import {
+    generateGradient,
+    gradientToTailwindClasses,
+    getDefaultGradient,
+} from '../utils/colors';
 import ColorPicker from './ColorPicker';
 
 function FitText({
@@ -97,6 +108,8 @@ function LessonModal({
     onClose,
     isDeveloperMode,
     lessonColors,
+    defaultLessonColors,
+    isAdmin,
     onColorChange,
 }: {
     lesson: Lesson | null;
@@ -104,6 +117,8 @@ function LessonModal({
     onClose: () => void;
     isDeveloperMode: boolean;
     lessonColors?: LessonColors;
+    defaultLessonColors?: LessonColors;
+    isAdmin?: boolean;
     onColorChange?: (lessonName: string, color: string | null) => void;
 }) {
     const [animatingOut, setAnimatingOut] = useState(false);
@@ -135,17 +150,7 @@ function LessonModal({
         return;
     }, [isOpen]);
 
-    useEffect(() => {
-        const handleEscape = (event: KeyboardEvent) => {
-            if (event.key === 'Escape') {
-                handleClose();
-            }
-        };
-        if (shouldRender) document.addEventListener('keydown', handleEscape);
-        return () => document.removeEventListener('keydown', handleEscape);
-    }, [shouldRender]);
-
-    const handleClose = () => {
+    const handleClose = useCallback(() => {
         setEntered(false);
         setAnimatingOut(true);
         // allow animation to finish
@@ -154,7 +159,17 @@ function LessonModal({
             unlockScroll();
             onClose();
         }, 200);
-    };
+    }, [onClose]);
+
+    useEffect(() => {
+        const handleEscape = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                handleClose();
+            }
+        };
+        if (shouldRender) document.addEventListener('keydown', handleEscape);
+        return () => document.removeEventListener('keydown', handleEscape);
+    }, [shouldRender, handleClose]);
 
     if (!shouldRender || !lesson) return null;
 
@@ -375,9 +390,19 @@ function LessonModal({
                                     </h3>
                                     <div className="border border-slate-200 dark:border-slate-700 rounded-lg p-4">
                                         <ColorPicker
-                                            currentColor={lessonColors?.[subject]}
-                                            onColorChange={(color) => onColorChange(subject, color)}
-                                            onRemoveColor={() => onColorChange(subject, null)}
+                                            currentColor={
+                                                lessonColors?.[subject]
+                                            }
+                                            fallbackColor={
+                                                defaultLessonColors?.[subject]
+                                            }
+                                            canRemoveFallback={!!isAdmin}
+                                            onColorChange={(color) =>
+                                                onColorChange(subject, color)
+                                            }
+                                            onRemoveColor={() =>
+                                                onColorChange(subject, null)
+                                            }
                                         />
                                     </div>
                                 </div>
@@ -395,11 +420,15 @@ export default function Timetable({
     data,
     weekStart,
     lessonColors = {},
+    defaultLessonColors = {},
+    isAdmin = false,
     onColorChange,
 }: {
     data: TimetableResponse | null;
     weekStart: Date;
     lessonColors?: LessonColors;
+    defaultLessonColors?: LessonColors;
+    isAdmin?: boolean;
     onColorChange?: (lessonName: string, color: string | null) => void;
 }) {
     const START_MIN = 7 * 60 + 40; // 07:40
@@ -775,13 +804,16 @@ export default function Timetable({
                                 const teacher = l.te
                                     ?.map((t) => t.name)
                                     .join(', ');
-                                
+
                                 // Get custom color or use default
-                                const customColor = lessonColors[subject];
-                                const gradient = customColor 
-                                    ? generateGradient(customColor)
+                                const effectiveColor =
+                                    lessonColors[subject] ??
+                                    defaultLessonColors[subject] ??
+                                    null;
+                                const gradient = effectiveColor
+                                    ? generateGradient(effectiveColor)
                                     : getDefaultGradient();
-                                
+
                                 const GAP_PCT = 2.25;
                                 const widthPct =
                                     (100 - GAP_PCT * (b.colCount - 1)) /
@@ -795,7 +827,7 @@ export default function Timetable({
                                     12,
                                     height - (PAD_TOP + PAD_BOTTOM)
                                 );
-                                
+
                                 return (
                                     <div
                                         key={l.id}
@@ -811,11 +843,13 @@ export default function Timetable({
                                             height: adjHeight,
                                             left: `${leftPct}%`,
                                             width: `${widthPct}%`,
-                                            background: cancelled 
+                                            background: cancelled
                                                 ? undefined
                                                 : irregular
                                                 ? undefined
-                                                : gradientToTailwindClasses(gradient),
+                                                : gradientToTailwindClasses(
+                                                      gradient
+                                                  ),
                                         }}
                                         title={`${fmtHM(b.startMin)}–${fmtHM(
                                             b.endMin
@@ -893,6 +927,8 @@ export default function Timetable({
                 }}
                 isDeveloperMode={isDeveloperMode}
                 lessonColors={lessonColors}
+                defaultLessonColors={defaultLessonColors}
+                isAdmin={isAdmin}
                 onColorChange={onColorChange}
             />
         </div>
