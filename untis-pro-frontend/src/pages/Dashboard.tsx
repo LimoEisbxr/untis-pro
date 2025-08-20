@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Timetable from '../components/Timetable';
 import MoonIcon from '../components/MoonIcon';
-import { api, API_BASE } from '../api';
+import { api, API_BASE, getLessonColors, setLessonColor, removeLessonColor } from '../api';
 import { addDays, fmtLocal, startOfWeek } from '../utils/dates';
-import type { TimetableResponse, User } from '../types';
+import type { TimetableResponse, User, LessonColors } from '../types';
 
 export default function Dashboard({
     token,
@@ -33,6 +33,7 @@ export default function Dashboard({
     } | null>(null);
     const abortRef = useRef<AbortController | null>(null);
     const [loading, setLoading] = useState(false);
+    const [lessonColors, setLessonColors] = useState<LessonColors>({});
 
     // Compute the week range based on the selected date
     const weekStartDate = useMemo(() => startOfWeek(new Date(start)), [start]);
@@ -107,6 +108,40 @@ export default function Dashboard({
             loadUser(selectedUser.id);
         else loadMine();
     }, [loadUser, loadMine, selectedUser, user.id]);
+
+    // Load user's lesson colors
+    useEffect(() => {
+        const loadLessonColors = async () => {
+            try {
+                const colors = await getLessonColors(token);
+                setLessonColors(colors);
+            } catch (error) {
+                console.error('Failed to load lesson colors:', error);
+                // Don't show error to user for colors, just use defaults
+            }
+        };
+        loadLessonColors();
+    }, [token]);
+
+    // Handle lesson color changes
+    const handleColorChange = useCallback(async (lessonName: string, color: string | null) => {
+        try {
+            if (color) {
+                await setLessonColor(token, lessonName, color);
+                setLessonColors(prev => ({ ...prev, [lessonName]: color }));
+            } else {
+                await removeLessonColor(token, lessonName);
+                setLessonColors(prev => {
+                    const updated = { ...prev };
+                    delete updated[lessonName];
+                    return updated;
+                });
+            }
+        } catch (error) {
+            console.error('Failed to update lesson color:', error);
+            // TODO: Show error message to user
+        }
+    }, [token]);
 
     useEffect(() => {
         const q = queryText.trim();
@@ -349,7 +384,12 @@ export default function Dashboard({
                                 {loadError}
                             </div>
                         )}
-                        <Timetable data={mine} weekStart={weekStartDate} />
+                        <Timetable 
+                            data={mine} 
+                            weekStart={weekStartDate}
+                            lessonColors={lessonColors}
+                            onColorChange={handleColorChange}
+                        />
                     </div>
                 </section>
             </main>

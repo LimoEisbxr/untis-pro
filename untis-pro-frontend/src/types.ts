@@ -24,3 +24,11 @@ export type Lesson = {
     code?: string; // e.g. 'cancelled'
     activityType?: string;
 };
+
+export type LessonColors = Record<string, string>; // lessonName -> hex color
+
+export type ColorGradient = {
+    from: string;
+    via: string;
+    to: string;
+};

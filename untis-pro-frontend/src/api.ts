@@ -2,6 +2,8 @@ type ViteImportMeta = { env?: { VITE_API_BASE?: string } };
 const API_BASE: string | undefined = (import.meta as unknown as ViteImportMeta)
     .env?.VITE_API_BASE;
 
+import type { LessonColors } from './types';
+
 export async function api<T>(
     path: string,
     opts: RequestInit & { token?: string } = {}
@@ -37,6 +39,50 @@ export async function api<T>(
     });
     if (!res.ok) throw new Error(await res.text());
     return res.json();
+}
+
+// Lesson color API functions
+export async function getLessonColors(token: string): Promise<LessonColors> {
+    return api<LessonColors>('/api/lesson-colors/my-colors', { token });
+}
+
+export async function setLessonColor(
+    token: string,
+    lessonName: string,
+    color: string
+): Promise<{ success: boolean }> {
+    return api<{ success: boolean }>('/api/lesson-colors/set-color', {
+        method: 'POST',
+        token,
+        body: JSON.stringify({ lessonName, color }),
+    });
+}
+
+export async function removeLessonColor(
+    token: string,
+    lessonName: string
+): Promise<{ success: boolean }> {
+    return api<{ success: boolean }>('/api/lesson-colors/remove-color', {
+        method: 'DELETE',
+        token,
+        body: JSON.stringify({ lessonName }),
+    });
+}
+
+export async function getDefaultLessonColors(token: string): Promise<LessonColors> {
+    return api<LessonColors>('/api/lesson-colors/defaults', { token });
+}
+
+export async function setDefaultLessonColor(
+    token: string,
+    lessonName: string,
+    color: string
+): Promise<{ success: boolean }> {
+    return api<{ success: boolean }>('/api/lesson-colors/set-default', {
+        method: 'POST',
+        token,
+        body: JSON.stringify({ lessonName, color }),
+    });
 }
 
 export { API_BASE };
