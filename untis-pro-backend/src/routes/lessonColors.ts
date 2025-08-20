@@ -2,10 +2,9 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { authMiddleware, adminOnly } from '../server/authMiddleware.js';
 import rateLimit from 'express-rate-limit';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../store/prisma.js';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 // Rate limit for color operations
 const colorLimiter = rateLimit({
