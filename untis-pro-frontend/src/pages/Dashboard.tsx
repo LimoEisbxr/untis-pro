@@ -126,11 +126,12 @@ export default function Dashboard({
     // Handle lesson color changes
     const handleColorChange = useCallback(async (lessonName: string, color: string | null) => {
         try {
+            const viewingUserId = selectedUser?.id;
             if (color) {
-                await setLessonColor(token, lessonName, color);
+                await setLessonColor(token, lessonName, color, viewingUserId);
                 setLessonColors(prev => ({ ...prev, [lessonName]: color }));
             } else {
-                await removeLessonColor(token, lessonName);
+                await removeLessonColor(token, lessonName, viewingUserId);
                 setLessonColors(prev => {
                     const updated = { ...prev };
                     delete updated[lessonName];
@@ -141,7 +142,7 @@ export default function Dashboard({
             console.error('Failed to update lesson color:', error);
             // TODO: Show error message to user
         }
-    }, [token]);
+    }, [token, selectedUser?.id]);
 
     useEffect(() => {
         const q = queryText.trim();

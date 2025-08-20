@@ -49,23 +49,33 @@ export async function getLessonColors(token: string): Promise<LessonColors> {
 export async function setLessonColor(
     token: string,
     lessonName: string,
-    color: string
-): Promise<{ success: boolean }> {
-    return api<{ success: boolean }>('/api/lesson-colors/set-color', {
+    color: string,
+    viewingUserId?: string
+): Promise<{ success: boolean; type?: string }> {
+    const body: any = { lessonName, color };
+    if (viewingUserId) {
+        body.viewingUserId = viewingUserId;
+    }
+    return api<{ success: boolean; type?: string }>('/api/lesson-colors/set-color', {
         method: 'POST',
         token,
-        body: JSON.stringify({ lessonName, color }),
+        body: JSON.stringify(body),
     });
 }
 
 export async function removeLessonColor(
     token: string,
-    lessonName: string
-): Promise<{ success: boolean }> {
-    return api<{ success: boolean }>('/api/lesson-colors/remove-color', {
+    lessonName: string,
+    viewingUserId?: string
+): Promise<{ success: boolean; type?: string }> {
+    const body: any = { lessonName };
+    if (viewingUserId) {
+        body.viewingUserId = viewingUserId;
+    }
+    return api<{ success: boolean; type?: string }>('/api/lesson-colors/remove-color', {
         method: 'DELETE',
         token,
-        body: JSON.stringify({ lessonName }),
+        body: JSON.stringify(body),
     });
 }
 
