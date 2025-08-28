@@ -8,9 +8,12 @@ import {
     setLessonColor,
     removeLessonColor,
     getDefaultLessonColors,
+    getHomework,
+    getUserHomework,
+    updateHomeworkCompletion,
 } from '../api';
 import { addDays, fmtLocal, startOfWeek } from '../utils/dates';
-import type { TimetableResponse, User, LessonColors } from '../types';
+import type { TimetableResponse, User, LessonColors, Homework } from '../types';
 
 export default function Dashboard({
     token,
@@ -44,6 +47,7 @@ export default function Dashboard({
     const [lessonColors, setLessonColors] = useState<LessonColors>({});
     const [defaultLessonColors, setDefaultLessonColors] =
         useState<LessonColors>({});
+    const [homework, setHomework] = useState<Homework[]>([]);
     // Short auto-retry countdown for rate limit (429)
     const [retrySeconds, setRetrySeconds] = useState<number | null>(null);
 
@@ -93,6 +97,16 @@ export default function Dashboard({
                 { token }
             );
             setMine(res);
+            
+            // Load homework for the same date range
+            try {
+                const homeworkRes = await getHomework(token, weekStartStr, weekEndStr);
+                setHomework(homeworkRes.homework);
+            } catch (hwError) {
+                console.error('Failed to load homework:', hwError);
+                // Don't fail the whole operation if homework fails
+                setHomework([]);
+            }
         } catch (e) {
             const msg = e instanceof Error ? e.message : 'Failed to load';
             // Auto-retry if rate-limited; avoid replacing timetable with an empty one
@@ -138,6 +152,15 @@ export default function Dashboard({
                     { token }
                 );
                 setMine(res);
+                
+                // Load homework for the user
+                try {
+                    const homeworkRes = await getUserHomework(token, userId, weekStartStr, weekEndStr);
+                    setHomework(homeworkRes.homework);
+                } catch (hwError) {
+                    console.error('Failed to load user homework:', hwError);
+                    setHomework([]);
+                }
             } catch (e) {
                 const msg = e instanceof Error ? e.message : 'Failed to load';
                 // Auto-retry if rate-limited; avoid replacing timetable with an empty one
@@ -247,6 +270,22 @@ export default function Dashboard({
             }
         },
         [token, selectedUser?.id, user.isAdmin]
+    );
+
+    // Handle homework completion toggle
+    const handleHomeworkToggle = useCallback(
+        async (homeworkId: string, completed: boolean) => {
+            try {
+                const updatedHomework = await updateHomeworkCompletion(token, homeworkId, completed);
+                setHomework(prev => prev.map(hw => 
+                    hw.id === homeworkId ? updatedHomework : hw
+                ));
+            } catch (error) {
+                console.error('Failed to update homework completion:', error);
+                // TODO: Show error message to user
+            }
+        },
+        [token]
     );
 
     useEffect(() => {
@@ -530,10 +569,12 @@ export default function Dashboard({
                         <Timetable
                             data={mine}
                             weekStart={weekStartDate}
+                            homework={homework}
                             lessonColors={lessonColors}
                             defaultLessonColors={defaultLessonColors}
                             isAdmin={!!user.isAdmin}
                             onColorChange={handleColorChange}
+                            onHomeworkToggle={handleHomeworkToggle}
                         />
                     </div>
                 </section>

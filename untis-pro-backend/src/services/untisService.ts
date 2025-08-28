@@ -151,3 +151,137 @@ export async function verifyUntisCredentials(
         throw new AppError('Untis login failed', 502, 'UNTIS_LOGIN_FAILED');
     }
 }
+
+export async function getOrFetchHomeworkRange(args: {
+    requesterId: string;
+    targetUserId: string;
+    start?: string | undefined;
+    end?: string | undefined;
+}) {
+    console.debug('[homework] request', {
+        requesterId: args.requesterId,
+        targetUserId: args.targetUserId,
+        start: args.start,
+        end: args.end,
+    });
+    const target = await prisma.user.findUnique({
+        where: { id: args.targetUserId },
+    });
+    if (!target) throw new Error('Target user not found');
+
+    // Fetch fresh from WebUntis
+    const school = UNTIS_DEFAULT_SCHOOL;
+    const host = toHost();
+    console.debug('[homework] using Untis', {
+        school,
+        host,
+        username: target.username,
+    });
+    const untis = new WebUntis(
+        school,
+        target.username,
+        target.password,
+        host
+    ) as any;
+    try {
+        await untis.login();
+    } catch (e: any) {
+        const msg = e?.message || '';
+        if (msg.includes('bad credentials')) {
+            throw new AppError(
+                'Invalid Untis credentials',
+                401,
+                'BAD_CREDENTIALS'
+            );
+        }
+        throw new AppError('Untis login failed', 502, 'UNTIS_LOGIN_FAILED');
+    }
+
+    let data: any;
+    const sd = args.start ? new Date(args.start) : undefined;
+    const ed = args.end ? new Date(args.end) : undefined;
+    try {
+        if (sd && ed && typeof untis.getHomeWorksFor === 'function') {
+            console.debug('[homework] calling getHomeWorksFor', {
+                start: sd,
+                end: ed,
+            });
+            data = await untis.getHomeWorksFor(sd, ed);
+        } else {
+            console.warn('[homework] getHomeWorksFor not available, returning empty');
+            data = { homeworks: [], lessons: [] };
+        }
+    } catch (e: any) {
+        const msg = String(e?.message || '').toLowerCase();
+        // Treat "no result" from Untis as empty homework instead of erroring
+        if (
+            msg.includes("didn't return any result") ||
+            msg.includes('did not return any result') ||
+            msg.includes('no result')
+        ) {
+            console.warn('[homework] no result from Untis, returning empty');
+            data = { homeworks: [], lessons: [] };
+        } else {
+            throw new AppError('Untis homework fetch failed', 502, 'UNTIS_HOMEWORK_FETCH_FAILED');
+        }
+    }
+
+    try {
+        await untis.logout?.();
+    } catch {}
+
+    const payload = data ?? { homeworks: [], lessons: [] };
+    const rangeStart = sd ?? null;
+    const rangeEnd = ed ?? null;
+
+    console.debug('[homework] response summary', {
+        hasPayload: !!payload,
+        homeworkCount: payload?.homeworks?.length || 0,
+        lessonCount: payload?.lessons?.length || 0,
+    });
+
+    // Save homework to database
+    if (payload.homeworks && Array.isArray(payload.homeworks)) {
+        for (const hw of payload.homeworks) {
+            try {
+                // Skip creation if homework already exists for this user
+                const existing = await prisma.homework.findFirst({
+                    where: {
+                        ownerId: target.id,
+                        untisId: hw.id,
+                    },
+                });
+                
+                if (!existing) {
+                    await prisma.homework.create({
+                        data: {
+                            ownerId: target.id,
+                            untisId: hw.id,
+                            lessonId: hw.lessonId,
+                            date: hw.date ? new Date(
+                                parseInt(hw.date.toString().substring(0, 4)),
+                                parseInt(hw.date.toString().substring(4, 6)) - 1,
+                                parseInt(hw.date.toString().substring(6, 8))
+                            ) : new Date(),
+                            dueDate: hw.dueDate ? new Date(
+                                parseInt(hw.dueDate.toString().substring(0, 4)),
+                                parseInt(hw.dueDate.toString().substring(4, 6)) - 1,
+                                parseInt(hw.dueDate.toString().substring(6, 8))
+                            ) : null,
+                            subject: hw.subject || null,
+                            title: hw.title || null,
+                            text: hw.text || null,
+                            completed: hw.completed || false,
+                            payload: hw,
+                        },
+                    });
+                }
+            } catch (error) {
+                console.error('[homework] failed to save homework', error);
+                // Continue processing other homework items
+            }
+        }
+    }
+
+    return { userId: target.id, rangeStart, rangeEnd, payload };
+}

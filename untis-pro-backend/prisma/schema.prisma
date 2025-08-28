@@ -25,6 +25,7 @@ model User {
     timetables Timetable[]
     sessions   SessionToken[]
     lessonColors LessonColorSetting[]
+    homeworks  Homework[]
 
     @@unique([username])
 }
@@ -68,4 +69,27 @@ model DefaultLessonColor {
     updatedAt DateTime @updatedAt
     lessonName String  @unique // Subject name
     color     String   // Default hex color code
+}
+
+model Homework {
+    id        String   @id @default(uuid())
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+    ownerId   String   
+    owner     User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+    
+    // Homework data from WebUntis
+    untisId   Int?     // WebUntis homework ID
+    lessonId  Int?     // Associated lesson ID from WebUntis
+    date      DateTime // Date when homework was assigned
+    dueDate   DateTime? // Due date for homework
+    subject   String?  // Subject name
+    title     String?  // Homework title
+    text      String?  // Homework description/text
+    completed Boolean  @default(false)
+    
+    // Store full WebUntis response for flexibility
+    payload   Json
+    
+    @@unique([ownerId, untisId])
 }

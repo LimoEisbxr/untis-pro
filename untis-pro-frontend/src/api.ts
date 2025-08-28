@@ -2,7 +2,7 @@ type ViteImportMeta = { env?: { VITE_API_BASE?: string } };
 const API_BASE: string | undefined = (import.meta as unknown as ViteImportMeta)
     .env?.VITE_API_BASE;
 
-import type { LessonColors } from './types';
+import type { LessonColors, HomeworkResponse, Homework } from './types';
 
 export async function api<T>(
     path: string,
@@ -152,6 +152,44 @@ export async function setDefaultLessonColor(
         method: 'POST',
         token,
         body: JSON.stringify({ lessonName, color }),
+    });
+}
+
+// Homework API functions
+export async function getHomework(
+    token: string,
+    start?: string,
+    end?: string
+): Promise<HomeworkResponse> {
+    const params = new URLSearchParams();
+    if (start) params.append('start', start);
+    if (end) params.append('end', end);
+    const query = params.toString();
+    return api<HomeworkResponse>(`/api/homework/me${query ? `?${query}` : ''}`, { token });
+}
+
+export async function getUserHomework(
+    token: string,
+    userId: string,
+    start?: string,
+    end?: string
+): Promise<HomeworkResponse> {
+    const params = new URLSearchParams();
+    if (start) params.append('start', start);
+    if (end) params.append('end', end);
+    const query = params.toString();
+    return api<HomeworkResponse>(`/api/homework/user/${userId}${query ? `?${query}` : ''}`, { token });
+}
+
+export async function updateHomeworkCompletion(
+    token: string,
+    homeworkId: string,
+    completed: boolean
+): Promise<Homework> {
+    return api<Homework>(`/api/homework/${homeworkId}/completion`, {
+        method: 'PATCH',
+        token,
+        body: JSON.stringify({ completed }),
     });
 }
 

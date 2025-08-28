@@ -32,3 +32,26 @@ export type ColorGradient = {
     via: string;
     to: string;
 };
+
+export type Homework = {
+    id: string;
+    untisId?: number | null;
+    lessonId?: number | null;
+    date: string;
+    dueDate?: string | null;
+    subject?: string | null;
+    title?: string | null;
+    text?: string | null;
+    completed: boolean;
+    payload: unknown;
+    createdAt: string;
+    updatedAt: string;
+};
+
+export type HomeworkResponse = {
+    userId: string;
+    rangeStart: string | null;
+    rangeEnd: string | null;
+    cached: boolean;
+    homework: Homework[];
+};

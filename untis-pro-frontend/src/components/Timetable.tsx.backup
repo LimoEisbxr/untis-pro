@@ -1036,9 +1036,8 @@ export default function Timetable({
                 lessonColors={lessonColors}
                 defaultLessonColors={defaultLessonColors}
                 isAdmin={isAdmin}
+                homework={selectedLesson ? getHomeworkForLesson(selectedLesson) : []}                onHomeworkToggle={onHomeworkToggle}
                 onColorChange={onColorChange}
-                homework={selectedLesson ? getHomeworkForLesson(selectedLesson) : []}
-                onHomeworkToggle={onHomeworkToggle}
             />
         </div>
     );
