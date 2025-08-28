@@ -2,6 +2,36 @@
 @custom-variant dark (&:where(.dark, .dark *));
 @import 'tailwindcss';
 
+/* Responsive time column width for timetable */
+:root {
+    --time-col-width: 48px;
+}
+@media (min-width: 640px) {
+    :root {
+        --time-col-width: 64px;
+    }
+}
+
+/* Mobile optimizations */
+@media (max-width: 639px) {
+    /* Improve touch targets on mobile */
+    .btn-primary, .btn-secondary {
+        min-height: 44px;
+        touch-action: manipulation;
+    }
+    
+    /* Larger text for better mobile readability */
+    .input {
+        font-size: 16px; /* Prevents zoom on iOS */
+    }
+    
+    /* Better mobile timetable layout */
+    .min-w-\[320px\] {
+        min-width: 100%;
+        overflow-x: auto;
+    }
+}
+
 /* Disable native page scrollbar; we'll provide a custom one */
 html, body {
     overflow: hidden;

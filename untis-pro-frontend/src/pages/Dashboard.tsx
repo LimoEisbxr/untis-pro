@@ -311,11 +311,11 @@ export default function Dashboard({
     return (
         <div className={'min-h-screen'}>
             <header className="header-blur">
-                <div className="mx-auto flex max-w-screen-2xl items-center justify-between p-4">
-                    <div className="logo-text text-xl sm:text-2xl">
+                <div className="mx-auto flex max-w-screen-2xl items-center justify-between p-3 sm:p-4">
+                    <div className="logo-text text-lg sm:text-xl lg:text-2xl">
                         Untis Pro
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 sm:gap-3">
                         {user.isAdmin && (
                             <a
                                 href="#admin"
@@ -333,7 +333,7 @@ export default function Dashboard({
                             </a>
                         )}
                         <button
-                            className="rounded-full p-2 hover:bg-slate-200 dark:hover:bg-slate-700"
+                            className="rounded-full p-2.5 sm:p-2 hover:bg-slate-200 dark:hover:bg-slate-700 touch-manipulation"
                             title="Toggle dark mode"
                             onClick={() => setDark(!dark)}
                             aria-label="Toggle dark mode"
@@ -365,12 +365,12 @@ export default function Dashboard({
                     </div>
                 </div>
             </header>
-            <main className="mx-auto max-w-screen-2xl p-4">
-                <section className="card p-4">
-                    <div className="flex flex-wrap gap-3 items-end">
-                        <div className="flex items-center gap-2">
+            <main className="mx-auto max-w-screen-2xl p-3 sm:p-4">
+                <section className="card p-3 sm:p-4">
+                    <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3 items-stretch sm:items-end">
+                        <div className="flex items-center gap-1 sm:gap-2 w-full sm:w-auto">
                             <button
-                                className="btn-secondary"
+                                className="btn-secondary flex-1 sm:flex-none text-sm sm:text-base"
                                 onClick={() => {
                                     const ns = fmtLocal(
                                         addDays(new Date(start), -7)
@@ -378,18 +378,20 @@ export default function Dashboard({
                                     setStart(ns);
                                 }}
                             >
-                                ← Prev week
+                                <span className="hidden sm:inline">← Prev week</span>
+                                <span className="sm:hidden">← Prev</span>
                             </button>
                             <button
-                                className="btn-secondary"
+                                className="btn-secondary flex-1 sm:flex-none text-sm sm:text-base"
                                 onClick={() => {
                                     setStart(fmtLocal(new Date()));
                                 }}
                             >
-                                This week
+                                <span className="hidden sm:inline">This week</span>
+                                <span className="sm:hidden">Today</span>
                             </button>
                             <button
-                                className="btn-secondary"
+                                className="btn-secondary flex-1 sm:flex-none text-sm sm:text-base"
                                 onClick={() => {
                                     const ns = fmtLocal(
                                         addDays(new Date(start), 7)
@@ -397,15 +399,16 @@ export default function Dashboard({
                                     setStart(ns);
                                 }}
                             >
-                                Next week →
+                                <span className="hidden sm:inline">Next week →</span>
+                                <span className="sm:hidden">Next →</span>
                             </button>
                         </div>
-                        <div className="flex items-end gap-2">
-                            <div>
-                                <label className="label">Find student</label>
+                        <div className="flex flex-col sm:flex-row items-stretch sm:items-end gap-2 w-full sm:w-auto">
+                            <div className="flex-1 sm:flex-none">
+                                <label className="label text-sm">Find student</label>
                                 <div className="relative" ref={searchBoxRef}>
                                     <input
-                                        className="input pr-9"
+                                        className="input pr-9 text-sm"
                                         placeholder="Search name or username"
                                         value={queryText}
                                         onChange={(e) =>
@@ -455,10 +458,10 @@ export default function Dashboard({
                                     )}
                                 </div>
                             </div>
-                            <div className="pb-0.5">
-                                <label className="label invisible">Home</label>
+                            <div className="flex sm:pb-0.5">
+                                <label className="label invisible text-sm">Home</label>
                                 <button
-                                    className="rounded-full p-2 hover:bg-slate-200 dark:hover:bg-slate-700"
+                                    className="rounded-full p-3 sm:p-2 hover:bg-slate-200 dark:hover:bg-slate-700 touch-manipulation"
                                     title="My timetable"
                                     onClick={() => {
                                         setSelectedUser(null);
@@ -473,7 +476,7 @@ export default function Dashboard({
                                         fill="none"
                                         stroke="currentColor"
                                         strokeWidth="1.8"
-                                        className="h-5 w-5 text-slate-900 dark:text-white"
+                                        className="h-6 w-6 sm:h-5 sm:w-5 text-slate-900 dark:text-white"
                                     >
                                         <path d="M3 10.5 12 3l9 7.5" />
                                         <path d="M5 10v10h14V10" />
@@ -482,28 +485,32 @@ export default function Dashboard({
                                 </button>
                             </div>
                         </div>
-                        <div>
-                            <label className="label">Week</label>
-                            <input
-                                type="date"
-                                className="input"
-                                value={start}
-                                onChange={(e) => setStart(e.target.value)}
-                            />
+                        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
+                            <div>
+                                <label className="label text-sm">Week</label>
+                                <input
+                                    type="date"
+                                    className="input text-sm"
+                                    value={start}
+                                    onChange={(e) => setStart(e.target.value)}
+                                />
+                            </div>
+                            <div className="flex items-end">
+                                <button
+                                    className="btn-primary w-full sm:w-auto text-sm py-2 px-4 sm:py-2 sm:px-4 min-h-[44px] sm:min-h-auto touch-manipulation"
+                                    onClick={() =>
+                                        selectedUser && selectedUser.id !== user.id
+                                            ? loadUser(selectedUser.id)
+                                            : loadMine()
+                                    }
+                                    disabled={loading}
+                                >
+                                    Reload
+                                </button>
+                            </div>
                         </div>
-                        <button
-                            className="btn-primary"
-                            onClick={() =>
-                                selectedUser && selectedUser.id !== user.id
-                                    ? loadUser(selectedUser.id)
-                                    : loadMine()
-                            }
-                            disabled={loading}
-                        >
-                            Reload
-                        </button>
-                        <div className="ml-auto text-sm text-slate-600 dark:text-slate-300">
-                            Week: {weekStartStr} → {weekEndStr}
+                        <div className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 mt-2 sm:mt-0 sm:ml-auto">
+                            <span className="hidden sm:inline">Week: </span>{weekStartStr} → {weekEndStr}
                         </div>
                     </div>
                     <div className="mt-4">

@@ -603,8 +603,8 @@ export default function Timetable({
             )}
 
             <div
-                className="min-w-[820px] grid gap-x-3"
-                style={{ gridTemplateColumns: '64px repeat(5, 1fr)' }}
+                className="min-w-[320px] sm:min-w-[640px] lg:min-w-[820px] grid gap-x-1 sm:gap-x-3"
+                style={{ gridTemplateColumns: 'var(--time-col-width) repeat(5, 1fr)' }}
             >
                 <div />
                 {days.map((d) => (
@@ -762,13 +762,21 @@ export default function Timetable({
                             style={{ height: containerHeight }}
                         >
                             <div className="absolute inset-0 rounded-xl ring-1 ring-slate-900/10 dark:ring-white/10 shadow-sm overflow-hidden transition-colors bg-gradient-to-b from-slate-50/85 via-slate-100/80 to-sky-50/70 dark:bg-slate-800/40 dark:bg-none" />
-                            <div className="absolute left-0 right-0 top-0 z-10 px-2 pt-2 pointer-events-none">
-                                <div className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                                    {d.toLocaleDateString(undefined, {
-                                        weekday: 'long',
-                                        month: '2-digit',
-                                        day: '2-digit',
-                                    })}
+                            <div className="absolute left-0 right-0 top-0 z-10 px-1 sm:px-2 pt-1 sm:pt-2 pointer-events-none">
+                                <div className="text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-200">
+                                    <span className="hidden sm:block">
+                                        {d.toLocaleDateString(undefined, {
+                                            weekday: 'long',
+                                            month: '2-digit',
+                                            day: '2-digit',
+                                        })}
+                                    </span>
+                                    <span className="sm:hidden">
+                                        {d.toLocaleDateString(undefined, {
+                                            weekday: 'short',
+                                            day: '2-digit',
+                                        })}
+                                    </span>
                                 </div>
                             </div>
                             <div
@@ -831,7 +839,7 @@ export default function Timetable({
                                 return (
                                     <div
                                         key={l.id}
-                                        className={`absolute rounded-md p-2 text-xs ring-1 ring-slate-900/15 dark:ring-white/20 overflow-hidden cursor-pointer transform-gpu transition duration-150 hover:shadow-lg hover:brightness-115 hover:saturate-150 hover:contrast-110 hover:-translate-y-0.5 text-white ${
+                                        className={`absolute rounded-md p-1.5 sm:p-2 text-xs ring-1 ring-slate-900/15 dark:ring-white/20 overflow-hidden cursor-pointer transform-gpu transition duration-150 hover:shadow-lg hover:brightness-115 hover:saturate-150 hover:contrast-110 active:scale-95 hover:-translate-y-0.5 text-white touch-manipulation ${
                                             cancelled
                                                 ? 'bg-rose-500/90'
                                                 : irregular
