@@ -22,7 +22,7 @@ model User {
     displayName String?
 
     // Sharing preferences
-    sharingEnabled Boolean @default(false) // By default, new accounts don't share
+    sharingEnabled Boolean @default(true) // By default, new accounts enable sharing
     
     // Relationships
     timetables   Timetable[]

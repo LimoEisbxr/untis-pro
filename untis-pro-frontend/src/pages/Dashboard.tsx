@@ -350,22 +350,6 @@ export default function Dashboard({
                         Untis Pro
                     </div>
                     <div className="flex items-center gap-3">
-                        {user.isAdmin && (
-                            <a
-                                href="#admin"
-                                className="text-sm link-admin"
-                                onClick={(e) => {
-                                    e.preventDefault();
-                                    window.dispatchEvent(
-                                        new CustomEvent('nav', {
-                                            detail: { view: 'admin' },
-                                        })
-                                    );
-                                }}
-                            >
-                                Admin
-                            </a>
-                        )}
                         <button
                             className="rounded-full p-2 hover:bg-slate-200 dark:hover:bg-slate-700"
                             title="Settings"
