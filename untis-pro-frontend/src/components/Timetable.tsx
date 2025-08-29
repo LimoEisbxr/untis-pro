@@ -5,6 +5,7 @@ import { setLessonColor } from '../api';
 import LessonModal from './LessonModal';
 import TimeAxis from './TimeAxis';
 import DayColumn from './DayColumn';
+// (Mobile vertical layout removed; keeping original horizontal week view across breakpoints)
 
 export default function Timetable({
     data,
@@ -38,6 +39,7 @@ export default function Timetable({
     const END_MIN = 17 * 60 + 15; // 17:15
     const totalMinutes = END_MIN - START_MIN;
     const [SCALE, setSCALE] = useState<number>(1);
+    const [axisWidth, setAxisWidth] = useState<number>(56); // narrower on very small screens
 
     const isDeveloperModeEnabled =
         String(import.meta.env.VITE_ENABLE_DEVELOPER_MODE ?? '')
@@ -128,13 +130,24 @@ export default function Timetable({
     };
 
     const BOTTOM_PAD_PX = 12;
-    const DAY_HEADER_PX = 28;
+    const [DAY_HEADER_PX, setDAY_HEADER_PX] = useState(28);
 
     useEffect(() => {
         function computeScale() {
             const vh = typeof window !== 'undefined' ? window.innerHeight : 800;
-            const desired = Math.max(540, Math.floor(vh * 0.8));
+            const isMobile =
+                typeof window !== 'undefined' && window.innerWidth < 640;
+            // Increase desired pixel height on mobile so cards become taller
+            const baseTarget = isMobile ? 900 : 540; // bigger vertical canvas on mobile
+            const desired = Math.max(
+                baseTarget,
+                Math.floor(vh * (isMobile ? 1.2 : 0.8))
+            );
             setSCALE(desired / totalMinutes);
+            if (typeof window !== 'undefined') {
+                setAxisWidth(isMobile ? 44 : 56);
+                setDAY_HEADER_PX(isMobile ? 42 : 28);
+            }
         }
         computeScale();
         window.addEventListener('resize', computeScale);
@@ -179,9 +192,9 @@ export default function Timetable({
         );
 
     return (
-        <div className="w-full overflow-x-auto">
+        <div className="w-full overflow-x-hidden">
             {isDeveloperModeEnabled && (
-                <div className="mb-4 flex justify-end px-1.5">
+                <div className="mb-4 flex justify-end px-2">
                     <button
                         type="button"
                         onClick={() => setIsDeveloperMode((v) => !v)}
@@ -215,45 +228,50 @@ export default function Timetable({
                 </div>
             )}
 
-            <div
-                className="min-w-[820px] grid gap-x-3"
-                style={{ gridTemplateColumns: '64px repeat(5, 1fr)' }}
-            >
-                <div />
-                {days.map((d) => (
-                    <div
-                        key={fmtLocal(d)}
-                        className="px-1.5 first:pl-3 last:pr-3 h-0"
-                    />
-                ))}
-                <TimeAxis
-                    START_MIN={START_MIN}
-                    END_MIN={END_MIN}
-                    SCALE={SCALE}
-                    DAY_HEADER_PX={DAY_HEADER_PX}
-                    BOTTOM_PAD_PX={BOTTOM_PAD_PX}
-                />
-                {days.map((d) => {
-                    const key = fmtLocal(d);
-                    const items = lessonsByDay[key] || [];
-                    return (
-                        <DayColumn
-                            key={key}
-                            day={d}
-                            keyStr={key}
-                            items={items}
-                            START_MIN={START_MIN}
-                            END_MIN={END_MIN}
-                            SCALE={SCALE}
-                            DAY_HEADER_PX={DAY_HEADER_PX}
-                            BOTTOM_PAD_PX={BOTTOM_PAD_PX}
-                            lessonColors={lessonColors}
-                            defaultLessonColors={defaultLessonColors}
-                            onLessonClick={handleLessonClick}
-                            gradientOffsets={gradientOffsets}
+            {/* Unified horizontal week view (fits viewport width) */}
+            <div className="overflow-hidden w-full">
+                <div
+                    className="grid gap-x-1 sm:gap-x-3 w-full"
+                    style={{
+                        gridTemplateColumns: `${axisWidth}px repeat(5, 1fr)`,
+                    }}
+                >
+                    <div />
+                    {days.map((d) => (
+                        <div
+                            key={fmtLocal(d)}
+                            className="px-0 first:pl-0 last:pr-0 sm:px-1.5 sm:first:pl-3 sm:last:pr-3 h-0"
                         />
-                    );
-                })}
+                    ))}
+                    <TimeAxis
+                        START_MIN={START_MIN}
+                        END_MIN={END_MIN}
+                        SCALE={SCALE}
+                        DAY_HEADER_PX={DAY_HEADER_PX}
+                        BOTTOM_PAD_PX={BOTTOM_PAD_PX}
+                    />
+                    {days.map((d) => {
+                        const key = fmtLocal(d);
+                        const items = lessonsByDay[key] || [];
+                        return (
+                            <DayColumn
+                                key={key}
+                                day={d}
+                                keyStr={key}
+                                items={items}
+                                START_MIN={START_MIN}
+                                END_MIN={END_MIN}
+                                SCALE={SCALE}
+                                DAY_HEADER_PX={DAY_HEADER_PX}
+                                BOTTOM_PAD_PX={BOTTOM_PAD_PX}
+                                lessonColors={lessonColors}
+                                defaultLessonColors={defaultLessonColors}
+                                onLessonClick={handleLessonClick}
+                                gradientOffsets={gradientOffsets}
+                            />
+                        );
+                    })}
+                </div>
             </div>
 
             <LessonModal

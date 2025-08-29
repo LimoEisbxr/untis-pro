@@ -145,6 +145,7 @@ def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
     p.add_argument("--uweight", type=float, default=0.12, help="U stroke width as a fraction of size (0-1)")
     p.add_argument("--uscale", type=float, default=0.6, help="Overall U size relative to inner circle area (0-1)")
     p.add_argument("--only-canonical", action="store_true", help="Write only a single 'logo.svg' without size-suffixed variants")
+    p.add_argument("--profile", choices=["default", "icon"], default="default", help="Profile preset: 'icon' gives thicker ring & smaller U for app icons")
     return p.parse_args(argv)
 
 
@@ -168,7 +169,25 @@ def main() -> None:
     largest = max(sizes) if sizes else 512
 
     for s in sizes:
-        spec = LogoSpec(size=s, ring_thickness=args.ring, ring_margin=args.ring_margin, gap=args.gap, u_weight_pct=args.uweight, u_scale=args.uscale)
+        # Apply profile overrides per size if requested
+        if args.profile == "icon":
+            # Icon profile (adjusted): half previous ring thickness (~9% of size) per user request.
+            # - Ring thickness: 9% of size
+            # - Margin: 6% of size for padding
+            # - U scale & stroke unchanged from earlier icon tuning
+            ring_thickness = s * 0.09
+            ring_margin = s * 0.06
+            u_scale = 0.50
+            u_weight_pct = 0.10
+            gap = max(4.0, s * 0.035)
+        else:
+            ring_thickness = args.ring
+            ring_margin = args.ring_margin
+            u_scale = args.uscale
+            u_weight_pct = args.uweight
+            gap = args.gap
+
+        spec = LogoSpec(size=s, ring_thickness=ring_thickness, ring_margin=ring_margin, gap=gap, u_weight_pct=u_weight_pct, u_scale=u_scale)
         svg = make_svg(spec, colors)
         svg_path = os.path.join(args.out, f"logo_{s}.svg")
         write_svg(svg_path, svg)
@@ -179,7 +198,20 @@ def main() -> None:
             export_pngs(svg, s, png_path)
             print(f"Wrote {png_path}")
 
-    spec = LogoSpec(size=largest, ring_thickness=args.ring, ring_margin=args.ring_margin, gap=args.gap, u_weight_pct=args.uweight, u_scale=args.uscale)
+    if args.profile == "icon":
+        ring_thickness = largest * 0.09
+        ring_margin = largest * 0.06
+        u_scale = 0.50
+        u_weight_pct = 0.10
+        gap = max(4.0, largest * 0.035)
+    else:
+        ring_thickness = args.ring
+        ring_margin = args.ring_margin
+        u_scale = args.uscale
+        u_weight_pct = args.uweight
+        gap = args.gap
+
+    spec = LogoSpec(size=largest, ring_thickness=ring_thickness, ring_margin=ring_margin, gap=gap, u_weight_pct=u_weight_pct, u_scale=u_scale)
     svg = make_svg(spec, colors)
     svg_path = os.path.join(args.out, "logo.svg")
     write_svg(svg_path, svg)
