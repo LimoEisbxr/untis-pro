@@ -15,48 +15,12 @@ import { untisUserLimiter } from '../server/untisRateLimiter.js';
 
 const router = Router();
 
-const registerSchema = z.object({
-    username: z.string().min(1),
-    password: z.string().min(1),
-    displayName: z.string().optional(),
-});
-
-router.post('/register', untisUserLimiter, async (req, res) => {
-    const parsed = registerSchema.safeParse(req.body);
-    if (!parsed.success) {
-        return res.status(400).json({ error: parsed.error.flatten() });
-    }
-    // Validate Untis credentials at registration time (backend authoritative)
-    try {
-        await verifyUntisCredentials(
-            parsed.data.username,
-            parsed.data.password
-        );
-    } catch (e: any) {
-        const status = e?.status || 400;
-        return res.status(status).json({
-            error: e?.message || 'Invalid credentials',
-            code: e?.code,
-        });
-    }
-    const user = await createUserIfNotExists({ ...parsed.data });
-    const token = signToken({ userId: user.id });
-    res.json({
-        token,
-        user: {
-            id: user.id,
-            username: user.username,
-            displayName: user.displayName,
-        },
-    });
-});
-
 const loginSchema = z.object({
     username: z.string().min(1),
     password: z.string().min(1),
 });
 
-router.post('/login', async (req, res) => {
+router.post('/login', untisUserLimiter, async (req, res) => {
     const parsed = loginSchema.safeParse(req.body);
     if (!parsed.success) {
         return res.status(400).json({ error: parsed.error.flatten() });
@@ -79,8 +43,38 @@ router.post('/login', async (req, res) => {
             },
         });
     }
-    const user = await findUserByCredentials({ ...parsed.data });
-    if (!user) return res.status(401).json({ error: 'Invalid credentials' });
+    
+    // Try to find existing user first
+    const existingUser = await findUserByCredentials({ ...parsed.data });
+    if (existingUser) {
+        const token = signToken({ userId: existingUser.id });
+        return res.json({
+            token,
+            user: {
+                id: existingUser.id,
+                username: existingUser.username,
+                displayName: existingUser.displayName,
+                isAdmin: false,
+            },
+        });
+    }
+    
+    // User not found in database - verify with Untis and auto-register
+    try {
+        await verifyUntisCredentials(
+            parsed.data.username,
+            parsed.data.password
+        );
+    } catch (e: any) {
+        const status = e?.status || 401;
+        return res.status(status).json({
+            error: e?.message || 'Invalid credentials',
+            code: e?.code,
+        });
+    }
+    
+    // Create user with Untis credentials
+    const user = await createUserIfNotExists({ ...parsed.data });
     const token = signToken({ userId: user.id });
     res.json({
         token,

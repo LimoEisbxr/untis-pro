@@ -9,21 +9,19 @@ export default function Login({
 }) {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
-    const [displayName, setDisplayName] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    async function submit(kind: 'login' | 'register') {
+    async function submit() {
         setLoading(true);
         setError(null);
         try {
             const body = {
                 username,
                 password,
-                ...(kind === 'register' && displayName ? { displayName } : {}),
             };
             const res = await api<{ token: string; user: User }>(
-                `/api/auth/${kind}`,
+                `/api/auth/login`,
                 { method: 'POST', body: JSON.stringify(body) }
             );
             onAuth(res.token, res.user);
@@ -42,7 +40,7 @@ export default function Login({
                     Untis Pro
                 </div>
                 <p className="text-sm text-slate-700 dark:text-slate-300">
-                    Sign in or create an account
+                    Sign in with your Untis credentials
                 </p>
                 <div className="mt-6 space-y-3">
                     <input
@@ -58,29 +56,16 @@ export default function Login({
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                     />
-                    <input
-                        className="input"
-                        placeholder="Display name (register only)"
-                        value={displayName}
-                        onChange={(e) => setDisplayName(e.target.value)}
-                    />
                     {error && (
                         <div className="text-red-600 text-sm">{error}</div>
                     )}
-                    <div className="flex gap-3 pt-2">
+                    <div className="pt-2">
                         <button
                             disabled={loading}
-                            className="btn-primary"
-                            onClick={() => submit('login')}
+                            className="btn-primary w-full"
+                            onClick={() => submit()}
                         >
-                            Login
-                        </button>
-                        <button
-                            disabled={loading}
-                            className="btn-secondary"
-                            onClick={() => submit('register')}
-                        >
-                            Register
+                            {loading ? 'Signing in...' : 'Sign in'}
                         </button>
                     </div>
                 </div>
