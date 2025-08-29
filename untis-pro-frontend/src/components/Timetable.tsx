@@ -1,6 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { Lesson, TimetableResponse, LessonColors } from '../types';
-import { addDays, fmtLocal, startOfWeek, yyyymmddToISO } from '../utils/dates';
+import {
+    addDays,
+    fmtLocal,
+    startOfWeek,
+    yyyymmddToISO,
+    fmtHM,
+} from '../utils/dates';
 import LessonModal from './LessonModal';
 import TimeAxis from './TimeAxis';
 import DayColumn from './DayColumn';
@@ -55,6 +61,25 @@ export default function Timetable({
 
     const monday = startOfWeek(weekStart);
     const days = Array.from({ length: 5 }, (_, i) => addDays(monday, i));
+
+    // Track current time and compute line position
+    const [now, setNow] = useState<Date>(() => new Date());
+    useEffect(() => {
+        const update = () => setNow(new Date());
+        update();
+        const id = setInterval(update, 30_000);
+        return () => clearInterval(id);
+    }, []);
+
+    const todayISO = fmtLocal(new Date());
+    const isCurrentWeek = useMemo(
+        () => days.some((d) => fmtLocal(d) === todayISO),
+        [days, todayISO]
+    );
+    const nowMin = now.getHours() * 60 + now.getMinutes();
+    const isWithinDay = nowMin >= START_MIN && nowMin <= END_MIN;
+    const showNowLine = isCurrentWeek && isWithinDay;
+    const nowY = (nowMin - START_MIN) * SCALE + DAY_HEADER_PX;
 
     const lessonsByDay = useMemo(() => {
         const byDay: Record<string, Lesson[]> = {};
@@ -128,9 +153,10 @@ export default function Timetable({
             )}
 
             <div
-                className="min-w-[820px] grid gap-x-3"
+                className="min-w-[820px] grid gap-x-3 relative"
                 style={{ gridTemplateColumns: '64px repeat(5, 1fr)' }}
             >
+                {/* Grid header placeholders */}
                 <div />
                 {days.map((d) => (
                     <div
@@ -138,6 +164,32 @@ export default function Timetable({
                         className="px-1.5 first:pl-3 last:pr-3 h-0"
                     />
                 ))}
+
+                {/* Current time line overlay */}
+                {showNowLine && (
+                    <div
+                        aria-hidden
+                        className="pointer-events-none absolute -translate-y-1/2 z-40"
+                        style={{
+                            top: nowY,
+                            left: 'calc(64px + 0.75rem + 0.75rem)', // time axis (64px) + grid gap (0.75rem) + first column left padding (0.75rem)
+                            right: '0.75rem', // last column right padding
+                        }}
+                    >
+                        <div className="flex items-center">
+                            <div className="relative w-full">
+                                <div className="h-[2px] w-full bg-gradient-to-r from-rose-500 via-fuchsia-500 to-pink-500 shadow-[0_0_0_1px_rgba(244,63,94,0.35)]" />
+                                <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 h-3 w-3 rounded-full bg-rose-500 ring-2 ring-white/80 dark:ring-slate-900/60 shadow-md" />
+                                <div className="absolute left-0 -top-5 -translate-x-1/2 whitespace-nowrap">
+                                    <span className="rounded-full bg-rose-500/90 px-2 py-[2px] text-[10px] font-semibold text-white shadow">
+                                        {fmtHM(nowMin)}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 <TimeAxis
                     START_MIN={START_MIN}
                     END_MIN={END_MIN}
@@ -148,6 +200,7 @@ export default function Timetable({
                 {days.map((d) => {
                     const key = fmtLocal(d);
                     const items = lessonsByDay[key] || [];
+                    const isToday = key === todayISO;
                     return (
                         <DayColumn
                             key={key}
@@ -162,6 +215,7 @@ export default function Timetable({
                             lessonColors={lessonColors}
                             defaultLessonColors={defaultLessonColors}
                             onLessonClick={handleLessonClick}
+                            isToday={isToday}
                         />
                     );
                 })}

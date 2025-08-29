@@ -25,6 +25,7 @@ export type DayColumnProps = {
     lessonColors: LessonColors;
     defaultLessonColors: LessonColors;
     onLessonClick: (lesson: Lesson) => void;
+    isToday?: boolean;
 };
 
 const DayColumn: FC<DayColumnProps> = ({
@@ -39,6 +40,7 @@ const DayColumn: FC<DayColumnProps> = ({
     lessonColors,
     defaultLessonColors,
     onLessonClick,
+    isToday = false,
 }) => {
     const containerHeight =
         (END_MIN - START_MIN) * SCALE + BOTTOM_PAD_PX + DAY_HEADER_PX;
@@ -119,13 +121,36 @@ const DayColumn: FC<DayColumnProps> = ({
             style={{ height: containerHeight }}
         >
             <div className="absolute inset-0 rounded-xl ring-1 ring-slate-900/10 dark:ring-white/10 shadow-sm overflow-hidden transition-colors bg-gradient-to-b from-slate-50/85 via-slate-100/80 to-sky-50/70 dark:bg-slate-800/40 dark:bg-none" />
+
+            {/* Today highlight overlay */}
+            {isToday && (
+                <div
+                    className="absolute inset-0 pointer-events-none"
+                    style={{}}
+                >
+                    <div className="absolute inset-0 rounded-xl ring-2 ring-amber-400/40 dark:ring-amber-300/30 shadow-[0_8px_30px_rgba(251,191,36,0.25)]" />
+                    <div className="absolute inset-0 rounded-xl bg-gradient-to-b from-amber-200/20 via-amber-200/10 to-transparent dark:from-amber-300/15 dark:via-amber-300/10" />
+                </div>
+            )}
+
             <div className="absolute left-0 right-0 top-0 z-10 px-2 pt-2 pointer-events-none">
-                <div className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                <div
+                    className={`text-sm font-semibold ${
+                        isToday
+                            ? 'text-amber-700 dark:text-amber-300'
+                            : 'text-slate-700 dark:text-slate-200'
+                    }`}
+                >
                     {day.toLocaleDateString(undefined, {
                         weekday: 'long',
                         month: '2-digit',
                         day: '2-digit',
                     })}
+                    {isToday && (
+                        <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-amber-400/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-200">
+                            Today
+                        </span>
+                    )}
                 </div>
             </div>
             <div
