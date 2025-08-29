@@ -13,9 +13,12 @@ export default function App() {
         const u = localStorage.getItem('user');
         return u ? (JSON.parse(u) as User) : null;
     });
-    const [dark, setDark] = useState<boolean>(
-        () => localStorage.getItem('theme') === 'dark'
-    );
+    // Default to dark mode if no preference stored; respect explicit stored choice
+    const [dark, setDark] = useState<boolean>(() => {
+        const stored = localStorage.getItem('theme');
+        if (!stored) return true; // default dark
+        return stored === 'dark';
+    });
 
     useEffect(() => {
         const root = document.documentElement;
