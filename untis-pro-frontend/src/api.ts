@@ -166,4 +166,69 @@ export async function setDefaultLessonColor(
     });
 }
 
+// Sharing API functions
+export type SharingSettings = {
+    sharingEnabled: boolean;
+    sharingWith: Array<{ id: string; username: string; displayName?: string }>;
+    globalSharingEnabled: boolean;
+    isAdmin: boolean;
+};
+
+export async function getSharingSettings(token: string): Promise<SharingSettings> {
+    return api<SharingSettings>('/api/sharing/settings', { token });
+}
+
+export async function updateSharingEnabled(
+    token: string,
+    enabled: boolean
+): Promise<{ success: boolean }> {
+    return api<{ success: boolean }>('/api/sharing/settings', {
+        method: 'PUT',
+        token,
+        body: JSON.stringify({ enabled }),
+    });
+}
+
+export async function shareWithUser(
+    token: string,
+    userId: string
+): Promise<{ success: boolean; user?: any }> {
+    return api<{ success: boolean; user?: any }>('/api/sharing/share', {
+        method: 'POST',
+        token,
+        body: JSON.stringify({ userId }),
+    });
+}
+
+export async function stopSharingWithUser(
+    token: string,
+    userId: string
+): Promise<{ success: boolean }> {
+    return api<{ success: boolean }>(`/api/sharing/share/${userId}`, {
+        method: 'DELETE',
+        token,
+    });
+}
+
+export async function updateGlobalSharing(
+    token: string,
+    enabled: boolean
+): Promise<{ success: boolean }> {
+    return api<{ success: boolean }>('/api/sharing/global', {
+        method: 'PUT',
+        token,
+        body: JSON.stringify({ enabled }),
+    });
+}
+
+export async function searchUsersToShare(
+    token: string,
+    query: string
+): Promise<{ users: Array<{ id: string; username: string; displayName?: string }> }> {
+    return api<{ users: Array<{ id: string; username: string; displayName?: string }> }>(
+        `/api/users/search-to-share?q=${encodeURIComponent(query)}`,
+        { token }
+    );
+}
+
 export { API_BASE };

@@ -21,10 +21,17 @@ model User {
 
     displayName String?
 
+    // Sharing preferences
+    sharingEnabled Boolean @default(false) // By default, new accounts don't share
+    
     // Relationships
     timetables   Timetable[]
     sessions     SessionToken[]
     lessonColors LessonColorSetting[]
+    
+    // Sharing relationships
+    sharingWith     TimetableShare[] @relation("UserSharingWith")
+    sharedWithBy    TimetableShare[] @relation("UserSharedWithBy")
 
     @@unique([username])
 }
@@ -70,4 +77,28 @@ model DefaultLessonColor {
     lessonName String   @unique // Subject name
     color      String // Default hex color code
     offset     Float    @default(0.5) // Gradient offset 0..1
+}
+
+model TimetableShare {
+    id        String   @id @default(uuid())
+    createdAt DateTime @default(now())
+    
+    // User who is sharing their timetable
+    ownerId   String
+    owner     User     @relation("UserSharingWith", fields: [ownerId], references: [id], onDelete: Cascade)
+    
+    // User who can view the timetable
+    sharedWithId String
+    sharedWith   User     @relation("UserSharedWithBy", fields: [sharedWithId], references: [id], onDelete: Cascade)
+    
+    @@unique([ownerId, sharedWithId])
+}
+
+model AppSettings {
+    id        String   @id @default(uuid())
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+    
+    // Global setting for admins to disable all sharing
+    globalSharingEnabled Boolean @default(true)
 }

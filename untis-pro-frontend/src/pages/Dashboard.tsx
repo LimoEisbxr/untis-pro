@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Timetable from '../components/Timetable';
 import MoonIcon from '../components/MoonIcon';
+import SettingsModal from '../components/SettingsModal';
 import {
     api,
     API_BASE,
@@ -51,6 +52,8 @@ export default function Dashboard({
     const [lessonOffsets, setLessonOffsets] = useState<LessonOffsets>({});
     // Short auto-retry countdown for rate limit (429)
     const [retrySeconds, setRetrySeconds] = useState<number | null>(null);
+    // Settings modal state
+    const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
 
     // Derive a friendly info message for admin users when their own timetable isn't available
     const adminInfoMessage = useMemo(() => {
@@ -365,6 +368,21 @@ export default function Dashboard({
                         )}
                         <button
                             className="rounded-full p-2 hover:bg-slate-200 dark:hover:bg-slate-700"
+                            title="Settings"
+                            onClick={() => setIsSettingsModalOpen(true)}
+                            aria-label="Settings"
+                        >
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="text-slate-600 dark:text-slate-300">
+                                <path d="M17 8h1a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2h-1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                <path d="M7 8H6a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                <path d="M12 4v4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                <path d="M10 2h4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                <path d="M8 12h8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                <path d="M8 16h8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                            </svg>
+                        </button>
+                        <button
+                            className="rounded-full p-2 hover:bg-slate-200 dark:hover:bg-slate-700"
                             title="Toggle dark mode"
                             onClick={() => setDark(!dark)}
                             aria-label="Toggle dark mode"
@@ -593,6 +611,13 @@ export default function Dashboard({
                     </div>
                 </section>
             </main>
+            
+            <SettingsModal
+                token={token}
+                user={user}
+                isOpen={isSettingsModalOpen}
+                onClose={() => setIsSettingsModalOpen(false)}
+            />
         </div>
     );
 }
