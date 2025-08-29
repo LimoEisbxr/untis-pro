@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import MoonIcon from '../components/MoonIcon';
-import { api, getDefaultLessonColors, setDefaultLessonColor } from '../api';
+import { api, getDefaultLessonColors, setDefaultLessonColor, updateUserDisplayName } from '../api';
 import ColorPicker from '../components/ColorPicker';
 import type { LessonColors } from '../types';
 
@@ -25,6 +25,8 @@ export default function AdminPage({
     const [defaultColors, setDefaultColors] = useState<LessonColors>({});
     const [newLessonName, setNewLessonName] = useState('');
     const [showColorPicker, setShowColorPicker] = useState<string | null>(null);
+    const [editingUser, setEditingUser] = useState<string | null>(null);
+    const [editDisplayName, setEditDisplayName] = useState('');
 
     const load = useCallback(async () => {
         setLoading(true);
@@ -89,6 +91,39 @@ export default function AdminPage({
             setError(e instanceof Error ? e.message : String(e));
         }
     }, [token, newLessonName]);
+
+    const handleEditUser = useCallback((userId: string, currentDisplayName: string | null) => {
+        setEditingUser(userId);
+        setEditDisplayName(currentDisplayName || '');
+    }, []);
+
+    const handleCancelEdit = useCallback(() => {
+        setEditingUser(null);
+        setEditDisplayName('');
+    }, []);
+
+    const handleSaveDisplayName = useCallback(async (userId: string) => {
+        setLoading(true);
+        setError(null);
+        try {
+            const trimmedName = editDisplayName.trim();
+            const displayNameToSave = trimmedName === '' ? null : trimmedName;
+            const result = await updateUserDisplayName(token, userId, displayNameToSave);
+            
+            // Update the users state with the new display name
+            setUsers(prev => prev.map(user => 
+                user.id === userId 
+                    ? { ...user, displayName: result.user.displayName }
+                    : user
+            ));
+            setEditingUser(null);
+            setEditDisplayName('');
+        } catch (e) {
+            setError(e instanceof Error ? e.message : String(e));
+        } finally {
+            setLoading(false);
+        }
+    }, [token, editDisplayName]);
 
     useEffect(() => {
         load();
@@ -167,7 +202,43 @@ export default function AdminPage({
                                             {u.username}
                                         </td>
                                         <td className="py-2 pr-4">
-                                            {u.displayName || '—'}
+                                            {editingUser === u.id ? (
+                                                <div className="flex gap-2 items-center">
+                                                    <input
+                                                        type="text"
+                                                        value={editDisplayName}
+                                                        onChange={(e) => setEditDisplayName(e.target.value)}
+                                                        placeholder="Display name"
+                                                        className="input text-sm"
+                                                        style={{ minWidth: '120px' }}
+                                                    />
+                                                    <button
+                                                        className="btn-primary text-xs px-2 py-1"
+                                                        onClick={() => handleSaveDisplayName(u.id)}
+                                                        disabled={loading}
+                                                    >
+                                                        Save
+                                                    </button>
+                                                    <button
+                                                        className="btn-secondary text-xs px-2 py-1"
+                                                        onClick={handleCancelEdit}
+                                                        disabled={loading}
+                                                    >
+                                                        Cancel
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <div className="flex items-center gap-2">
+                                                    <span>{u.displayName || '—'}</span>
+                                                    <button
+                                                        className="btn-secondary text-xs px-2 py-1"
+                                                        onClick={() => handleEditUser(u.id, u.displayName)}
+                                                        disabled={loading}
+                                                    >
+                                                        Edit
+                                                    </button>
+                                                </div>
+                                            )}
                                         </td>
                                         <td className="py-2 pr-4">
                                             <button

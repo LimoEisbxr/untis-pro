@@ -1,8 +1,13 @@
 import { Router } from 'express';
+import { z } from 'zod';
 import { adminOnly } from '../server/authMiddleware.js';
 import { prisma } from '../store/prisma.js';
 
 const router = Router();
+
+const updateUserSchema = z.object({
+    displayName: z.string().trim().max(100).nullable(),
+});
 
 // List users (basic fields only)
 router.get('/users', adminOnly, async (_req, res) => {
@@ -24,6 +29,29 @@ router.delete('/users/:id', adminOnly, async (req, res) => {
         res.json({ ok: true, count: result.count });
     } catch (e: any) {
         const msg = e?.message || 'Failed to delete user';
+        res.status(400).json({ error: msg });
+    }
+});
+
+// Update user display name
+router.patch('/users/:id', adminOnly, async (req, res) => {
+    const id = req.params.id;
+    if (!id) return res.status(400).json({ error: 'Missing id' });
+    
+    const parsed = updateUserSchema.safeParse(req.body);
+    if (!parsed.success) {
+        return res.status(400).json({ error: parsed.error.flatten() });
+    }
+    
+    try {
+        const user = await prisma.user.update({
+            where: { id },
+            data: { displayName: parsed.data.displayName },
+            select: { id: true, username: true, displayName: true },
+        });
+        res.json({ user });
+    } catch (e: any) {
+        const msg = e?.message || 'Failed to update user';
         res.status(400).json({ error: msg });
     }
 });
