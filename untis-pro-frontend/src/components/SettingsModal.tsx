@@ -224,17 +224,6 @@ export default function SettingsModal({
                                 </div>
                             ) : (
                                 <div className="p-6">
-                                    <div className="flex items-center justify-between mb-4">
-                                        <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Users</h3>
-                                        <button
-                                            className="btn-primary text-sm"
-                                            onClick={loadUsers}
-                                            disabled={userManagementLoading}
-                                        >
-                                            Refresh
-                                        </button>
-                                    </div>
-                                    
                                     {/* Global sharing control */}
                                     {settings && (
                                         <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
@@ -259,6 +248,17 @@ export default function SettingsModal({
                                             </div>
                                         </div>
                                     )}
+                                    
+                                    <div className="flex items-center justify-between mb-4">
+                                        <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Users</h3>
+                                        <button
+                                            className="btn-primary text-sm"
+                                            onClick={loadUsers}
+                                            disabled={userManagementLoading}
+                                        >
+                                            Refresh
+                                        </button>
+                                    </div>
                                     
                                     {/* Users table */}
                                     <div className="border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
