@@ -24,12 +24,14 @@ export default function Dashboard({
     onLogout,
     dark,
     setDark,
+    onUserUpdate,
 }: {
     token: string;
     user: User;
     onLogout: () => void;
     dark: boolean;
     setDark: (v: boolean) => void;
+    onUserUpdate: (u: User) => void;
 }) {
     // Selected date (week is derived from this)
     const [start, setStart] = useState<string>(() => fmtLocal(new Date()));
@@ -597,6 +599,7 @@ export default function Dashboard({
                 user={user}
                 isOpen={isSettingsModalOpen}
                 onClose={() => setIsSettingsModalOpen(false)}
+                onUserUpdate={onUserUpdate}
             />
         </div>
     );

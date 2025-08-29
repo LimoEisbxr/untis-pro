@@ -43,6 +43,11 @@ export default function App() {
         setUser(null);
     }
 
+    function onUserUpdate(next: User) {
+        setUser(next);
+        localStorage.setItem('user', JSON.stringify(next));
+    }
+
     if (!token || !user) return <Login onAuth={onAuth} />;
 
     return (
@@ -52,6 +57,7 @@ export default function App() {
             onLogout={onLogout}
             dark={dark}
             setDark={setDark}
+            onUserUpdate={onUserUpdate}
         />
     );
 }

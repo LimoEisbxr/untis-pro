@@ -8,7 +8,9 @@ import {
     updateGlobalSharing,
     searchUsersToShare,
     api,
-    type SharingSettings
+    type SharingSettings,
+    updateUserDisplayName,
+    updateMyDisplayName,
 } from '../api';
 
 export default function SettingsModal({
@@ -16,12 +18,43 @@ export default function SettingsModal({
     user,
     isOpen,
     onClose,
+    onUserUpdate,
 }: {
     token: string;
     user: User;
     isOpen: boolean;
     onClose: () => void;
+    onUserUpdate?: (u: User) => void;
 }) {
+    // Close/open animation state with enter transition
+    const [showModal, setShowModal] = useState(false);
+    const [isVisible, setIsVisible] = useState(false);
+    const ANIM_MS = 200;
+    useEffect(() => {
+        let t: number | undefined;
+        let raf1: number | undefined;
+        let raf2: number | undefined;
+        if (isOpen) {
+            if (!showModal) setShowModal(true);
+            // Start hidden, then two RAFs to ensure layout is applied before transition
+            setIsVisible(false);
+            raf1 = requestAnimationFrame(() => {
+                raf2 = requestAnimationFrame(() => setIsVisible(true));
+            });
+        } else if (showModal) {
+            // Trigger exit transition then unmount after duration
+            setIsVisible(false);
+            t = window.setTimeout(() => {
+                setShowModal(false);
+            }, ANIM_MS);
+        }
+        return () => {
+            if (t) window.clearTimeout(t);
+            if (raf1) cancelAnimationFrame(raf1);
+            if (raf2) cancelAnimationFrame(raf2);
+        };
+    }, [isOpen, showModal]);
+
     const [settings, setSettings] = useState<SharingSettings | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -34,6 +67,14 @@ export default function SettingsModal({
     const [users, setUsers] = useState<Array<{ id: string; username: string; displayName: string | null }>>([]);
     const [userManagementLoading, setUserManagementLoading] = useState(false);
     const [userManagementError, setUserManagementError] = useState<string | null>(null);
+    const [editingUserId, setEditingUserId] = useState<string | null>(null);
+    const [editDisplayName, setEditDisplayName] = useState('');
+
+    // Self display name editing (regular users and admins editing their own name)
+    const [myDisplayName, setMyDisplayName] = useState<string>(user.displayName ?? '');
+    const [savingMyName, setSavingMyName] = useState(false);
+    const [myNameError, setMyNameError] = useState<string | null>(null);
+    const [myNameSaved, setMyNameSaved] = useState(false);
 
     // Load settings when modal opens
     useEffect(() => {
@@ -42,8 +83,11 @@ export default function SettingsModal({
             if (user.isAdmin) {
                 loadUsers();
             }
+            setMyDisplayName(user.displayName ?? '');
+            setMyNameSaved(false);
+            setMyNameError(null);
         }
-    }, [isOpen, user.isAdmin]);
+    }, [isOpen, user.isAdmin, user.displayName]);
 
     const loadUsers = async () => {
         setUserManagementLoading(true);
@@ -76,6 +120,30 @@ export default function SettingsModal({
             await loadUsers();
         } catch (e) {
             setUserManagementError(e instanceof Error ? e.message : 'Failed to delete user');
+        } finally {
+            setUserManagementLoading(false);
+        }
+    };
+
+    const startEditUser = (uId: string, currentName: string | null) => {
+        setEditingUserId(uId);
+        setEditDisplayName(currentName ?? '');
+    };
+    const cancelEditUser = () => {
+        setEditingUserId(null);
+        setEditDisplayName('');
+    };
+    const saveEditUser = async (uId: string) => {
+        setUserManagementLoading(true);
+        setUserManagementError(null);
+        try {
+            const trimmed = editDisplayName.trim();
+            const displayNameToSave = trimmed === '' ? null : trimmed;
+            const result = await updateUserDisplayName(token, uId, displayNameToSave);
+            setUsers(prev => prev.map(u => u.id === uId ? { ...u, displayName: result.user.displayName } : u));
+            cancelEditUser();
+        } catch (e) {
+            setUserManagementError(e instanceof Error ? e.message : 'Failed to update user');
         } finally {
             setUserManagementLoading(false);
         }
@@ -173,11 +241,29 @@ export default function SettingsModal({
         }
     };
 
-    if (!isOpen) return null;
+    const saveMyDisplayName = async () => {
+        setMyNameError(null);
+        setMyNameSaved(false);
+        setSavingMyName(true);
+        try {
+            const trimmed = myDisplayName.trim();
+            const nameToSave = trimmed === '' ? null : trimmed;
+            const result = await updateMyDisplayName(token, nameToSave);
+            if (onUserUpdate) onUserUpdate({ ...user, displayName: result.user.displayName });
+            setMyDisplayName(result.user.displayName ?? '');
+            setMyNameSaved(true);
+        } catch (e) {
+            setMyNameError(e instanceof Error ? e.message : 'Failed to update display name');
+        } finally {
+            setSavingMyName(false);
+        }
+    };
+
+    if (!showModal) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-lg backdrop-saturate-150 backdrop-contrast-125 animate-fade-in">
-            <div className="w-full max-w-lg bg-white dark:bg-slate-800 rounded-lg shadow-xl max-h-[90vh] overflow-hidden animate-slide-up">
+        <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-lg backdrop-saturate-150 backdrop-contrast-125 transition-opacity duration-200 will-change-opacity ${isVisible ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
+            <div className={`w-full ${user.isAdmin ? 'max-w-3xl' : 'max-w-lg'} bg-white dark:bg-slate-800 rounded-lg shadow-xl max-h-[90vh] overflow-hidden transform transition-all duration-200 will-change-transform will-change-opacity ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}>
                 <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-700">
                     <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 flex items-center justify-center">
@@ -197,7 +283,7 @@ export default function SettingsModal({
                             )}
                         </div>
                         <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">
-                            {user.isAdmin ? 'User Management' : 'Sharing Settings'}
+                            Settings
                         </h2>
                     </div>
                     <button
@@ -280,16 +366,53 @@ export default function SettingsModal({
                                                             {u.username}
                                                         </td>
                                                         <td className="py-3 px-4 text-slate-600 dark:text-slate-300">
-                                                            {u.displayName || '—'}
+                                                            {editingUserId === u.id ? (
+                                                                <div className="flex items-center gap-2 w-full">
+                                                                    <input
+                                                                        type="text"
+                                                                        value={editDisplayName}
+                                                                        onChange={(e) => setEditDisplayName(e.target.value)}
+                                                                        placeholder="Display name"
+                                                                        className="flex-1 px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 text-sm"
+                                                                    />
+                                                                    <button
+                                                                        className="btn-primary text-xs px-2 py-1"
+                                                                        onClick={() => saveEditUser(u.id)}
+                                                                        disabled={userManagementLoading}
+                                                                    >
+                                                                        Save
+                                                                    </button>
+                                                                    <button
+                                                                        className="btn-secondary text-xs px-2 py-1"
+                                                                        onClick={cancelEditUser}
+                                                                        disabled={userManagementLoading}
+                                                                    >
+                                                                        Cancel
+                                                                    </button>
+                                                                </div>
+                                                            ) : (
+                                                                <span>{u.displayName || '—'}</span>
+                                                            )}
                                                         </td>
                                                         <td className="py-3 px-4">
-                                                            <button
-                                                                className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 text-sm px-3 py-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20"
-                                                                onClick={() => deleteUser(u.id)}
-                                                                disabled={userManagementLoading}
-                                                            >
-                                                                Delete
-                                                            </button>
+                                                            {editingUserId === u.id ? null : (
+                                                                <>
+                                                                    <button
+                                                                        className="btn-secondary text-sm mr-2"
+                                                                        onClick={() => startEditUser(u.id, u.displayName)}
+                                                                        disabled={userManagementLoading}
+                                                                    >
+                                                                        Edit
+                                                                    </button>
+                                                                    <button
+                                                                        className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 text-sm px-3 py-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20"
+                                                                        onClick={() => deleteUser(u.id)}
+                                                                        disabled={userManagementLoading}
+                                                                    >
+                                                                        Delete
+                                                                    </button>
+                                                                </>
+                                                            )}
                                                         </td>
                                                     </tr>
                                                 ))}
@@ -322,6 +445,35 @@ export default function SettingsModal({
                                 </div>
                             ) : settings ? (
                                 <div className="p-6 space-y-6">
+                                    {/* Personal display name */}
+                                    <div>
+                                        <label className="block text-sm font-medium mb-2 text-slate-900 dark:text-slate-100">
+                                            Display name
+                                        </label>
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                type="text"
+                                                value={myDisplayName}
+                                                onChange={(e) => { setMyDisplayName(e.target.value); setMyNameSaved(false); }}
+                                                placeholder="Optional friendly name"
+                                                className="flex-1 px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 placeholder:text-slate-500 dark:placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                            />
+                                            <button
+                                                className="btn-primary"
+                                                onClick={saveMyDisplayName}
+                                                disabled={savingMyName}
+                                            >
+                                                Save
+                                            </button>
+                                        </div>
+                                        {myNameError && (
+                                            <div className="mt-1 text-sm text-red-600 dark:text-red-400">{myNameError}</div>
+                                        )}
+                                        {myNameSaved && !myNameError && (
+                                            <div className="mt-1 text-sm text-green-600 dark:text-green-400">Saved</div>
+                                        )}
+                                    </div>
+
                                     {/* Personal sharing toggle */}
                                     <div className="flex items-center justify-between">
                                         <div>

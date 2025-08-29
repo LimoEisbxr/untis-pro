@@ -247,4 +247,19 @@ export async function updateUserDisplayName(
     );
 }
 
+// New: current user can update their own display name
+export async function updateMyDisplayName(
+    token: string,
+    displayName: string | null
+): Promise<{ user: { id: string; username: string; displayName: string | null } }> {
+    return api<{ user: { id: string; username: string; displayName: string | null } }>(
+        `/api/users/me`,
+        {
+            method: 'PATCH',
+            token,
+            body: JSON.stringify({ displayName }),
+        }
+    );
+}
+
 export { API_BASE };

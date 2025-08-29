@@ -7,6 +7,9 @@ import jwt from 'jsonwebtoken';
 const router = Router();
 
 const querySchema = z.object({ q: z.string().trim().min(1).max(100) });
+const updateMeSchema = z.object({
+    displayName: z.string().trim().max(100).nullable(),
+});
 
 // Authenticated user search (by username/displayName)
 // NOTE: Consider adding rate limiting in front of this route in production.
@@ -133,6 +136,26 @@ router.get('/search-to-share', authMiddleware, async (req, res) => {
     } catch (e: any) {
         const msg = e?.message || 'Search failed';
         res.status(500).json({ error: msg });
+    }
+});
+
+// Update current user's display name
+router.patch('/me', authMiddleware, async (req, res) => {
+    const parsed = updateMeSchema.safeParse(req.body);
+    if (!parsed.success) {
+        return res.status(400).json({ error: parsed.error.flatten() });
+    }
+    try {
+        const userId = req.user!.id;
+        const user = await prisma.user.update({
+            where: { id: userId },
+            data: { displayName: parsed.data.displayName },
+            select: { id: true, username: true, displayName: true },
+        });
+        res.json({ user });
+    } catch (e: any) {
+        const msg = e?.message || 'Failed to update profile';
+        res.status(400).json({ error: msg });
     }
 });
 
