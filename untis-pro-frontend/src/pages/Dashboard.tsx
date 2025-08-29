@@ -10,7 +10,12 @@ import {
     getDefaultLessonColors,
 } from '../api';
 import { addDays, fmtLocal, startOfWeek } from '../utils/dates';
-import type { TimetableResponse, User, LessonColors } from '../types';
+import type {
+    TimetableResponse,
+    User,
+    LessonColors,
+    LessonOffsets,
+} from '../types';
 
 export default function Dashboard({
     token,
@@ -40,10 +45,10 @@ export default function Dashboard({
     } | null>(null);
     const abortRef = useRef<AbortController | null>(null);
     const searchBoxRef = useRef<HTMLDivElement | null>(null);
-    const [loading, setLoading] = useState(false);
     const [lessonColors, setLessonColors] = useState<LessonColors>({});
     const [defaultLessonColors, setDefaultLessonColors] =
         useState<LessonColors>({});
+    const [lessonOffsets, setLessonOffsets] = useState<LessonOffsets>({});
     // Short auto-retry countdown for rate limit (429)
     const [retrySeconds, setRetrySeconds] = useState<number | null>(null);
 
@@ -85,7 +90,6 @@ export default function Dashboard({
     }, [weekStartStr, weekEndStr]);
 
     const loadMine = useCallback(async () => {
-        setLoading(true);
         setLoadError(null);
         try {
             const res = await api<TimetableResponse>(
@@ -124,13 +128,13 @@ export default function Dashboard({
                 payload: [],
             });
         } finally {
-            setLoading(false);
+            /* no loading flag */
         }
     }, [query, token, user.id, weekStartStr, weekEndStr]);
 
     const loadUser = useCallback(
         async (userId: string) => {
-            setLoading(true);
+            /* no loading flag */
             setLoadError(null);
             try {
                 const res = await api<TimetableResponse>(
@@ -167,7 +171,7 @@ export default function Dashboard({
                     payload: [],
                 });
             } finally {
-                setLoading(false);
+                /* no loading flag */
             }
         },
         [query, token, weekStartStr, weekEndStr]
@@ -183,8 +187,9 @@ export default function Dashboard({
     useEffect(() => {
         const loadLessonColors = async () => {
             try {
-                const colors = await getLessonColors(token);
+                const { colors, offsets } = await getLessonColors(token);
                 setLessonColors(colors);
+                setLessonOffsets(offsets || {});
             } catch (error) {
                 console.error('Failed to load lesson colors:', error);
                 // Don't show error to user for colors, just use defaults
@@ -204,7 +209,7 @@ export default function Dashboard({
 
     // Handle lesson color changes
     const handleColorChange = useCallback(
-        async (lessonName: string, color: string | null) => {
+        async (lessonName: string, color: string | null, offset?: number) => {
             try {
                 const viewingUserId = selectedUser?.id;
                 if (color) {
@@ -212,7 +217,8 @@ export default function Dashboard({
                         token,
                         lessonName,
                         color,
-                        viewingUserId
+                        viewingUserId,
+                        offset
                     );
                     setLessonColors((prev) => ({
                         ...prev,
@@ -224,6 +230,10 @@ export default function Dashboard({
                             ...prev,
                             [lessonName]: color,
                         }));
+                        // Re-fetch to avoid any drift or silent failure
+                        getDefaultLessonColors(token)
+                            .then((d) => setDefaultLessonColors(d))
+                            .catch(() => undefined);
                     }
                 } else {
                     await removeLessonColor(token, lessonName, viewingUserId);
@@ -239,6 +249,27 @@ export default function Dashboard({
                             delete updated[lessonName];
                             return updated;
                         });
+                        // Also clear any local offset cache for that lesson so the UI doesn't show stale variation
+                        try {
+                            const k = 'adminLessonGradientOffsets';
+                            const raw = localStorage.getItem(k);
+                            if (raw) {
+                                const obj = JSON.parse(raw);
+                                if (obj && typeof obj === 'object') {
+                                    delete obj[lessonName];
+                                    localStorage.setItem(
+                                        k,
+                                        JSON.stringify(obj)
+                                    );
+                                }
+                            }
+                        } catch {
+                            // ignore localStorage errors
+                        }
+                        // Re-fetch to confirm removal persisted (and not re-created elsewhere)
+                        getDefaultLessonColors(token)
+                            .then((d) => setDefaultLessonColors(d))
+                            .catch(() => undefined);
                     }
                 }
             } catch (error) {
@@ -368,9 +399,9 @@ export default function Dashboard({
             <main className="mx-auto max-w-screen-2xl p-4">
                 <section className="card p-4">
                     <div className="flex flex-wrap gap-3 items-end">
-                        <div className="flex items-center gap-2">
+                        <div className="flex w-full items-stretch gap-2 sm:w-auto sm:items-center">
                             <button
-                                className="btn-secondary"
+                                className="btn-secondary flex flex-1 flex-col items-center justify-center leading-tight text-center sm:inline-flex sm:flex-none sm:flex-row sm:leading-normal"
                                 onClick={() => {
                                     const ns = fmtLocal(
                                         addDays(new Date(start), -7)
@@ -378,18 +409,38 @@ export default function Dashboard({
                                     setStart(ns);
                                 }}
                             >
-                                ← Prev week
+                                <span
+                                    aria-hidden="true"
+                                    className="hidden sm:inline mr-1"
+                                >
+                                    ←
+                                </span>
+                                <span className="mb-0.5 sm:mb-0">
+                                    Prev week
+                                </span>
+                                <span aria-hidden="true" className="sm:hidden">
+                                    ←
+                                </span>
                             </button>
                             <button
-                                className="btn-secondary"
+                                className="btn-secondary flex flex-1 flex-col items-center justify-center leading-tight text-center sm:inline-flex sm:flex-none sm:flex-row sm:leading-normal"
                                 onClick={() => {
                                     setStart(fmtLocal(new Date()));
                                 }}
                             >
-                                This week
+                                <span className="mb-0.5 sm:mb-0">
+                                    This week
+                                </span>
+                                {/* Placeholder arrow for equal height on mobile */}
+                                <span
+                                    aria-hidden="true"
+                                    className="sm:hidden opacity-0 select-none"
+                                >
+                                    →
+                                </span>
                             </button>
                             <button
-                                className="btn-secondary"
+                                className="btn-secondary flex flex-1 flex-col items-center justify-center leading-tight text-center sm:inline-flex sm:flex-none sm:flex-row sm:leading-normal"
                                 onClick={() => {
                                     const ns = fmtLocal(
                                         addDays(new Date(start), 7)
@@ -397,7 +448,18 @@ export default function Dashboard({
                                     setStart(ns);
                                 }}
                             >
-                                Next week →
+                                <span className="mb-0.5 sm:mb-0">
+                                    Next week
+                                </span>
+                                <span aria-hidden="true" className="sm:hidden">
+                                    →
+                                </span>
+                                <span
+                                    aria-hidden="true"
+                                    className="hidden sm:inline ml-1"
+                                >
+                                    →
+                                </span>
                             </button>
                         </div>
                         <div className="flex items-end gap-2">
@@ -491,17 +553,7 @@ export default function Dashboard({
                                 onChange={(e) => setStart(e.target.value)}
                             />
                         </div>
-                        <button
-                            className="btn-primary"
-                            onClick={() =>
-                                selectedUser && selectedUser.id !== user.id
-                                    ? loadUser(selectedUser.id)
-                                    : loadMine()
-                            }
-                            disabled={loading}
-                        >
-                            Reload
-                        </button>
+                        {/* Reload button removed per request */}
                         <div className="ml-auto text-sm text-slate-600 dark:text-slate-300">
                             Week: {weekStartStr} → {weekEndStr}
                         </div>
@@ -534,6 +586,9 @@ export default function Dashboard({
                             defaultLessonColors={defaultLessonColors}
                             isAdmin={!!user.isAdmin}
                             onColorChange={handleColorChange}
+                            serverLessonOffsets={lessonOffsets}
+                            token={token}
+                            viewingUserId={selectedUser?.id}
                         />
                     </div>
                 </section>

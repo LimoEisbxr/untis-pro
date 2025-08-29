@@ -10,21 +10,34 @@ const router = Router();
 // Rate limit for color operations
 const colorLimiter = rateLimit({
     windowMs: 60 * 1000, // 1 minute
-    limit: 30, // 30 requests per minute per IP
+    limit: 300, // increased: allow up to 300 requests per minute per IP
     standardHeaders: 'draft-7',
     legacyHeaders: false,
-    message: { error: 'Too many color requests, please slow down.' },
+    message: {
+        error: 'Too many color requests (300/min). Please slow down briefly.',
+    },
 });
 
 const colorSchema = z.object({
     lessonName: z.string().min(1).max(100),
     color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Invalid hex color format'),
+    offset: z.number().min(0).max(1).optional(),
 });
 
 const colorWithContextSchema = z.object({
     lessonName: z.string().min(1).max(100),
     color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Invalid hex color format'),
+    offset: z.number().min(0).max(1).optional(),
     viewingUserId: z.string().optional(), // The user whose timetable is being viewed
+});
+
+const offsetSchema = z.object({
+    lessonName: z.string().min(1).max(100),
+    offset: z.number().min(0).max(1),
+});
+
+const offsetWithContextSchema = offsetSchema.extend({
+    viewingUserId: z.string().optional(),
 });
 
 const lessonNameSchema = z.object({
@@ -59,43 +72,63 @@ router.get('/my-colors', authMiddleware, colorLimiter, async (req, res) => {
         // Admin: return global defaults (admin has no per-user settings)
         if (isAdmin) {
             const defaults = await (prisma as any).defaultLessonColor.findMany({
-                select: { lessonName: true, color: true },
+                select: { lessonName: true, color: true, offset: true },
             });
             const colorMap = (
-                defaults as Array<{ lessonName: string; color: string }>
+                defaults as Array<{
+                    lessonName: string;
+                    color: string;
+                    offset: number;
+                }>
             ).reduce((acc: Record<string, string>, item) => {
                 acc[item.lessonName] = item.color;
                 return acc;
             }, {} as Record<string, string>);
-            res.json(colorMap);
+            // Return offsets separately to avoid breaking existing clients
+            const offsetMap = (
+                defaults as Array<{
+                    lessonName: string;
+                    color: string;
+                    offset: number;
+                }>
+            ).reduce((acc: Record<string, number>, item) => {
+                acc[item.lessonName] = item.offset;
+                return acc;
+            }, {} as Record<string, number>);
+            res.json({ colors: colorMap, offsets: offsetMap });
             return;
         }
 
         // Non-admin: merge global defaults with user overrides
         const [defaults, overrides] = await Promise.all([
             (prisma as any).defaultLessonColor.findMany({
-                select: { lessonName: true, color: true },
+                select: { lessonName: true, color: true, offset: true },
             }),
             (prisma as any).lessonColorSetting.findMany({
                 where: { userId: req.user!.id },
-                select: { lessonName: true, color: true },
+                select: { lessonName: true, color: true, offset: true },
             }),
         ]);
 
-        const merged: Record<string, string> = {};
+        const colorMerged: Record<string, string> = {};
+        const offsetMerged: Record<string, number> = {};
         for (const item of defaults as Array<{
             lessonName: string;
             color: string;
+            offset: number;
         }>) {
-            merged[item.lessonName] = item.color;
+            colorMerged[item.lessonName] = item.color;
+            offsetMerged[item.lessonName] = item.offset;
         }
         for (const item of overrides as Array<{
             lessonName: string;
             color: string;
+            offset: number;
         }>) {
-            merged[item.lessonName] = item.color;
+            colorMerged[item.lessonName] = item.color;
+            offsetMerged[item.lessonName] = item.offset;
         }
-        res.json(merged);
+        res.json({ colors: colorMerged, offsets: offsetMerged });
     } catch (error) {
         console.error('[lessonColors/my-colors] error', error);
         res.status(500).json({ error: 'Failed to fetch lesson colors' });
@@ -109,7 +142,7 @@ router.post('/set-color', authMiddleware, colorLimiter, async (req, res) => {
         return res.status(400).json({ error: validation.error.flatten() });
     }
 
-    const { lessonName, color, viewingUserId } = validation.data;
+    const { lessonName, color, viewingUserId, offset } = validation.data;
     const isAdmin = isAdminUser(req);
     const currentUserId = req.user!.id;
 
@@ -118,8 +151,8 @@ router.post('/set-color', authMiddleware, colorLimiter, async (req, res) => {
         if (isAdmin && viewingUserId && viewingUserId !== currentUserId) {
             await (prisma as any).defaultLessonColor.upsert({
                 where: { lessonName },
-                update: { color },
-                create: { lessonName, color },
+                update: { color, ...(offset !== undefined ? { offset } : {}) },
+                create: { lessonName, color, offset: offset ?? 0.5 },
             });
             res.json({ success: true, type: 'default' });
             return;
@@ -130,15 +163,21 @@ router.post('/set-color', authMiddleware, colorLimiter, async (req, res) => {
             // For admin users, also modify global defaults since they don't have a User record
             await (prisma as any).defaultLessonColor.upsert({
                 where: { lessonName },
-                update: { color },
-                create: { lessonName, color },
+                update: { color, ...(offset !== undefined ? { offset } : {}) },
+                create: { lessonName, color, offset: offset ?? 0.5 },
             });
             res.json({ success: true, type: 'default' });
             return;
         }
 
-        // Scenario 3: Regular user (viewing their own or another user's timetable)
-        // Always save to the current user's preferences
+        // Scenario 3: Regular user viewing *another* user's timetable -> deny
+        if (!isAdmin && viewingUserId && viewingUserId !== currentUserId) {
+            return res.status(403).json({
+                error: 'Not allowed to change colors while viewing another user',
+            });
+        }
+
+        // Scenario 4: Regular user (own timetable) -> save user preference
         await (prisma as any).lessonColorSetting.upsert({
             where: {
                 userId_lessonName: {
@@ -146,11 +185,12 @@ router.post('/set-color', authMiddleware, colorLimiter, async (req, res) => {
                     lessonName,
                 },
             },
-            update: { color },
+            update: { color, ...(offset !== undefined ? { offset } : {}) },
             create: {
                 userId: currentUserId,
                 lessonName,
                 color,
+                offset: offset ?? 0.5,
             },
         });
 
@@ -186,7 +226,14 @@ router.delete(
                 return;
             }
 
-            // Scenario 3: Regular user -> remove their user-specific color
+            // Scenario 3: Regular user viewing another user's timetable -> forbid
+            if (!isAdmin && viewingUserId && viewingUserId !== currentUserId) {
+                return res.status(403).json({
+                    error: 'Not allowed to modify colors for another user',
+                });
+            }
+
+            // Scenario 4: Regular user -> remove their user-specific color
             await (prisma as any).lessonColorSetting.deleteMany({
                 where: {
                     userId: currentUserId,
@@ -243,13 +290,13 @@ router.post(
             return res.status(400).json({ error: validation.error.flatten() });
         }
 
-        const { lessonName, color } = validation.data;
+        const { lessonName, color, offset } = validation.data;
 
         try {
             await (prisma as any).defaultLessonColor.upsert({
                 where: { lessonName },
-                update: { color },
-                create: { lessonName, color },
+                update: { color, ...(offset !== undefined ? { offset } : {}) },
+                create: { lessonName, color, offset: offset ?? 0.5 },
             });
 
             res.json({ success: true });

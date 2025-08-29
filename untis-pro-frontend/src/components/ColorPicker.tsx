@@ -2,6 +2,7 @@ import { useState } from 'react';
 import {
     generateGradient,
     gradientToTailwindClasses,
+    getDefaultGradient,
     isValidHexColor,
 } from '../utils/colors';
 
@@ -24,9 +25,12 @@ interface ColorPickerProps {
     currentColor?: string;
     onColorChange: (color: string) => void;
     onRemoveColor?: () => void;
-    fallbackColor?: string; // used for preview when no currentColor (e.g., admin default)
-    canRemoveFallback?: boolean; // allow showing trash when only fallbackColor exists (e.g., admin)
+    fallbackColor?: string;
+    canRemoveFallback?: boolean;
     className?: string;
+    gradientOffset?: number; // 0..1
+    onGradientOffsetChange?: (offset: number) => void;
+    isAdmin?: boolean;
 }
 
 export default function ColorPicker({
@@ -36,6 +40,9 @@ export default function ColorPicker({
     fallbackColor,
     canRemoveFallback = false,
     className = '',
+    gradientOffset = 0.5,
+    onGradientOffsetChange,
+    isAdmin = false,
 }: ColorPickerProps) {
     const [customColor, setCustomColor] = useState(currentColor || '#3b82f6');
     const [showCustomInput, setShowCustomInput] = useState(false);
@@ -61,12 +68,8 @@ export default function ColorPicker({
     ) => {
         const color = e.target.value;
         setCustomColor(color);
-    };
-
-    const handleCustomSubmit = () => {
-        if (isValidHexColor(customColor)) {
-            onColorChange(customColor);
-            setShowCustomInput(false);
+        if (isValidHexColor(color)) {
+            onColorChange(color);
         }
     };
 
@@ -98,7 +101,7 @@ export default function ColorPicker({
                         />
                     </svg>
                     <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                        Choose Color
+                        Color Options
                     </span>
                 </button>
                 <div className="flex items-center gap-2">
@@ -108,9 +111,9 @@ export default function ColorPicker({
                             currentColor ?? fallbackColor ?? null;
                         const bg = previewColor
                             ? gradientToTailwindClasses(
-                                  generateGradient(previewColor)
+                                  generateGradient(previewColor, gradientOffset)
                               )
-                            : 'linear-gradient(to right, #6366f1, #0ea5e9, #10b981)';
+                            : gradientToTailwindClasses(getDefaultGradient());
                         const title = currentColor
                             ? `Custom: ${currentColor}`
                             : fallbackColor
@@ -137,7 +140,11 @@ export default function ColorPicker({
                             !fallbackColor ||
                             currentColor !== fallbackColor) && (
                             <button
-                                onClick={onRemoveColor}
+                                onClick={() => {
+                                    // Important: do NOT trigger offset persistence here.
+                                    // Doing so can resend the color + offset and recreate a just-deleted admin default.
+                                    onRemoveColor();
+                                }}
                                 className="p-1 rounded text-slate-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 dark:text-slate-400 transition-colors"
                                 title="Remove custom color"
                                 aria-label="Remove custom color"
@@ -184,9 +191,14 @@ export default function ColorPicker({
                                 currentColor ?? fallbackColor ?? null;
                             const bg = previewColor
                                 ? gradientToTailwindClasses(
-                                      generateGradient(previewColor)
+                                      generateGradient(
+                                          previewColor,
+                                          gradientOffset
+                                      )
                                   )
-                                : 'linear-gradient(to right, #6366f1, #0ea5e9, #10b981)';
+                                : gradientToTailwindClasses(
+                                      getDefaultGradient()
+                                  );
                             const label = currentColor
                                 ? `Preview: ${currentColor}`
                                 : fallbackColor
@@ -224,6 +236,37 @@ export default function ColorPicker({
                         ))}
                     </div>
 
+                    {/* Gradient Offset Slider: only when user has a custom color override (not when using fallback/admin/default) */}
+                    {(isAdmin ||
+                        (currentColor &&
+                            (!fallbackColor ||
+                                currentColor !== fallbackColor))) && (
+                        <div className="space-y-1 pt-1 border-t border-slate-200 dark:border-slate-700">
+                            <label className="flex items-center justify-between text-xs font-medium text-slate-600 dark:text-slate-300">
+                                <span>Gradient Offset</span>
+                                <span className="tabular-nums text-[11px] px-1 py-0.5 rounded bg-slate-100 dark:bg-slate-800">
+                                    {gradientOffset.toFixed(2)}
+                                </span>
+                            </label>
+                            <input
+                                type="range"
+                                min={0}
+                                max={1}
+                                step={0.01}
+                                value={gradientOffset}
+                                onChange={(e) =>
+                                    onGradientOffsetChange?.(
+                                        parseFloat(e.target.value)
+                                    )
+                                }
+                                className="w-full"
+                            />
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                                0 = flat, 1 = max variation.
+                            </p>
+                        </div>
+                    )}
+
                     {/* Custom Color Controls */}
                     <div className="space-y-3">
                         {!showCustomInput ? (
@@ -253,23 +296,20 @@ export default function ColorPicker({
                                 </div>
                                 <div className="flex gap-2">
                                     <button
-                                        onClick={handleCustomSubmit}
-                                        disabled={!isValidHexColor(customColor)}
-                                        className="flex-1 px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                                        type="button"
-                                    >
-                                        Apply
-                                    </button>
-                                    <button
                                         onClick={() =>
                                             setShowCustomInput(false)
                                         }
                                         className="flex-1 px-3 py-1 text-sm border border-slate-300 dark:border-slate-600 rounded hover:bg-slate-50 dark:hover:bg-slate-800"
                                         type="button"
                                     >
-                                        Cancel
+                                        Close
                                     </button>
                                 </div>
+                                {!isValidHexColor(customColor) && (
+                                    <p className="text-[11px] text-amber-600 dark:text-amber-400">
+                                        Enter a valid 6-digit hex color.
+                                    </p>
+                                )}
                             </div>
                         )}
                     </div>

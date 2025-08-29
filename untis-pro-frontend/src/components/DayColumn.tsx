@@ -1,4 +1,5 @@
 import type { FC } from 'react';
+import { useEffect, useState } from 'react';
 import FitText from './FitText';
 import type { Lesson, LessonColors } from '../types';
 import { fmtHM, untisToMinutes } from '../utils/dates';
@@ -26,6 +27,7 @@ export type DayColumnProps = {
     defaultLessonColors: LessonColors;
     onLessonClick: (lesson: Lesson) => void;
     isToday?: boolean;
+    gradientOffsets?: Record<string, number>; // subject -> offset (0..1)
 };
 
 const DayColumn: FC<DayColumnProps> = ({
@@ -41,7 +43,17 @@ const DayColumn: FC<DayColumnProps> = ({
     defaultLessonColors,
     onLessonClick,
     isToday = false,
+    gradientOffsets,
 }) => {
+    // Detect mobile (tailwind sm breakpoint <640px). Responsive hook to decide hiding side-by-side overlaps.
+    const [isMobile, setIsMobile] = useState<boolean>(false);
+    useEffect(() => {
+        const mq = window.matchMedia('(max-width: 639px)');
+        const update = () => setIsMobile(mq.matches);
+        update();
+        mq.addEventListener('change', update);
+        return () => mq.removeEventListener('change', update);
+    }, []);
     const containerHeight =
         (END_MIN - START_MIN) * SCALE + BOTTOM_PAD_PX + DAY_HEADER_PX;
 
@@ -121,7 +133,6 @@ const DayColumn: FC<DayColumnProps> = ({
             style={{ height: containerHeight }}
         >
             <div className="absolute inset-0 rounded-xl ring-1 ring-slate-900/10 dark:ring-white/10 shadow-sm overflow-hidden transition-colors bg-gradient-to-b from-slate-50/85 via-slate-100/80 to-sky-50/70 dark:bg-slate-800/40 dark:bg-none" />
-
             {/* Today highlight overlay */}
             {isToday && (
                 <div className="absolute inset-0 pointer-events-none rounded-xl overflow-hidden">
@@ -130,14 +141,49 @@ const DayColumn: FC<DayColumnProps> = ({
                 </div>
             )}
 
-            <div className="absolute left-0 right-0 top-0 z-10 px-2 pt-2 pointer-events-none">
+            <div className="absolute left-0 right-0 top-0 z-10 pointer-events-none">
+                {/* Mobile: two centered rows (weekday, date) */}
+                <div className="block sm:hidden text-center leading-tight pt-1">
+                    <div
+                        className={`text-[11px] font-semibold ${
+                            isToday
+                                ? 'text-amber-700 dark:text-amber-300'
+                                : 'text-slate-700 dark:text-slate-200'
+                        }`}
+                    >
+                        {day.toLocaleDateString(undefined, {
+                            weekday: 'short',
+                        })}
+                    </div>
+                    <div
+                        className={`text-[10px] font-medium ${
+                            isToday
+                                ? 'text-amber-600 dark:text-amber-200'
+                                : 'text-slate-500 dark:text-slate-400'
+                        }`}
+                    >
+                        {day.toLocaleDateString(undefined, {
+                            day: '2-digit',
+                            month: '2-digit',
+                        })}
+                    </div>
+                </div>
+
+                {/* Desktop: single line */}
                 <div
-                    className={`text-sm font-semibold ${
+                    className={`hidden sm:block text-sm font-semibold tracking-tight leading-snug whitespace-nowrap overflow-hidden text-ellipsis px-2 pt-2 ${
                         isToday
                             ? 'text-amber-700 dark:text-amber-300'
                             : 'text-slate-700 dark:text-slate-200'
                     }`}
                 >
+                    {day.toLocaleDateString(undefined, {
+                        weekday: 'short',
+                        day: '2-digit',
+                        month: '2-digit',
+                    })}
+                </div>
+            </div>
                     {day.toLocaleDateString(undefined, {
                         weekday: 'long',
                         month: '2-digit',
@@ -164,26 +210,51 @@ const DayColumn: FC<DayColumnProps> = ({
             />
             {blocks.map((b) => {
                 const { l } = b;
+                // On mobile: if overlapping columns exist, only render the rightmost (highest colIndex)
+                if (
+                    isMobile &&
+                    b.colCount > 1 &&
+                    b.colIndex !== b.colCount - 1
+                ) {
+                    return null;
+                }
                 const top = (b.startMin - START_MIN) * SCALE + DAY_HEADER_PX;
                 const height = Math.max(14, (b.endMin - b.startMin) * SCALE);
                 const cancelled = l.code === 'cancelled';
                 const irregular = l.code === 'irregular';
                 const subject = l.su?.[0]?.name ?? l.activityType ?? '—';
+                // Display variant: strip everything from first underscore onward
+                const displaySubject = subject.includes('_')
+                    ? subject.split('_')[0] || subject
+                    : subject;
                 const room = l.ro?.map((r) => r.name).join(', ');
                 const teacher = l.te?.map((t) => t.name).join(', ');
+                // Mobile-friendly room string without trailing markers like B, WB, TV
+                const roomMobile = room
+                    ? room
+                          .split(',')
+                          .map((part) =>
+                              part.replace(/\s+(?:WB?|TV|B)$/i, '').trim()
+                          )
+                          .join(', ')
+                    : room;
 
                 const effectiveColor =
                     lessonColors[subject] ??
                     defaultLessonColors[subject] ??
                     null;
+                const offset = gradientOffsets?.[subject] ?? 0.5;
                 const gradient = effectiveColor
-                    ? generateGradient(effectiveColor)
+                    ? generateGradient(effectiveColor, offset)
                     : getDefaultGradient();
 
                 const GAP_PCT = 2.25;
-                const widthPct =
-                    (100 - GAP_PCT * (b.colCount - 1)) / b.colCount;
-                const leftPct = b.colIndex * (widthPct + GAP_PCT);
+                let widthPct = (100 - GAP_PCT * (b.colCount - 1)) / b.colCount;
+                let leftPct = b.colIndex * (widthPct + GAP_PCT);
+                if (isMobile && b.colCount > 1) {
+                    widthPct = 100; // occupy full width when collapsing columns
+                    leftPct = 0;
+                }
                 const PAD_TOP = 4;
                 const PAD_BOTTOM = 4;
                 const adjTop = top + PAD_TOP;
@@ -192,7 +263,7 @@ const DayColumn: FC<DayColumnProps> = ({
                 return (
                     <div
                         key={l.id}
-                        className={`absolute rounded-md p-2 text-xs ring-1 ring-slate-900/15 dark:ring-white/20 overflow-hidden cursor-pointer transform-gpu transition duration-150 hover:shadow-lg hover:brightness-115 hover:saturate-150 hover:contrast-110 hover:-translate-y-0.5 text-white ${
+                        className={`absolute rounded-md p-2 sm:p-2 text-[12px] sm:text-xs ring-1 ring-slate-900/15 dark:ring-white/20 overflow-hidden cursor-pointer transform-gpu transition duration-150 hover:shadow-lg hover:brightness-115 hover:saturate-150 hover:contrast-110 hover:-translate-y-0.5 text-white ${
                             cancelled
                                 ? 'bg-rose-500/90'
                                 : irregular
@@ -218,7 +289,31 @@ const DayColumn: FC<DayColumnProps> = ({
                         onClick={() => onLessonClick(l)}
                     >
                         <div className="flex h-full min-w-0 flex-col">
-                            <div className="flex items-stretch justify-between gap-2 min-w-0 h-full">
+                            {/* Mobile centered layout */}
+                            <div className="flex flex-col items-center justify-center text-center gap-1 h-full sm:hidden px-0.5">
+                                <div
+                                    className="font-semibold leading-snug break-words w-full"
+                                    style={{
+                                        fontSize: 'clamp(11px, 3.4vw, 14px)',
+                                        wordBreak: 'break-word',
+                                        overflowWrap: 'anywhere',
+                                    }}
+                                >
+                                    {displaySubject}
+                                </div>
+                                {teacher && (
+                                    <div className="text-[11px] opacity-90 leading-tight break-words">
+                                        {teacher}
+                                    </div>
+                                )}
+                                {roomMobile && (
+                                    <div className="text-[11px] opacity-90 leading-tight break-words">
+                                        {roomMobile}
+                                    </div>
+                                )}
+                            </div>
+                            {/* Original flexible desktop layout */}
+                            <div className="hidden sm:flex flex-col sm:flex-row items-stretch justify-between gap-1.5 sm:gap-2 min-w-0 h-full">
                                 <FitText
                                     mode="both"
                                     maxScale={1.8}
@@ -226,9 +321,9 @@ const DayColumn: FC<DayColumnProps> = ({
                                     className="min-w-0 self-stretch"
                                 >
                                     <div className="font-semibold">
-                                        {subject}
+                                        {displaySubject}
                                     </div>
-                                    <div className="opacity-90">
+                                    <div className="opacity-90 sm:mt-0">
                                         <span className="whitespace-nowrap">
                                             {fmtHM(b.startMin)}–
                                             {fmtHM(b.endMin)}
@@ -248,19 +343,21 @@ const DayColumn: FC<DayColumnProps> = ({
                                             cancelled || irregular ? 16 : 0
                                         }
                                         align="right"
-                                        className="min-w-0 max-w-[45%] text-right self-stretch"
+                                        className="min-w-0 sm:max-w-[45%] sm:text-right self-stretch"
                                     >
-                                        <div>{room}</div>
+                                        <div className="truncate sm:whitespace-normal">
+                                            {room}
+                                        </div>
                                     </FitText>
                                 )}
                             </div>
                             {cancelled && (
-                                <div className="absolute bottom-1 right-2 text-right text-[10px] font-semibold uppercase tracking-wide">
+                                <div className="hidden sm:block absolute bottom-1 right-2 text-right text-[10px] font-semibold uppercase tracking-wide">
                                     Cancelled
                                 </div>
                             )}
                             {irregular && (
-                                <div className="absolute bottom-1 right-2 text-right text-[10px] font-semibold uppercase tracking-wide">
+                                <div className="hidden sm:block absolute bottom-1 right-2 text-right text-[10px] font-semibold uppercase tracking-wide">
                                     Irregular
                                 </div>
                             )}

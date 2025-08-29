@@ -22,8 +22,8 @@ model User {
     displayName String?
 
     // Relationships
-    timetables Timetable[]
-    sessions   SessionToken[]
+    timetables   Timetable[]
+    sessions     SessionToken[]
     lessonColors LessonColorSetting[]
 
     @@unique([username])
@@ -51,21 +51,23 @@ model SessionToken {
 }
 
 model LessonColorSetting {
-    id        String   @id @default(uuid())
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
-    userId    String
-    user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-    lessonName String  // Subject name like "Math", "English", etc.
-    color     String   // Hex color code like "#3b82f6"
-    
+    id         String   @id @default(uuid())
+    createdAt  DateTime @default(now())
+    updatedAt  DateTime @updatedAt
+    userId     String
+    user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    lessonName String // Subject name like "Math", "English", etc.
+    color      String // Hex color code like "#3b82f6"
+    offset     Float    @default(0.5) // Gradient offset 0..1
+
     @@unique([userId, lessonName])
 }
 
 model DefaultLessonColor {
-    id        String   @id @default(uuid())
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
-    lessonName String  @unique // Subject name
-    color     String   // Default hex color code
+    id         String   @id @default(uuid())
+    createdAt  DateTime @default(now())
+    updatedAt  DateTime @updatedAt
+    lessonName String   @unique // Subject name
+    color      String // Default hex color code
+    offset     Float    @default(0.5) // Gradient offset 0..1
 }

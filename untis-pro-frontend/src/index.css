@@ -3,7 +3,8 @@
 @import 'tailwindcss';
 
 /* Disable native page scrollbar; we'll provide a custom one */
-html, body {
+html,
+body {
     overflow: hidden;
 }
 
@@ -14,10 +15,11 @@ html, body {
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
     /* Hide native scrollbars cross-browser */
-    scrollbar-width: none;       /* Firefox */
-    -ms-overflow-style: none;    /* IE/Edge legacy */
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE/Edge legacy */
 }
-#app-scroll::-webkit-scrollbar { /* Chrome/Safari */
+#app-scroll::-webkit-scrollbar {
+    /* Chrome/Safari */
     width: 0 !important;
     height: 0 !important;
     background: transparent !important;
@@ -33,22 +35,28 @@ html, body {
 
 /* Custom scrollbar styles */
 .custom-scrollbar {
-    position: fixed;            /* Anchor to viewport so it never leaves screen */
+    position: fixed; /* Anchor to viewport so it never leaves screen */
     right: 10px;
     top: 10px;
     bottom: 10px;
     width: 8px;
     border-radius: 9999px;
-    background: linear-gradient(to bottom, rgba(148,163,184,0.2), rgba(148,163,184,0.08));
+    background: linear-gradient(
+        to bottom,
+        rgba(148, 163, 184, 0.2),
+        rgba(148, 163, 184, 0.08)
+    );
     backdrop-filter: blur(4px);
-    box-shadow: 0 4px 16px rgba(0,0,0,0.08) inset;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08) inset;
     z-index: 40; /* below modal (z-50+) */
     /* Constrain to safe area and prevent overflow */
     max-height: calc(100vh - 20px);
     max-width: 8px;
     contain: layout style;
 }
-.custom-scrollbar.hidden { display: none; }
+.custom-scrollbar.hidden {
+    display: none;
+}
 .custom-scrollbar-thumb {
     position: absolute;
     left: 0;
@@ -56,9 +64,9 @@ html, body {
     width: 100%;
     border-radius: 9999px;
     background: linear-gradient(135deg, #6366f1, #10b981);
-    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
     opacity: 0.9;
-    transition: opacity .15s ease, transform .15s ease;
+    transition: opacity 0.15s ease, transform 0.15s ease;
 }
 .custom-scrollbar:hover .custom-scrollbar-thumb {
     opacity: 1;
@@ -66,18 +74,32 @@ html, body {
 
 /* Ensure modal overlay sits above custom scrollbar */
 .modal-portal,
-.modal-portal * { z-index: 9999; }
+.modal-portal * {
+    z-index: 9999;
+}
 
 /* Prevent the custom scrollbar from intercepting clicks except on the thumb */
-.custom-scrollbar { pointer-events: none; }
-.custom-scrollbar-thumb { pointer-events: auto; }
+.custom-scrollbar {
+    pointer-events: none;
+}
+.custom-scrollbar-thumb {
+    pointer-events: auto;
+}
+
+/* Hide custom scrollbar entirely on small/mobile screens */
+@media (max-width: 640px) {
+    .custom-scrollbar {
+        display: none !important;
+    }
+}
 
 /* Hide any native scrollbars within elements using this class (e.g., modal content) */
 .no-native-scrollbar {
-    scrollbar-width: none;          /* Firefox */
-    -ms-overflow-style: none;       /* IE/Edge legacy */
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE/Edge legacy */
 }
-.no-native-scrollbar::-webkit-scrollbar { /* Chrome/Safari */
+.no-native-scrollbar::-webkit-scrollbar {
+    /* Chrome/Safari */
     display: none;
 }
 
@@ -129,6 +151,7 @@ html.dark .btn-secondary:hover {
 }
 .input {
     @apply w-full rounded-lg border border-slate-300 bg-white/95 px-3 py-2 text-slate-900 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-sky-500;
+    font-size: 16px; /* Prevent iOS zoom on focus */
 }
 html.dark .input {
     @apply bg-slate-800 border-slate-700 text-slate-100 placeholder:text-slate-400;
