@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import MoonIcon from '../components/MoonIcon';
-import { api, getDefaultLessonColors, setDefaultLessonColor } from '../api';
-import ColorPicker from '../components/ColorPicker';
-import type { LessonColors } from '../types';
+import { api, updateUserDisplayName } from '../api';
 
 export default function AdminPage({
     token,
@@ -22,26 +20,22 @@ export default function AdminPage({
     >([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [defaultColors, setDefaultColors] = useState<LessonColors>({});
-    const [newLessonName, setNewLessonName] = useState('');
-    const [showColorPicker, setShowColorPicker] = useState<string | null>(null);
+    // Removed default lesson color functionality (no longer needed)
+    const [editingUser, setEditingUser] = useState<string | null>(null);
+    const [editDisplayName, setEditDisplayName] = useState('');
 
     const load = useCallback(async () => {
         setLoading(true);
         setError(null);
         try {
-            const [usersRes, defaultColorsRes] = await Promise.all([
-                api<{
-                    users: Array<{
-                        id: string;
-                        username: string;
-                        displayName: string | null;
-                    }>;
-                }>('/api/admin/users', { token }),
-                getDefaultLessonColors(token),
-            ]);
+            const usersRes = await api<{
+                users: Array<{
+                    id: string;
+                    username: string;
+                    displayName: string | null;
+                }>;
+            }>('/api/admin/users', { token });
             setUsers(usersRes.users);
-            setDefaultColors(defaultColorsRes);
         } catch (e) {
             setError(e instanceof Error ? e.message : String(e));
         } finally {
@@ -66,29 +60,40 @@ export default function AdminPage({
         }
     }
 
-    const handleSetDefaultColor = useCallback(async (lessonName: string, color: string) => {
-        try {
-            await setDefaultLessonColor(token, lessonName, color);
-            setDefaultColors(prev => ({ ...prev, [lessonName]: color }));
-            setShowColorPicker(null);
-        } catch (e) {
-            setError(e instanceof Error ? e.message : String(e));
-        }
-    }, [token]);
+    // Removed handlers related to default lesson colors.
 
-    const handleAddNewDefault = useCallback(async () => {
-        const lessonName = newLessonName.trim();
-        if (!lessonName) return;
-        
+    const handleEditUser = useCallback((userId: string, currentDisplayName: string | null) => {
+        setEditingUser(userId);
+        setEditDisplayName(currentDisplayName || '');
+    }, []);
+
+    const handleCancelEdit = useCallback(() => {
+        setEditingUser(null);
+        setEditDisplayName('');
+    }, []);
+
+    const handleSaveDisplayName = useCallback(async (userId: string) => {
+        setLoading(true);
+        setError(null);
         try {
-            const defaultColor = '#3b82f6'; // blue-500
-            await setDefaultLessonColor(token, lessonName, defaultColor);
-            setDefaultColors(prev => ({ ...prev, [lessonName]: defaultColor }));
-            setNewLessonName('');
+            const trimmedName = editDisplayName.trim();
+            const displayNameToSave = trimmedName === '' ? null : trimmedName;
+            const result = await updateUserDisplayName(token, userId, displayNameToSave);
+            
+            // Update the users state with the new display name
+            setUsers(prev => prev.map(user => 
+                user.id === userId 
+                    ? { ...user, displayName: result.user.displayName }
+                    : user
+            ));
+            setEditingUser(null);
+            setEditDisplayName('');
         } catch (e) {
             setError(e instanceof Error ? e.message : String(e));
+        } finally {
+            setLoading(false);
         }
-    }, [token, newLessonName]);
+    }, [token, editDisplayName]);
 
     useEffect(() => {
         load();
@@ -167,7 +172,43 @@ export default function AdminPage({
                                             {u.username}
                                         </td>
                                         <td className="py-2 pr-4">
-                                            {u.displayName || '—'}
+                                            {editingUser === u.id ? (
+                                                <div className="flex gap-2 items-center">
+                                                    <input
+                                                        type="text"
+                                                        value={editDisplayName}
+                                                        onChange={(e) => setEditDisplayName(e.target.value)}
+                                                        placeholder="Display name"
+                                                        className="input text-sm"
+                                                        style={{ minWidth: '120px' }}
+                                                    />
+                                                    <button
+                                                        className="btn-primary text-xs px-2 py-1"
+                                                        onClick={() => handleSaveDisplayName(u.id)}
+                                                        disabled={loading}
+                                                    >
+                                                        Save
+                                                    </button>
+                                                    <button
+                                                        className="btn-secondary text-xs px-2 py-1"
+                                                        onClick={handleCancelEdit}
+                                                        disabled={loading}
+                                                    >
+                                                        Cancel
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <div className="flex items-center gap-2">
+                                                    <span>{u.displayName || '—'}</span>
+                                                    <button
+                                                        className="btn-secondary text-xs px-2 py-1"
+                                                        onClick={() => handleEditUser(u.id, u.displayName)}
+                                                        disabled={loading}
+                                                    >
+                                                        Edit
+                                                    </button>
+                                                </div>
+                                            )}
                                         </td>
                                         <td className="py-2 pr-4">
                                             <button
@@ -195,86 +236,7 @@ export default function AdminPage({
                     </div>
                 </section>
 
-                {/* Default Lesson Colors Section */}
-                <section className="card p-4 mt-6">
-                    <div className="flex items-center justify-between">
-                        <h2 className="text-lg font-semibold">Default Lesson Colors</h2>
-                        <p className="text-sm text-slate-600 dark:text-slate-400">
-                            Set default colors for lesson types
-                        </p>
-                    </div>
-                    
-                    {/* Add New Default Color */}
-                    <div className="mt-4 p-4 border border-slate-200 dark:border-slate-700 rounded-lg">
-                        <h3 className="text-md font-medium mb-3">Add New Default</h3>
-                        <div className="flex gap-3">
-                            <input
-                                type="text"
-                                value={newLessonName}
-                                onChange={(e) => setNewLessonName(e.target.value)}
-                                placeholder="Lesson name (e.g., Math, English)"
-                                className="input flex-1"
-                            />
-                            <button
-                                onClick={handleAddNewDefault}
-                                disabled={!newLessonName.trim() || loading}
-                                className="btn-primary"
-                            >
-                                Add
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* Existing Default Colors */}
-                    <div className="mt-4">
-                        {Object.keys(defaultColors).length === 0 ? (
-                            <p className="text-center text-slate-500 py-8">
-                                No default colors set. Add some above.
-                            </p>
-                        ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {Object.entries(defaultColors).map(([lessonName, color]) => (
-                                    <div 
-                                        key={lessonName}
-                                        className="border border-slate-200 dark:border-slate-700 rounded-lg p-4"
-                                    >
-                                        <div className="flex items-center justify-between mb-3">
-                                            <h4 className="font-medium">{lessonName}</h4>
-                                            <button
-                                                onClick={() => setShowColorPicker(
-                                                    showColorPicker === lessonName ? null : lessonName
-                                                )}
-                                                className="btn-secondary text-xs"
-                                            >
-                                                {showColorPicker === lessonName ? 'Cancel' : 'Edit'}
-                                            </button>
-                                        </div>
-                                        
-                                        <div 
-                                            className="w-full h-12 rounded-md border border-slate-300 dark:border-slate-600 mb-3"
-                                            style={{ 
-                                                background: `linear-gradient(to right, ${color}, ${color})`
-                                            }}
-                                        />
-                                        
-                                        <p className="text-xs text-slate-500 dark:text-slate-400 text-center">
-                                            {color}
-                                        </p>
-                                        
-                                        {showColorPicker === lessonName && (
-                                            <div className="mt-3 border-t border-slate-200 dark:border-slate-700 pt-3">
-                                                <ColorPicker
-                                                    currentColor={color}
-                                                    onColorChange={(newColor) => handleSetDefaultColor(lessonName, newColor)}
-                                                />
-                                            </div>
-                                        )}
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                </section>
+                {/* Default Lesson Colors section removed */}
             </main>
         </div>
     );
