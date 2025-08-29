@@ -166,4 +166,20 @@ export async function setDefaultLessonColor(
     });
 }
 
+// Admin user management
+export async function updateUserDisplayName(
+    token: string,
+    userId: string,
+    displayName: string | null
+): Promise<{ user: { id: string; username: string; displayName: string | null } }> {
+    return api<{ user: { id: string; username: string; displayName: string | null } }>(
+        `/api/admin/users/${userId}`,
+        {
+            method: 'PATCH',
+            token,
+            body: JSON.stringify({ displayName }),
+        }
+    );
+}
+
 export { API_BASE };
