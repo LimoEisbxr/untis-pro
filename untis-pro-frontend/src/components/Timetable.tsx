@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { Lesson, TimetableResponse, LessonColors } from '../types';
 import { addDays, fmtLocal, startOfWeek, yyyymmddToISO } from '../utils/dates';
+import { setLessonColor } from '../api';
 import LessonModal from './LessonModal';
 import TimeAxis from './TimeAxis';
 import DayColumn from './DayColumn';
@@ -12,13 +13,26 @@ export default function Timetable({
     defaultLessonColors = {},
     isAdmin = false,
     onColorChange,
+    serverLessonOffsets = {},
+    token,
+    viewingUserId,
 }: {
     data: TimetableResponse | null;
     weekStart: Date;
     lessonColors?: LessonColors;
     defaultLessonColors?: LessonColors;
     isAdmin?: boolean;
-    onColorChange?: (lessonName: string, color: string | null) => void;
+    onColorChange?: (
+        lessonName: string,
+        color: string | null,
+        offset?: number
+    ) => void;
+    serverLessonOffsets?: Record<string, number>;
+    token?: string;
+    viewingUserId?: string; // if admin is viewing a student
+    // Extended: allow passing current offset when color set
+    // (so initial color creation can persist chosen offset)
+    // Keeping backwards compatibility (third param optional)
 }) {
     const START_MIN = 7 * 60 + 40; // 07:40
     const END_MIN = 17 * 60 + 15; // 17:15
@@ -33,6 +47,80 @@ export default function Timetable({
     const [isDeveloperMode, setIsDeveloperMode] = useState(false);
     const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    // For privacy: non-admins always use their own (viewer) bucket, never the timetable owner's ID.
+    // If we later have the viewer's concrete user id, swap 'self' with it; this prevents leaking offsets across viewed timetables.
+    const storageKey = isAdmin
+        ? 'adminLessonGradientOffsets'
+        : 'lessonGradientOffsets:self';
+    const legacyKey = 'lessonGradientOffsets';
+    const [gradientOffsets, setGradientOffsets] = useState<
+        Record<string, number>
+    >(() => {
+        // Attempt to load user‑scoped first
+        try {
+            const raw = localStorage.getItem(storageKey);
+            if (raw) return JSON.parse(raw);
+            // Migrate legacy key once if present
+            const legacy = localStorage.getItem(legacyKey);
+            if (legacy) {
+                localStorage.setItem(storageKey, legacy);
+                return JSON.parse(legacy);
+            }
+        } catch {
+            /* ignore */
+        }
+        return serverLessonOffsets || {};
+    });
+
+    // When server offsets change (after fetch), merge them (client overrides win if exist)
+    useEffect(() => {
+        if (serverLessonOffsets && Object.keys(serverLessonOffsets).length) {
+            // Prefer fresh server values over any cached local ones to avoid stale offsets
+            setGradientOffsets((prev) => ({ ...prev, ...serverLessonOffsets }));
+        }
+    }, [serverLessonOffsets]);
+
+    // Reload offsets if user changes (e.g., switching accounts without full reload)
+    useEffect(() => {
+        try {
+            const raw = localStorage.getItem(storageKey);
+            if (raw) setGradientOffsets(JSON.parse(raw));
+            else setGradientOffsets({});
+        } catch {
+            setGradientOffsets({});
+        }
+    }, [storageKey]);
+
+    const updateGradientOffset = (lessonName: string, offset: number) => {
+        setGradientOffsets((prev) => {
+            const next = { ...prev };
+            if (offset === 0.5) {
+                delete next[lessonName];
+            } else {
+                next[lessonName] = offset;
+            }
+            try {
+                localStorage.setItem(storageKey, JSON.stringify(next));
+            } catch {
+                /* ignore */
+            }
+            return next;
+        });
+        // Only persist offset if there is an explicit color override (user or admin)
+        const hasExplicitColor =
+            !!lessonColors[lessonName] || !!defaultLessonColors[lessonName];
+        if (token && hasExplicitColor) {
+            const color =
+                lessonColors[lessonName] || defaultLessonColors[lessonName]!;
+            setLessonColor(
+                token,
+                lessonName,
+                color,
+                viewingUserId,
+                offset
+            ).catch(() => undefined);
+        }
+    };
 
     const handleLessonClick = (lesson: Lesson) => {
         setSelectedLesson(lesson);
@@ -162,6 +250,7 @@ export default function Timetable({
                             lessonColors={lessonColors}
                             defaultLessonColors={defaultLessonColors}
                             onLessonClick={handleLessonClick}
+                            gradientOffsets={gradientOffsets}
                         />
                     );
                 })}
@@ -179,6 +268,8 @@ export default function Timetable({
                 defaultLessonColors={defaultLessonColors}
                 isAdmin={isAdmin}
                 onColorChange={onColorChange}
+                gradientOffsets={gradientOffsets}
+                onGradientOffsetChange={updateGradientOffset}
             />
         </div>
     );
