@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Timetable from '../components/Timetable';
 import MoonIcon from '../components/MoonIcon';
+import SettingsModal from '../components/SettingsModal';
 import {
     api,
     API_BASE,
@@ -51,6 +52,8 @@ export default function Dashboard({
     const [lessonOffsets, setLessonOffsets] = useState<LessonOffsets>({});
     // Short auto-retry countdown for rate limit (429)
     const [retrySeconds, setRetrySeconds] = useState<number | null>(null);
+    // Settings modal state
+    const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
 
     // Derive a friendly info message for admin users when their own timetable isn't available
     const adminInfoMessage = useMemo(() => {
@@ -347,22 +350,17 @@ export default function Dashboard({
                         Untis Pro
                     </div>
                     <div className="flex items-center gap-3">
-                        {user.isAdmin && (
-                            <a
-                                href="#admin"
-                                className="text-sm link-admin"
-                                onClick={(e) => {
-                                    e.preventDefault();
-                                    window.dispatchEvent(
-                                        new CustomEvent('nav', {
-                                            detail: { view: 'admin' },
-                                        })
-                                    );
-                                }}
-                            >
-                                Admin
-                            </a>
-                        )}
+                        <button
+                            className="rounded-full p-2 hover:bg-slate-200 dark:hover:bg-slate-700"
+                            title="Settings"
+                            onClick={() => setIsSettingsModalOpen(true)}
+                            aria-label="Settings"
+                        >
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="text-slate-600 dark:text-slate-300">
+                                <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                            </svg>
+                        </button>
                         <button
                             className="rounded-full p-2 hover:bg-slate-200 dark:hover:bg-slate-700"
                             title="Toggle dark mode"
@@ -593,6 +591,13 @@ export default function Dashboard({
                     </div>
                 </section>
             </main>
+            
+            <SettingsModal
+                token={token}
+                user={user}
+                isOpen={isSettingsModalOpen}
+                onClose={() => setIsSettingsModalOpen(false)}
+            />
         </div>
     );
 }

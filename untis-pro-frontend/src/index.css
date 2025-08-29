@@ -193,3 +193,32 @@ html.dark .link-admin {
 .logo-text {
     @apply bg-gradient-to-r from-indigo-600 via-sky-600 to-emerald-600 bg-clip-text text-transparent font-extrabold;
 }
+
+/* Modal animations */
+@keyframes fade-in {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slide-up {
+    from {
+        opacity: 0;
+        transform: translateY(20px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.animate-fade-in {
+    animation: fade-in 200ms ease-out;
+}
+
+.animate-slide-up {
+    animation: slide-up 200ms ease-out;
+}

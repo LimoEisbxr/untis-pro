@@ -3,7 +3,6 @@ import './index.css';
 import type { User } from './types';
 import Login from './components/Login';
 import Dashboard from './pages/Dashboard';
-import AdminPage from './pages/AdminPage';
 
 export default function App() {
     const [token, setToken] = useState<string | null>(() =>
@@ -44,30 +43,7 @@ export default function App() {
         setUser(null);
     }
 
-    const [view, setView] = useState<'dashboard' | 'admin'>('dashboard');
-
-    useEffect(() => {
-        function onNav(e: Event) {
-            const detail = (e as CustomEvent).detail as { view?: string };
-            if (detail?.view === 'admin') setView('admin');
-        }
-        window.addEventListener('nav', onNav as EventListener);
-        return () => window.removeEventListener('nav', onNav as EventListener);
-    }, []);
-
     if (!token || !user) return <Login onAuth={onAuth} />;
-
-    if (view === 'admin' && user.isAdmin) {
-        return (
-            <AdminPage
-                token={token}
-                onBack={() => setView('dashboard')}
-                onLogout={onLogout}
-                dark={dark}
-                setDark={setDark}
-            />
-        );
-    }
 
     return (
         <Dashboard
