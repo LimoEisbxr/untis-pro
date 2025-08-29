@@ -10,7 +10,12 @@ import {
     getDefaultLessonColors,
 } from '../api';
 import { addDays, fmtLocal, startOfWeek } from '../utils/dates';
-import type { TimetableResponse, User, LessonColors } from '../types';
+import type {
+    TimetableResponse,
+    User,
+    LessonColors,
+    LessonOffsets,
+} from '../types';
 
 export default function Dashboard({
     token,
@@ -44,6 +49,7 @@ export default function Dashboard({
     const [lessonColors, setLessonColors] = useState<LessonColors>({});
     const [defaultLessonColors, setDefaultLessonColors] =
         useState<LessonColors>({});
+    const [lessonOffsets, setLessonOffsets] = useState<LessonOffsets>({});
     // Short auto-retry countdown for rate limit (429)
     const [retrySeconds, setRetrySeconds] = useState<number | null>(null);
 
@@ -183,8 +189,9 @@ export default function Dashboard({
     useEffect(() => {
         const loadLessonColors = async () => {
             try {
-                const colors = await getLessonColors(token);
+                const { colors, offsets } = await getLessonColors(token);
                 setLessonColors(colors);
+                setLessonOffsets(offsets || {});
             } catch (error) {
                 console.error('Failed to load lesson colors:', error);
                 // Don't show error to user for colors, just use defaults
@@ -204,7 +211,7 @@ export default function Dashboard({
 
     // Handle lesson color changes
     const handleColorChange = useCallback(
-        async (lessonName: string, color: string | null) => {
+        async (lessonName: string, color: string | null, offset?: number) => {
             try {
                 const viewingUserId = selectedUser?.id;
                 if (color) {
@@ -212,7 +219,8 @@ export default function Dashboard({
                         token,
                         lessonName,
                         color,
-                        viewingUserId
+                        viewingUserId,
+                        offset
                     );
                     setLessonColors((prev) => ({
                         ...prev,
@@ -224,6 +232,10 @@ export default function Dashboard({
                             ...prev,
                             [lessonName]: color,
                         }));
+                        // Re-fetch to avoid any drift or silent failure
+                        getDefaultLessonColors(token)
+                            .then((d) => setDefaultLessonColors(d))
+                            .catch(() => undefined);
                     }
                 } else {
                     await removeLessonColor(token, lessonName, viewingUserId);
@@ -239,6 +251,27 @@ export default function Dashboard({
                             delete updated[lessonName];
                             return updated;
                         });
+                        // Also clear any local offset cache for that lesson so the UI doesn't show stale variation
+                        try {
+                            const k = 'adminLessonGradientOffsets';
+                            const raw = localStorage.getItem(k);
+                            if (raw) {
+                                const obj = JSON.parse(raw);
+                                if (obj && typeof obj === 'object') {
+                                    delete obj[lessonName];
+                                    localStorage.setItem(
+                                        k,
+                                        JSON.stringify(obj)
+                                    );
+                                }
+                            }
+                        } catch {
+                            // ignore localStorage errors
+                        }
+                        // Re-fetch to confirm removal persisted (and not re-created elsewhere)
+                        getDefaultLessonColors(token)
+                            .then((d) => setDefaultLessonColors(d))
+                            .catch(() => undefined);
                     }
                 }
             } catch (error) {
@@ -534,6 +567,9 @@ export default function Dashboard({
                             defaultLessonColors={defaultLessonColors}
                             isAdmin={!!user.isAdmin}
                             onColorChange={handleColorChange}
+                            serverLessonOffsets={lessonOffsets}
+                            token={token}
+                            viewingUserId={selectedUser?.id}
                         />
                     </div>
                 </section>

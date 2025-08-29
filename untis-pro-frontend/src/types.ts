@@ -32,3 +32,5 @@ export type ColorGradient = {
     via: string;
     to: string;
 };
+
+export type LessonOffsets = Record<string, number>; // lessonName -> gradient offset (0..1)

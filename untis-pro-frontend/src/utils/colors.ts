@@ -20,10 +20,17 @@ function hexToHsl(hex: string): [number, number, number] {
         const d = max - min;
         s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
         switch (max) {
-            case r: h = (g - b) / d + (g < b ? 6 : 0); break;
-            case g: h = (b - r) / d + 2; break;
-            case b: h = (r - g) / d + 4; break;
-            default: h = 0;
+            case r:
+                h = (g - b) / d + (g < b ? 6 : 0);
+                break;
+            case g:
+                h = (b - r) / d + 2;
+                break;
+            case b:
+                h = (r - g) / d + 4;
+                break;
+            default:
+                h = 0;
         }
         h /= 6;
     }
@@ -42,9 +49,9 @@ function hslToHex(h: number, s: number, l: number): string {
     const hue2rgb = (p: number, q: number, t: number) => {
         if (t < 0) t += 1;
         if (t > 1) t -= 1;
-        if (t < 1/6) return p + (q - p) * 6 * t;
-        if (t < 1/2) return q;
-        if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+        if (t < 1 / 6) return p + (q - p) * 6 * t;
+        if (t < 1 / 2) return q;
+        if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
         return p;
     };
 
@@ -55,9 +62,9 @@ function hslToHex(h: number, s: number, l: number): string {
     } else {
         const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
         const p = 2 * l - q;
-        r = hue2rgb(p, q, h + 1/3);
+        r = hue2rgb(p, q, h + 1 / 3);
         g = hue2rgb(p, q, h);
-        b = hue2rgb(p, q, h - 1/3);
+        b = hue2rgb(p, q, h - 1 / 3);
     }
 
     const toHex = (c: number) => {
@@ -69,34 +76,55 @@ function hslToHex(h: number, s: number, l: number): string {
 }
 
 /**
- * Generate a gradient from a base color
- * Creates a pleasing left-to-right gradient by adjusting hue, saturation, and lightness
+ * Generate a gradient from a base color with a configurable offset (intensity)
+ * offset range: 0 = flat (single color) … 1 = max variation.
+ * Default offset set to 0.5 per design requirement.
  */
-export function generateGradient(baseColor: string): ColorGradient {
+export function generateGradient(
+    baseColor: string,
+    offset: number = 0.5
+): ColorGradient {
     if (!baseColor.match(/^#[0-9A-Fa-f]{6}$/)) {
-        // Fallback to default gradient if invalid color
         return {
-            from: '#6366f1', // indigo-500
+            from: '#6366f1',
             via: baseColor,
-            to: '#10b981', // emerald-500
+            to: '#10b981',
         };
     }
 
+    // Clamp offset
+    const off = Math.min(1, Math.max(0, offset));
+
+    if (off === 0) {
+        return { from: baseColor, via: baseColor, to: baseColor };
+    }
+
     const [h, s, l] = hexToHsl(baseColor);
-    
-    // Create variations by adjusting hue and lightness
-    const fromHue = (h - 30 + 360) % 360; // Shift hue left
-    const toHue = (h + 30) % 360; // Shift hue right
-    
-    // Adjust saturation and lightness for better visual appeal
-    const adjustedSat = Math.min(90, Math.max(40, s)); // Keep saturation in good range
-    const fromLight = Math.min(65, Math.max(35, l - 5)); // Slightly darker
-    const toLight = Math.min(70, Math.max(40, l + 5)); // Slightly lighter
-    
+
+    // Maximum deltas (previously expanded for "full variation")
+    const MAX_HUE_DELTA = 42; // degrees
+    const MAX_LIGHT_DELTA = 8; // lightness %
+    const MAX_SAT_DELTA = 16; // saturation adjustment range
+
+    const hueDelta = MAX_HUE_DELTA * off;
+    const lightDelta = MAX_LIGHT_DELTA * off;
+    const satDelta = MAX_SAT_DELTA * off;
+
+    const fromHue = (h - hueDelta + 360) % 360;
+    const toHue = (h + hueDelta) % 360;
+
+    // Saturation: move slightly toward a balanced range 40–90 then adjust
+    const baseSat = Math.min(90, Math.max(40, s));
+    const fromSat = Math.min(95, Math.max(30, baseSat - satDelta / 2));
+    const toSat = Math.min(95, Math.max(30, baseSat + satDelta / 2));
+
+    const fromLight = Math.min(75, Math.max(20, l - lightDelta));
+    const toLight = Math.min(80, Math.max(25, l + lightDelta));
+
     return {
-        from: hslToHex(fromHue, adjustedSat, fromLight),
+        from: hslToHex(fromHue, fromSat, fromLight),
         via: baseColor,
-        to: hslToHex(toHue, adjustedSat, toLight),
+        to: hslToHex(toHue, toSat, toLight),
     };
 }
 
@@ -113,11 +141,8 @@ export function gradientToTailwindClasses(gradient: ColorGradient): string {
  * Get the default gradient colors used in the app
  */
 export function getDefaultGradient(): ColorGradient {
-    return {
-        from: '#6366f1', // indigo-500
-        via: '#0ea5e9', // sky-500
-        to: '#10b981', // emerald-500
-    };
+    // Use the same generator so style evolution stays consistent; fallback trio kept stable.
+    return generateGradient('#6366f1', 0.5);
 }
 
 /**

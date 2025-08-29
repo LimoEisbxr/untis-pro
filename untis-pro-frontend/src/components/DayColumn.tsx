@@ -25,6 +25,7 @@ export type DayColumnProps = {
     lessonColors: LessonColors;
     defaultLessonColors: LessonColors;
     onLessonClick: (lesson: Lesson) => void;
+    gradientOffsets?: Record<string, number>; // subject -> offset (0..1)
 };
 
 const DayColumn: FC<DayColumnProps> = ({
@@ -39,6 +40,7 @@ const DayColumn: FC<DayColumnProps> = ({
     lessonColors,
     defaultLessonColors,
     onLessonClick,
+    gradientOffsets,
 }) => {
     const containerHeight =
         (END_MIN - START_MIN) * SCALE + BOTTOM_PAD_PX + DAY_HEADER_PX;
@@ -154,8 +156,9 @@ const DayColumn: FC<DayColumnProps> = ({
                     lessonColors[subject] ??
                     defaultLessonColors[subject] ??
                     null;
+                const offset = gradientOffsets?.[subject] ?? 0.5;
                 const gradient = effectiveColor
-                    ? generateGradient(effectiveColor)
+                    ? generateGradient(effectiveColor, offset)
                     : getDefaultGradient();
 
                 const GAP_PCT = 2.25;

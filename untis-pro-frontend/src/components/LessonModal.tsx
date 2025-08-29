@@ -13,6 +13,8 @@ export default function LessonModal({
     defaultLessonColors,
     isAdmin,
     onColorChange,
+    gradientOffsets,
+    onGradientOffsetChange,
 }: {
     lesson: Lesson | null;
     isOpen: boolean;
@@ -21,7 +23,13 @@ export default function LessonModal({
     lessonColors?: LessonColors;
     defaultLessonColors?: LessonColors;
     isAdmin?: boolean;
-    onColorChange?: (lessonName: string, color: string | null) => void;
+    onColorChange?: (
+        lessonName: string,
+        color: string | null,
+        offset?: number
+    ) => void;
+    gradientOffsets?: Record<string, number>;
+    onGradientOffsetChange?: (lessonName: string, offset: number) => void;
 }) {
     const [animatingOut, setAnimatingOut] = useState(false);
     const [entered, setEntered] = useState(false);
@@ -289,10 +297,27 @@ export default function LessonModal({
                                             }
                                             canRemoveFallback={!!isAdmin}
                                             onColorChange={(color) =>
-                                                onColorChange(subject, color)
+                                                onColorChange(
+                                                    subject,
+                                                    color,
+                                                    gradientOffsets?.[
+                                                        subject
+                                                    ] ?? 0.5
+                                                )
                                             }
                                             onRemoveColor={() =>
                                                 onColorChange(subject, null)
+                                            }
+                                            isAdmin={!!isAdmin}
+                                            gradientOffset={
+                                                gradientOffsets?.[subject] ??
+                                                0.5
+                                            }
+                                            onGradientOffsetChange={(v) =>
+                                                onGradientOffsetChange?.(
+                                                    subject,
+                                                    v
+                                                )
                                             }
                                         />
                                     </div>

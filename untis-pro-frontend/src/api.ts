@@ -2,7 +2,7 @@ type ViteImportMeta = { env?: { VITE_API_BASE?: string } };
 const API_BASE: string | undefined = (import.meta as unknown as ViteImportMeta)
     .env?.VITE_API_BASE;
 
-import type { LessonColors } from './types';
+import type { LessonColors, LessonOffsets } from './types';
 
 export async function api<T>(
     path: string,
@@ -93,21 +93,32 @@ export async function api<T>(
 }
 
 // Lesson color API functions
-export async function getLessonColors(token: string): Promise<LessonColors> {
-    return api<LessonColors>('/api/lesson-colors/my-colors', { token });
+export async function getLessonColors(
+    token: string
+): Promise<{ colors: LessonColors; offsets: LessonOffsets }> {
+    return api<{ colors: LessonColors; offsets: LessonOffsets }>(
+        '/api/lesson-colors/my-colors',
+        { token }
+    );
 }
 
 export async function setLessonColor(
     token: string,
     lessonName: string,
     color: string,
-    viewingUserId?: string
+    viewingUserId?: string,
+    offset?: number
 ): Promise<{ success: boolean; type?: string }> {
-    const body: { lessonName: string; color: string; viewingUserId?: string } =
-        { lessonName, color };
+    const body: {
+        lessonName: string;
+        color: string;
+        viewingUserId?: string;
+        offset?: number;
+    } = { lessonName, color };
     if (viewingUserId) {
         body.viewingUserId = viewingUserId;
     }
+    if (offset !== undefined) body.offset = offset;
     return api<{ success: boolean; type?: string }>(
         '/api/lesson-colors/set-color',
         {
