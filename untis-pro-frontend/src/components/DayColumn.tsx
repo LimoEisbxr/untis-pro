@@ -117,18 +117,15 @@ const DayColumn: FC<DayColumnProps> = ({
     return (
         <div
             key={keyStr}
-            className="relative px-1.5 first:pl-3 last:pr-3 overflow-hidden"
+            className="relative px-1.5 first:pl-3 last:pr-3 overflow-hidden rounded-xl"
             style={{ height: containerHeight }}
         >
             <div className="absolute inset-0 rounded-xl ring-1 ring-slate-900/10 dark:ring-white/10 shadow-sm overflow-hidden transition-colors bg-gradient-to-b from-slate-50/85 via-slate-100/80 to-sky-50/70 dark:bg-slate-800/40 dark:bg-none" />
 
             {/* Today highlight overlay */}
             {isToday && (
-                <div
-                    className="absolute inset-0 pointer-events-none"
-                    style={{}}
-                >
-                    <div className="absolute inset-0 rounded-xl ring-2 ring-amber-400/40 dark:ring-amber-300/30 shadow-[0_8px_30px_rgba(251,191,36,0.25)]" />
+                <div className="absolute inset-0 pointer-events-none rounded-xl overflow-hidden">
+                    <div className="absolute inset-0 rounded-xl shadow-[inset_0_0_0_2px_rgba(251,191,36,0.35)]" />
                     <div className="absolute inset-0 rounded-xl bg-gradient-to-b from-amber-200/20 via-amber-200/10 to-transparent dark:from-amber-300/15 dark:via-amber-300/10" />
                 </div>
             )}
