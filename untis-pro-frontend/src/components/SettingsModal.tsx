@@ -130,7 +130,7 @@ export default function SettingsModal({
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-lg backdrop-saturate-150 backdrop-contrast-125">
             <div className="w-full max-w-lg bg-white dark:bg-slate-800 rounded-lg shadow-xl max-h-[90vh] overflow-hidden">
                 <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-700">
                     <div className="flex items-center gap-3">
@@ -144,7 +144,7 @@ export default function SettingsModal({
                                 <path d="M8 16h8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                             </svg>
                         </div>
-                        <h2 className="text-xl font-semibold">Sharing Settings</h2>
+                        <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Sharing Settings</h2>
                     </div>
                     <button
                         onClick={onClose}
@@ -195,7 +195,7 @@ export default function SettingsModal({
                             {/* Personal sharing toggle */}
                             <div className="flex items-center justify-between">
                                 <div>
-                                    <h3 className="font-medium">Enable Timetable Sharing</h3>
+                                    <h3 className="font-medium text-slate-900 dark:text-slate-100">Enable Timetable Sharing</h3>
                                     <p className="text-sm text-slate-600 dark:text-slate-400">
                                         Allow others to see your timetable
                                     </p>
@@ -216,7 +216,7 @@ export default function SettingsModal({
                                 <>
                                     {/* Search and add users */}
                                     <div>
-                                        <label className="block text-sm font-medium mb-2">
+                                        <label className="block text-sm font-medium mb-2 text-slate-900 dark:text-slate-100">
                                             Share with new people
                                         </label>
                                         <div className="relative">
@@ -225,7 +225,7 @@ export default function SettingsModal({
                                                 placeholder="Search users by name or username..."
                                                 value={searchQuery}
                                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 placeholder:text-slate-500 dark:placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                                             />
                                             {searchLoading && (
                                                 <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
@@ -240,9 +240,9 @@ export default function SettingsModal({
                                                         key={result.id}
                                                         onClick={() => handleShareWithUser(result)}
                                                         disabled={settings.sharingWith.some(u => u.id === result.id)}
-                                                        className="w-full px-3 py-2 text-left hover:bg-slate-50 dark:hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                        className="w-full px-3 py-2 text-left hover:bg-slate-50 dark:hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed text-slate-900 dark:text-slate-100"
                                                     >
-                                                        <div className="font-medium">
+                                                        <div className="font-medium text-slate-900 dark:text-slate-100">
                                                             {result.displayName || result.username}
                                                         </div>
                                                         {result.displayName && (
@@ -258,7 +258,7 @@ export default function SettingsModal({
 
                                     {/* Current sharing list */}
                                     <div>
-                                        <h3 className="font-medium mb-3">
+                                        <h3 className="font-medium mb-3 text-slate-900 dark:text-slate-100">
                                             People you're sharing with ({settings.sharingWith.length})
                                         </h3>
                                         {settings.sharingWith.length === 0 ? (
@@ -273,7 +273,7 @@ export default function SettingsModal({
                                                         className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-700 rounded-md"
                                                     >
                                                         <div>
-                                                            <div className="font-medium">
+                                                            <div className="font-medium text-slate-900 dark:text-slate-100">
                                                                 {sharedUser.displayName || sharedUser.username}
                                                             </div>
                                                             {sharedUser.displayName && (
