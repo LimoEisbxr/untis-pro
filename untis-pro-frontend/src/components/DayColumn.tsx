@@ -26,6 +26,7 @@ export type DayColumnProps = {
     lessonColors: LessonColors;
     defaultLessonColors: LessonColors;
     onLessonClick: (lesson: Lesson) => void;
+    isToday?: boolean;
     gradientOffsets?: Record<string, number>; // subject -> offset (0..1)
 };
 
@@ -41,6 +42,7 @@ const DayColumn: FC<DayColumnProps> = ({
     lessonColors,
     defaultLessonColors,
     onLessonClick,
+    isToday = false,
     gradientOffsets,
 }) => {
     // Detect mobile (tailwind sm breakpoint <640px). Responsive hook to decide hiding side-by-side overlaps.
@@ -127,32 +129,71 @@ const DayColumn: FC<DayColumnProps> = ({
     return (
         <div
             key={keyStr}
-            className="relative px-1.5 first:pl-3 last:pr-3 overflow-hidden"
+            className="relative px-1.5 first:pl-3 last:pr-3 overflow-hidden rounded-xl"
             style={{ height: containerHeight }}
         >
             <div className="absolute inset-0 rounded-xl ring-1 ring-slate-900/10 dark:ring-white/10 shadow-sm overflow-hidden transition-colors bg-gradient-to-b from-slate-50/85 via-slate-100/80 to-sky-50/70 dark:bg-slate-800/40 dark:bg-none" />
-            <div className="absolute left-0 right-0 top-0 z-10 px-0.5 pt-1 pointer-events-none">
+            {/* Today highlight overlay */}
+            {isToday && (
+                <div className="absolute inset-0 pointer-events-none rounded-xl overflow-hidden">
+                    <div className="absolute inset-0 rounded-xl shadow-[inset_0_0_0_2px_rgba(251,191,36,0.35)]" />
+                    <div className="absolute inset-0 rounded-xl bg-gradient-to-b from-amber-200/20 via-amber-200/10 to-transparent dark:from-amber-300/15 dark:via-amber-300/10" />
+                </div>
+            )}
+
+            <div className="absolute left-0 right-0 top-0 z-10 pointer-events-none">
                 {/* Mobile: two centered rows (weekday, date) */}
-                <div className="block sm:hidden text-center leading-tight">
-                    <div className="text-[11px] font-semibold text-slate-700 dark:text-slate-200">
+                <div className="block sm:hidden text-center leading-tight pt-1">
+                    <div
+                        className={`text-[11px] font-semibold ${
+                            isToday
+                                ? 'text-amber-700 dark:text-amber-300'
+                                : 'text-slate-700 dark:text-slate-200'
+                        }`}
+                    >
                         {day.toLocaleDateString(undefined, {
                             weekday: 'short',
                         })}
                     </div>
-                    <div className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
+                    <div
+                        className={`text-[10px] font-medium ${
+                            isToday
+                                ? 'text-amber-600 dark:text-amber-200'
+                                : 'text-slate-500 dark:text-slate-400'
+                        }`}
+                    >
                         {day.toLocaleDateString(undefined, {
                             day: '2-digit',
                             month: '2-digit',
                         })}
                     </div>
                 </div>
+
                 {/* Desktop: single line */}
-                <div className="hidden sm:block text-sm font-semibold tracking-tight text-slate-700 dark:text-slate-200 leading-snug whitespace-nowrap overflow-hidden text-ellipsis px-2 pt-1">
+                <div
+                    className={`hidden sm:block text-sm font-semibold tracking-tight leading-snug whitespace-nowrap overflow-hidden text-ellipsis px-2 pt-2 ${
+                        isToday
+                            ? 'text-amber-700 dark:text-amber-300'
+                            : 'text-slate-700 dark:text-slate-200'
+                    }`}
+                >
+                    {day.toLocaleDateString(undefined, {
+                        weekday: 'short',
+                        day: '2-digit',
+                        month: '2-digit',
+                    })}
+                </div>
+            </div>
                     {day.toLocaleDateString(undefined, {
                         weekday: 'long',
                         month: '2-digit',
                         day: '2-digit',
                     })}
+                    {isToday && (
+                        <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-amber-400/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-200">
+                            Today
+                        </span>
+                    )}
                 </div>
             </div>
             <div
