@@ -321,37 +321,6 @@ export default function Timetable({
                                 defaultLessonColors={defaultLessonColors}
                                 onLessonClick={handleLessonClick}
                                 isToday={isToday}
-                            />
-                        );
-                    })}
-                </div>
-            </div>
-                        />
-                    ))}
-                    <TimeAxis
-                        START_MIN={START_MIN}
-                        END_MIN={END_MIN}
-                        SCALE={SCALE}
-                        DAY_HEADER_PX={DAY_HEADER_PX}
-                        BOTTOM_PAD_PX={BOTTOM_PAD_PX}
-                    />
-                    {days.map((d) => {
-                        const key = fmtLocal(d);
-                        const items = lessonsByDay[key] || [];
-                        return (
-                            <DayColumn
-                                key={key}
-                                day={d}
-                                keyStr={key}
-                                items={items}
-                                START_MIN={START_MIN}
-                                END_MIN={END_MIN}
-                                SCALE={SCALE}
-                                DAY_HEADER_PX={DAY_HEADER_PX}
-                                BOTTOM_PAD_PX={BOTTOM_PAD_PX}
-                                lessonColors={lessonColors}
-                                defaultLessonColors={defaultLessonColors}
-                                onLessonClick={handleLessonClick}
                                 gradientOffsets={gradientOffsets}
                             />
                         );

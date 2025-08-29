@@ -184,18 +184,6 @@ const DayColumn: FC<DayColumnProps> = ({
                     })}
                 </div>
             </div>
-                    {day.toLocaleDateString(undefined, {
-                        weekday: 'long',
-                        month: '2-digit',
-                        day: '2-digit',
-                    })}
-                    {isToday && (
-                        <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-amber-400/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-200">
-                            Today
-                        </span>
-                    )}
-                </div>
-            </div>
             <div
                 className="absolute left-0 right-0 opacity-60 dark:opacity-40 pointer-events-none rounded-b-xl overflow-hidden"
                 style={{
