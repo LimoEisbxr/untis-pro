@@ -164,6 +164,25 @@ html.dark .label {
     @apply text-slate-300;
 }
 
+/* Animations */
+/* Unified fade-in (used for dynamic list items). Avoids double definitions that caused flicker. */
+.animate-fade-in {
+    opacity: 0; /* start transparent */
+    animation: fade-in-smart 220ms cubic-bezier(.4,.1,.2,1) forwards;
+    will-change: opacity, transform;
+}
+@media (prefers-reduced-motion: reduce) {
+    .animate-fade-in {
+        animation: none;
+        opacity: 1;
+    }
+}
+@keyframes fade-in-smart {
+    0% { opacity: 0; transform: translateY(6px); }
+    60% { opacity: 1; }
+    100% { opacity: 1; transform: translateY(0); }
+}
+
 /* Reusable surfaces */
 .header-blur {
     /* Light: subtle gray/blue tint */
@@ -348,9 +367,7 @@ html.dark .link-admin {
     }
 }
 
-.animate-fade-in {
-    animation: fade-in 200ms ease-out;
-}
+/* (Removed older duplicate .animate-fade-in rule) */
 
 .animate-slide-up {
     animation: slide-up 200ms ease-out;
