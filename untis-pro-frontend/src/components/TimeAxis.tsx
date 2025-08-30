@@ -86,7 +86,7 @@ const TimeAxis: FC<TimeAxisProps> = ({
                     height: headerPx + timesHeight + BOTTOM_PAD_PX,
                 }}
             >
-                <div className="mx-1 h-full rounded-md ring-1 ring-slate-900/10 dark:ring-white/10 border border-slate-300/50 dark:border-slate-600/50 shadow-sm overflow-hidden bg-gradient-to-b from-slate-50/85 via-slate-100/80 to-sky-50/70 dark:bg-slate-800/40 dark:bg-none relative">
+                <div className="mx-1 h-full rounded-md sm:ring-1 sm:ring-slate-900/10 sm:dark:ring-white/10 sm:border sm:border-slate-300/50 sm:dark:border-slate-600/50 shadow-sm overflow-hidden bg-gradient-to-b from-slate-50/85 via-slate-100/80 to-sky-50/70 dark:bg-slate-800/40 dark:bg-none relative">
                     {timeLabelPositions.map((t, i) => {
                         const extraTop = i === 0 ? 5 : 0; // only nudge first label for breathing space
                         return (

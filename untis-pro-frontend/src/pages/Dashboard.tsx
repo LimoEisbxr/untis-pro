@@ -486,7 +486,6 @@ export default function Dashboard({
                             </button>
                         </div>
 
-
                         {/* Row 2: search (desktop), mobile icons (search+home), week picker */}
                         <div className="flex flex-wrap items-end gap-3">
                             {/* Desktop search */}
@@ -500,7 +499,6 @@ export default function Dashboard({
                                 <div className="relative">
                                     <input
                                         className="input text-sm pr-8"
-
                                         placeholder="Student…"
                                         value={queryText}
                                         onChange={(e) =>
@@ -608,7 +606,7 @@ export default function Dashboard({
                                 </button>
                             </div>
                             {/* Week picker (week info removed) */}
-                            <div className="flex items-end gap-3 ml-auto">
+                            <div className="flex items-end gap-3 ml-auto mr-5">
                                 <div>
                                     <label className="label sm:text-sm text-[11px]">
                                         Week
@@ -675,7 +673,6 @@ export default function Dashboard({
                 </section>
             </main>
 
-
             {/* Mobile full-screen search overlay */}
             {mobileSearchOpen && (
                 <div className="sm:hidden fixed inset-0 z-50 bg-white dark:bg-slate-900 p-4 flex flex-col">
@@ -689,11 +686,24 @@ export default function Dashboard({
                         />
                         {queryText && (
                             <button
-                                className="rounded-md px-2 py-1 text-xs bg-slate-200 hover:bg-slate-300 text-slate-700 dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-slate-200"
+                                className="rounded-md p-2 bg-slate-200 hover:bg-slate-300 text-slate-700 dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-slate-200"
                                 onClick={() => setQueryText('')}
-                                aria-label="Clear"
+                                aria-label="Clear search"
+                                title="Clear search"
                             >
-                                Clear
+                                <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    className="h-5 w-5"
+                                >
+                                    <path d="M18 6 6 18" />
+                                    <path d="M6 6l12 12" />
+                                </svg>
                             </button>
                         )}
                         <button
