@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import type { User } from '../types';
 import {
     getSharingSettings,
@@ -84,20 +84,7 @@ export default function SettingsModal({
     const [myNameError, setMyNameError] = useState<string | null>(null);
     const [myNameSaved, setMyNameSaved] = useState(false);
 
-    // Load settings when modal opens
-    useEffect(() => {
-        if (isOpen) {
-            loadSettings();
-            if (user.isAdmin) {
-                loadUsers();
-            }
-            setMyDisplayName(user.displayName ?? '');
-            setMyNameSaved(false);
-            setMyNameError(null);
-        }
-    }, [isOpen, user.isAdmin, user.displayName]);
-
-    const loadUsers = async () => {
+    const loadUsers = useCallback(async () => {
         setUserManagementLoading(true);
         setUserManagementError(null);
         try {
@@ -116,7 +103,7 @@ export default function SettingsModal({
         } finally {
             setUserManagementLoading(false);
         }
-    };
+    }, [token]);
 
     const deleteUser = async (userId: string) => {
         if (!confirm('Delete this user?')) return;
@@ -204,7 +191,7 @@ export default function SettingsModal({
         };
     }, [searchQuery, token]);
 
-    const loadSettings = async () => {
+    const loadSettings = useCallback(async () => {
         setLoading(true);
         setError(null);
         try {
@@ -217,7 +204,18 @@ export default function SettingsModal({
         } finally {
             setLoading(false);
         }
-    };
+    }, [token]);
+
+    // Load settings when modal opens (with stable callbacks)
+    useEffect(() => {
+        if (isOpen) {
+            loadSettings();
+            if (user.isAdmin) loadUsers();
+            setMyDisplayName(user.displayName ?? '');
+            setMyNameSaved(false);
+            setMyNameError(null);
+        }
+    }, [isOpen, user.isAdmin, user.displayName, loadSettings, loadUsers]);
 
     const handleToggleSharing = async (enabled: boolean) => {
         if (!settings) return;
@@ -315,7 +313,7 @@ export default function SettingsModal({
             <div
                 className={`w-full ${
                     user.isAdmin ? 'max-w-3xl' : 'max-w-lg'
-                } bg-white dark:bg-slate-800 rounded-lg shadow-xl max-h-[90vh] overflow-hidden transform transition-all duration-200 will-change-transform will-change-opacity ${
+                } bg-white/75 dark:bg-slate-800/80 backdrop-blur-md ring-1 ring-black/10 dark:ring-white/10 rounded-lg shadow-xl max-h-[90vh] overflow-hidden transform transition-all duration-200 will-change-transform will-change-opacity ${
                     isVisible
                         ? 'opacity-100 translate-y-0'
                         : 'opacity-0 translate-y-2'

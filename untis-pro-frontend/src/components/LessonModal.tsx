@@ -45,15 +45,27 @@ export default function LessonModal({
     const shouldRender = isOpen || animatingOut;
 
     useEffect(() => {
+        let raf1: number | null = null;
+        let raf2: number | null = null;
         if (isOpen) {
-            const t = setTimeout(() => setEntered(true), 0);
+            setAnimatingOut(false);
+            setEntered(false); // ensure starting state for transition
             lockScroll();
-            return () => {
-                clearTimeout(t);
+            // Use double rAF to guarantee initial styles are committed before transition (Firefox smoothness)
+            raf1 = requestAnimationFrame(() => {
+                raf2 = requestAnimationFrame(() => setEntered(true));
+            });
+        } else {
+            // If modal is programmatically hidden without close animation
+            if (!animatingOut) {
                 unlockScroll();
-            };
+            }
         }
-        return;
+        return () => {
+            if (raf1) cancelAnimationFrame(raf1);
+            if (raf2) cancelAnimationFrame(raf2);
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen]);
 
     const handleClose = useCallback(() => {
@@ -97,21 +109,16 @@ export default function LessonModal({
 
     return createPortal(
         <div
-            className={`fixed inset-0 z-[9999] modal-portal flex items-center justify-center p-4 transition-opacity duration-200 ${
+            className={`fixed inset-0 z-[9999] modal-portal flex items-center justify-center p-4 bg-black/50 backdrop-blur-lg backdrop-saturate-150 backdrop-contrast-125 transition-opacity duration-200 ease-out ${
                 entered ? 'opacity-100' : 'opacity-0'
             }`}
             onClick={handleClose}
         >
             <div
-                aria-hidden
-                className={`absolute inset-0 bg-black/50 backdrop-blur-lg backdrop-saturate-150 backdrop-contrast-125 transition-opacity duration-200 ${
-                    entered ? 'opacity-100' : 'opacity-0'
-                }`}
-            />
-
-            <div
-                className={`relative w-full max-w-2xl max-h-[85vh] overflow-y-auto no-native-scrollbar rounded-2xl shadow-2xl ring-1 ring-black/10 dark:ring-white/10 bg-white/95 dark:bg-slate-900/90 backdrop-blur-md transition-all duration-200 ease-out ${
-                    entered ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
+                className={`relative w-full max-w-2xl max-h-[85vh] overflow-y-auto no-native-scrollbar rounded-2xl shadow-2xl ring-1 ring-black/10 dark:ring-white/10 bg-white/75 dark:bg-slate-900/80 backdrop-blur-md transition-all duration-200 ease-out will-change-transform will-change-opacity ${
+                    entered
+                        ? 'opacity-100 translate-y-0'
+                        : 'opacity-0 translate-y-2'
                 }`}
                 onClick={(e) => e.stopPropagation()}
                 role="dialog"

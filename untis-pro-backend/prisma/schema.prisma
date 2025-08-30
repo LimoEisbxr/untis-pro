@@ -15,25 +15,28 @@ model User {
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
 
-    username String
-    // hashed or encrypted password at rest; for demo we store as text. Replace with vault/KMS in prod.
-    password String
+    username              String
+    // Secure credential fields (legacy plaintext password removed)
+    hashedPassword        String? // Argon2id hash for local app authentication
+    untisSecretCiphertext Bytes? // AES-GCM ciphertext of Untis password (for background refresh)
+    untisSecretNonce      Bytes? // AES-GCM nonce
+    untisSecretKeyVersion Int?    @default(1) // Version of master key used
 
     displayName String?
 
     // Sharing preferences
     sharingEnabled Boolean @default(true) // By default, new accounts enable sharing
-    
+
     // Relationships
     timetables   Timetable[]
     sessions     SessionToken[]
     lessonColors LessonColorSetting[]
     homework     Homework[]
     exams        Exam[]
-    
+
     // Sharing relationships
-    sharingWith     TimetableShare[] @relation("UserSharingWith")
-    sharedWithBy    TimetableShare[] @relation("UserSharedWithBy")
+    sharingWith  TimetableShare[] @relation("UserSharingWith")
+    sharedWithBy TimetableShare[] @relation("UserSharedWithBy")
 
     @@unique([username])
 }
@@ -84,15 +87,15 @@ model DefaultLessonColor {
 model TimetableShare {
     id        String   @id @default(uuid())
     createdAt DateTime @default(now())
-    
+
     // User who is sharing their timetable
-    ownerId   String
-    owner     User     @relation("UserSharingWith", fields: [ownerId], references: [id], onDelete: Cascade)
-    
+    ownerId String
+    owner   User   @relation("UserSharingWith", fields: [ownerId], references: [id], onDelete: Cascade)
+
     // User who can view the timetable
     sharedWithId String
-    sharedWith   User     @relation("UserSharedWithBy", fields: [sharedWithId], references: [id], onDelete: Cascade)
-    
+    sharedWith   User   @relation("UserSharedWithBy", fields: [sharedWithId], references: [id], onDelete: Cascade)
+
     @@unique([ownerId, sharedWithId])
 }
 
@@ -100,7 +103,7 @@ model AppSettings {
     id        String   @id @default(uuid())
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
-    
+
     // Global setting for admins to disable all sharing
     globalSharingEnabled Boolean @default(true)
 }

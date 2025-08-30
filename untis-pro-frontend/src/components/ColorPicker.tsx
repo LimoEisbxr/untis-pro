@@ -218,21 +218,28 @@ export default function ColorPicker({
                         })()}
                     </div>
 
-                    {/* Preset Colors */}
-                    <div className="grid grid-cols-6 gap-2">
+                    {/* Preset Colors (responsive grid using full width) */}
+                    <div
+                        className="grid gap-2"
+                        style={{
+                            gridTemplateColumns:
+                                'repeat(auto-fit,minmax(40px,1fr))',
+                        }}
+                    >
                         {PRESET_COLORS.map((color) => (
-                            <button
-                                key={color}
-                                className={`w-8 h-8 rounded-md border-2 transition-all hover:scale-110 hover:shadow-md ${
-                                    currentColor === color
-                                        ? 'border-slate-900 dark:border-slate-100 shadow-md'
-                                        : 'border-slate-300 dark:border-slate-600'
-                                }`}
-                                style={{ backgroundColor: color }}
-                                onClick={() => handlePresetClick(color)}
-                                title={color}
-                                type="button"
-                            />
+                            <div key={color} className="flex">
+                                <button
+                                    className={`flex-1 aspect-square rounded-md border-2 transition-all hover:shadow-md hover:-translate-y-px active:translate-y-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/60 ${
+                                        currentColor === color
+                                            ? 'border-slate-900 dark:border-slate-100 shadow-md'
+                                            : 'border-slate-300 dark:border-slate-600'
+                                    }`}
+                                    style={{ backgroundColor: color }}
+                                    onClick={() => handlePresetClick(color)}
+                                    title={color}
+                                    type="button"
+                                />
+                            </div>
                         ))}
                     </div>
 
@@ -241,10 +248,10 @@ export default function ColorPicker({
                         (currentColor &&
                             (!fallbackColor ||
                                 currentColor !== fallbackColor))) && (
-                        <div className="space-y-1 pt-1 border-t border-slate-200 dark:border-slate-700">
-                            <label className="flex items-center justify-between text-xs font-medium text-slate-600 dark:text-slate-300">
+                        <div className="space-y-2 pt-3 mt-3 border-t border-slate-200 dark:border-slate-700">
+                            <label className="flex items-center justify-between text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
                                 <span>Gradient Offset</span>
-                                <span className="tabular-nums text-[11px] px-1 py-0.5 rounded bg-slate-100 dark:bg-slate-800">
+                                <span className="tabular-nums text-[11px] px-1 py-0.5 rounded bg-slate-100 dark:bg-slate-800 shadow-inner">
                                     {gradientOffset.toFixed(2)}
                                 </span>
                             </label>
@@ -254,14 +261,23 @@ export default function ColorPicker({
                                 max={1}
                                 step={0.01}
                                 value={gradientOffset}
+                                aria-label="Gradient offset (0 flat – 1 max variation)"
                                 onChange={(e) =>
                                     onGradientOffsetChange?.(
                                         parseFloat(e.target.value)
                                     )
                                 }
-                                className="w-full"
+                                className="gradient-slider focus-visible:outline-none"
+                                style={
+                                    {
+                                        ['--progress']:
+                                            `${(gradientOffset * 100).toFixed(
+                                                2
+                                            )}%`,
+                                    } as React.CSSProperties
+                                }
                             />
-                            <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
                                 0 = flat, 1 = max variation.
                             </p>
                         </div>
@@ -272,7 +288,7 @@ export default function ColorPicker({
                         {!showCustomInput ? (
                             <button
                                 onClick={() => setShowCustomInput(true)}
-                                className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                                className="w-full px-3 py-2 text-sm border border-slate-300 dark:border-slate-600 rounded-md bg-white/70 dark:bg-slate-700/40 text-slate-700 dark:text-slate-100 hover:bg-white dark:hover:bg-slate-700 hover:border-slate-400 dark:hover:border-slate-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/60 transition-colors"
                                 type="button"
                             >
                                 Custom Color...
