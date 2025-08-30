@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { authMiddleware } from '../server/authMiddleware.js';
 import { prisma } from '../store/prisma.js';
 import jwt from 'jsonwebtoken';
+import { WHITELIST_ENABLED } from '../server/config.js';
 
 const router = Router();
 
@@ -76,7 +77,8 @@ router.get('/settings', authMiddleware, async (req, res) => {
         
         // Get global sharing setting (for admins)
         let globalSharingEnabled = true;
-        if (isAdminUser(req)) {
+        const admin = isAdminUser(req);
+        if (admin) {
             const appSettingsModel = getModel('appSettings');
             if (appSettingsModel) {
                 const appSettings = await appSettingsModel.findFirst();
@@ -88,7 +90,8 @@ router.get('/settings', authMiddleware, async (req, res) => {
             sharingEnabled: user?.sharingEnabled ?? false,
             sharingWith: sharingWith.map((s: any) => s.sharedWith),
             globalSharingEnabled,
-            isAdmin: isAdminUser(req),
+            isAdmin: admin,
+            whitelistEnabled: WHITELIST_ENABLED === true,
             // Surface flag to frontend so it can optionally warn user
             _sharingFeatureDegraded: !timetableShareModel,
         });

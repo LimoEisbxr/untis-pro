@@ -18,7 +18,7 @@ router.get('/search', authMiddleware, async (req, res) => {
     if (!parsed.success) return res.json({ users: [] });
     const q = parsed.data.q;
     const requesterId = req.user!.id;
-    
+
     try {
         // Check if user is admin
         let isAdmin = false;
@@ -31,7 +31,7 @@ router.get('/search', authMiddleware, async (req, res) => {
             );
             isAdmin = Boolean(decoded?.isAdmin);
         } catch {}
-        
+
         // Admins can search all users
         if (isAdmin) {
             const users = await prisma.user.findMany({
@@ -47,13 +47,13 @@ router.get('/search', authMiddleware, async (req, res) => {
             });
             return res.json({ users });
         }
-        
+
         // Check global sharing setting
         const appSettings = await (prisma as any).appSettings.findFirst();
         if (appSettings && !appSettings.globalSharingEnabled) {
             return res.json({ users: [] });
         }
-        
+
         // Regular users: only return users who are sharing their timetable with the requester
         // First, find all users matching the search query who have sharing enabled
         const usersWithSharing = await (prisma as any).user.findMany({
@@ -62,7 +62,12 @@ router.get('/search', authMiddleware, async (req, res) => {
                     {
                         OR: [
                             { username: { contains: q, mode: 'insensitive' } },
-                            { displayName: { contains: q, mode: 'insensitive' } },
+                            {
+                                displayName: {
+                                    contains: q,
+                                    mode: 'insensitive',
+                                },
+                            },
                         ],
                     },
                     { sharingEnabled: true },
@@ -73,13 +78,13 @@ router.get('/search', authMiddleware, async (req, res) => {
             orderBy: [{ username: 'asc' }],
             take: 20,
         });
-        
+
         // Filter to only include users who are sharing with the requester
         const userIds = usersWithSharing.map((u: any) => u.id);
         if (userIds.length === 0) {
             return res.json({ users: [] });
         }
-        
+
         const sharedWith = await (prisma as any).timetableShare.findMany({
             where: {
                 ownerId: { in: userIds },
@@ -87,12 +92,12 @@ router.get('/search', authMiddleware, async (req, res) => {
             },
             select: { ownerId: true },
         });
-        
+
         const sharedUserIds = new Set(sharedWith.map((s: any) => s.ownerId));
-        const filteredUsers = usersWithSharing.filter((u: any) => 
+        const filteredUsers = usersWithSharing.filter((u: any) =>
             sharedUserIds.has(u.id)
         );
-        
+
         res.json({ users: filteredUsers });
     } catch (e: any) {
         const msg = e?.message || 'Search failed';
@@ -106,14 +111,14 @@ router.get('/search-to-share', authMiddleware, async (req, res) => {
     if (!parsed.success) return res.json({ users: [] });
     const q = parsed.data.q;
     const requesterId = req.user!.id;
-    
+
     try {
         // Check global sharing setting
         const appSettings = await (prisma as any).appSettings.findFirst();
         if (appSettings && !appSettings.globalSharingEnabled) {
             return res.json({ users: [] });
         }
-        
+
         // Find all users matching the search query, excluding self
         const users = await prisma.user.findMany({
             where: {
@@ -121,7 +126,12 @@ router.get('/search-to-share', authMiddleware, async (req, res) => {
                     {
                         OR: [
                             { username: { contains: q, mode: 'insensitive' } },
-                            { displayName: { contains: q, mode: 'insensitive' } },
+                            {
+                                displayName: {
+                                    contains: q,
+                                    mode: 'insensitive',
+                                },
+                            },
                         ],
                     },
                     { id: { not: requesterId } }, // Exclude self
@@ -131,7 +141,7 @@ router.get('/search-to-share', authMiddleware, async (req, res) => {
             orderBy: [{ username: 'asc' }],
             take: 20,
         });
-        
+
         res.json({ users });
     } catch (e: any) {
         const msg = e?.message || 'Search failed';

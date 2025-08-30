@@ -7,11 +7,12 @@ import {
 import {
     ADMIN_USERNAME,
     ADMIN_PASSWORD,
-    UNTIS_DEFAULT_SCHOOL,
+    WHITELIST_ENABLED,
 } from '../server/config.js';
 import { verifyUntisCredentials } from '../services/untisService.js';
 import { signToken, authMiddleware } from '../server/authMiddleware.js';
 import { untisUserLimiter } from '../server/untisRateLimiter.js';
+import { prisma } from '../store/prisma.js';
 
 const router = Router();
 
@@ -71,6 +72,25 @@ router.post('/login', untisUserLimiter, async (req, res) => {
             error: e?.message || 'Invalid credentials',
             code: e?.code,
         });
+    }
+
+    // Check whitelist (DB-backed) if enabled — username-only
+    if (WHITELIST_ENABLED) {
+        const username = parsed.data.username.toLowerCase();
+
+        // Check direct username rule
+        const usernameRule = await (prisma as any).whitelistRule.findFirst({
+            where: { value: username },
+            select: { id: true },
+        });
+
+        const isWhitelisted = Boolean(usernameRule);
+        if (!isWhitelisted) {
+            return res.status(403).json({
+                error: 'Access denied. Your account is not authorized for this beta.',
+                code: 'NOT_WHITELISTED',
+            });
+        }
     }
 
     // Create user with Untis credentials

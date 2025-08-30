@@ -461,6 +461,72 @@ export async function verifyUntisCredentials(
     }
 }
 
+export async function getUserClassInfo(
+    username: string,
+    password: string
+): Promise<string[]> {
+    const school = UNTIS_DEFAULT_SCHOOL;
+    const host = UNTIS_HOST;
+    const untis = new WebUntis(school, username, password, host) as any;
+    
+    try {
+        await untis.login();
+        
+        // Try to get user's classes/grades
+        let classes: string[] = [];
+        
+        try {
+            // Get current user info which might include class information
+            if (typeof untis.getOwnClassesList === 'function') {
+                const classList = await untis.getOwnClassesList();
+                classes = Array.isArray(classList) 
+                    ? classList.map((c: any) => c.name || c.longName || String(c)).filter(Boolean)
+                    : [];
+            } else if (typeof untis.getOwnStudentId === 'function') {
+                // Alternative approach: get student info
+                const studentId = await untis.getOwnStudentId();
+                if (studentId && typeof untis.getStudent === 'function') {
+                    const student = await untis.getStudent(studentId);
+                    if (student?.klasse) {
+                        classes = Array.isArray(student.klasse) 
+                            ? student.klasse.map((k: any) => k.name || k.longName || String(k)).filter(Boolean)
+                            : [String(student.klasse)];
+                    }
+                }
+            }
+            
+            // If we still don't have classes, try to get them from the general classes list
+            if (classes.length === 0 && typeof untis.getClasses === 'function') {
+                const allClasses = await untis.getClasses();
+                if (Array.isArray(allClasses)) {
+                    // This is a fallback - we can't determine user's specific class this way
+                    // but we'll return empty array and rely on username whitelist
+                    classes = [];
+                }
+            }
+        } catch (e: any) {
+            console.warn('[whitelist] failed to get user class info', e?.message);
+            classes = [];
+        }
+        
+        try {
+            await untis.logout?.();
+        } catch {}
+        
+        return classes;
+    } catch (e: any) {
+        const msg = e?.message || '';
+        if (msg.includes('bad credentials')) {
+            throw new AppError(
+                'Invalid Untis credentials',
+                401,
+                'BAD_CREDENTIALS'
+            );
+        }
+        throw new AppError('Untis login failed', 502, 'UNTIS_LOGIN_FAILED');
+    }
+}
+
 async function storeHomeworkData(
     userId: string,
     homeworkData: any[],

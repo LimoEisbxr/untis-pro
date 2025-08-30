@@ -9,7 +9,7 @@ export async function api<T>(
     opts: RequestInit & { token?: string } = {}
 ): Promise<T> {
     // Prefer configured API base; otherwise, build relative to current host
-    // This ensures requests go to the same IP/host the site is loaded from
+    // This ensures requests go to the same IP/host the site was loaded from
     const base = (API_BASE ?? '').trim();
     if (!base) {
         // Use relative path so the browser hits the same host/IP the site was loaded from
@@ -172,6 +172,7 @@ export type SharingSettings = {
     sharingWith: Array<{ id: string; username: string; displayName?: string }>;
     globalSharingEnabled: boolean;
     isAdmin: boolean;
+    whitelistEnabled?: boolean;
 };
 
 export async function getSharingSettings(token: string): Promise<SharingSettings> {
@@ -260,6 +261,31 @@ export async function updateMyDisplayName(
             body: JSON.stringify({ displayName }),
         }
     );
+}
+
+// New: Whitelist management (username-only)
+export type WhitelistRule = { id: string; value: string; createdAt: string };
+export async function listWhitelist(token: string): Promise<{ rules: WhitelistRule[] }> {
+    return api<{ rules: WhitelistRule[] }>(`/api/admin/whitelist`, { token });
+}
+export async function addWhitelistRule(
+    token: string,
+    value: string
+): Promise<{ rule: WhitelistRule; created: boolean }> {
+    return api<{ rule: WhitelistRule; created: boolean }>(`/api/admin/whitelist`, {
+        method: 'POST',
+        token,
+        body: JSON.stringify({ value }),
+    });
+}
+export async function deleteWhitelistRule(
+    token: string,
+    id: string
+): Promise<{ ok: boolean }> {
+    return api<{ ok: boolean }>(`/api/admin/whitelist/${id}`, {
+        method: 'DELETE',
+        token,
+    });
 }
 
 export { API_BASE };
