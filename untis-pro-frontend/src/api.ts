@@ -2,7 +2,7 @@ type ViteImportMeta = { env?: { VITE_API_BASE?: string } };
 const API_BASE: string | undefined = (import.meta as unknown as ViteImportMeta)
     .env?.VITE_API_BASE;
 
-import type { LessonColors, LessonOffsets } from './types';
+import type { LessonColors, LessonOffsets, User } from './types';
 
 export async function api<T>(
     path: string,
@@ -192,8 +192,8 @@ export async function updateSharingEnabled(
 export async function shareWithUser(
     token: string,
     userId: string
-): Promise<{ success: boolean; user?: any }> {
-    return api<{ success: boolean; user?: any }>('/api/sharing/share', {
+): Promise<{ success: boolean; user?: User }> {
+    return api<{ success: boolean; user?: User }>('/api/sharing/share', {
         method: 'POST',
         token,
         body: JSON.stringify({ userId }),

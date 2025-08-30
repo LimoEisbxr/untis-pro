@@ -3,6 +3,7 @@ import { prisma } from '../store/prisma.js';
 import { decryptSecret } from '../server/crypto.js';
 import { UNTIS_DEFAULT_SCHOOL, UNTIS_HOST } from '../server/config.js';
 import { AppError } from '../server/errors.js';
+import { Prisma } from '@prisma/client';
 
 // ---------------------------------------------------------------------------
 // Timetable caching strategy
@@ -95,7 +96,7 @@ async function pruneOldTimetables() {
                 skip: 0,
                 take: MAX_HISTORY_PER_RANGE,
             });
-            const keepIds = new Set(keep.map((k) => k.id));
+            const keepIds = new Set(keep.map((k: any) => k.id));
             await prisma.timetable.deleteMany({
                 where: {
                     ownerId: r.ownerId,
@@ -179,8 +180,12 @@ async function fetchAndStoreUntis(args: {
         throw new AppError('Untis login failed', 502, 'UNTIS_LOGIN_FAILED');
     }
 
-    let data: any;
+    let lessonsData: any;
+    let homeworkData: any[] = [];
+    let examData: any = [];
+
     try {
+        // Fetch all lessons using getOwnTimetableForRange
         if (sd && ed && typeof untis.getOwnTimetableForRange === 'function') {
             console.debug('[timetable] calling getOwnTimetableForRange', {
                 start: sd,
@@ -188,15 +193,87 @@ async function fetchAndStoreUntis(args: {
                 startType: typeof sd,
                 endType: typeof ed,
             });
-            data = await untis.getOwnTimetableForRange(sd, ed);
+            lessonsData = await untis.getOwnTimetableForRange(sd, ed);
         } else if (typeof untis.getOwnTimetableForToday === 'function') {
             console.debug('[timetable] calling getOwnTimetableForToday');
-            data = await untis.getOwnTimetableForToday();
+            lessonsData = await untis.getOwnTimetableForToday();
         } else {
             console.debug(
                 '[timetable] calling getTimetableForToday (fallback)'
             );
-            data = await untis.getTimetableForToday?.();
+            lessonsData = await untis.getTimetableForToday?.();
+        }
+
+        // Fetch homework separately using getHomeWorksFor
+        if (sd && ed && typeof untis.getHomeWorksFor === 'function') {
+            console.debug('[timetable] calling getHomeWorksFor', {
+                start: sd,
+                end: ed,
+            });
+            try {
+                const hwResp = await untis.getHomeWorksFor(sd, ed);
+                // Extract array of homework items from response shape
+                homeworkData = Array.isArray(hwResp)
+                    ? hwResp
+                    : Array.isArray(hwResp?.homeworks)
+                    ? hwResp.homeworks
+                    : [];
+                // Build a map of lessonId -> subject string if available
+                const lessonSubjectByLessonId: Map<number, string> = new Map();
+                const lessonsArr: any[] = Array.isArray(hwResp?.lessons)
+                    ? hwResp.lessons
+                    : [];
+                for (const l of lessonsArr) {
+                    if (
+                        typeof l?.id === 'number' &&
+                        typeof l?.subject === 'string'
+                    ) {
+                        lessonSubjectByLessonId.set(l.id, l.subject);
+                    }
+                }
+                console.debug(
+                    '[timetable] fetched homework count',
+                    homeworkData.length
+                );
+                // Persist with subject enrichment and due dates
+                if (homeworkData.length > 0) {
+                    try {
+                        await storeHomeworkData(
+                            target.id,
+                            homeworkData,
+                            lessonSubjectByLessonId
+                        );
+                    } catch (e: any) {
+                        console.warn(
+                            '[timetable] failed to store homework data',
+                            e?.message
+                        );
+                    }
+                }
+            } catch (e: any) {
+                console.warn(
+                    '[timetable] getHomeWorksFor failed, continuing without homework',
+                    e?.message
+                );
+                homeworkData = [];
+            }
+        }
+
+        // Fetch exams for the range if available
+        if (sd && ed && typeof untis.getExamsForRange === 'function') {
+            console.debug('[timetable] calling getExamsForRange', {
+                start: sd,
+                end: ed,
+            });
+            try {
+                examData = await untis.getExamsForRange(sd, ed);
+            } catch (e: any) {
+                console.warn(
+                    '[timetable] getExamsForRange failed, continuing without exams',
+                    e?.message
+                );
+                examData = [];
+            }
         }
     } catch (e: any) {
         const msg = String(e?.message || '').toLowerCase();
@@ -206,7 +283,9 @@ async function fetchAndStoreUntis(args: {
             msg.includes('no result')
         ) {
             console.warn('[timetable] no result from Untis, returning empty');
-            data = [];
+            lessonsData = [];
+            homeworkData = [];
+            examData = [];
         } else {
             throw new AppError('Untis fetch failed', 502, 'UNTIS_FETCH_FAILED');
         }
@@ -216,9 +295,42 @@ async function fetchAndStoreUntis(args: {
         await untis.logout?.();
     } catch {}
 
-    const payload = data ?? [];
+    // Store exam data in database
+    if (examData && Array.isArray(examData) && examData.length > 0) {
+        try {
+            await storeExamData(target.id, examData);
+        } catch (e: any) {
+            console.warn('[timetable] failed to store exam data', e?.message);
+        }
+    }
+
+    // Combine homework and exam data with lessons
+    const enrichedLessons = await enrichLessonsWithHomeworkAndExams(
+        target.id,
+        lessonsData || [],
+        sd,
+        ed
+    );
+
+    const payload = enrichedLessons;
     const rangeStart = sd ?? null;
     const rangeEnd = ed ?? null;
+
+    const sample = Array.isArray(payload) ? payload.slice(0, 2) : payload;
+    console.debug('[timetable] response summary', {
+        hasPayload: !!payload,
+        type: typeof payload,
+        lessonsCount: Array.isArray(lessonsData) ? lessonsData.length : 0,
+        homeworkCount: homeworkData.length,
+        examsCount: Array.isArray(examData) ? examData.length : 0,
+        sample: (() => {
+            try {
+                return JSON.stringify(sample).slice(0, 500);
+            } catch {
+                return '[unserializable]';
+            }
+        })(),
+    });
 
     await prisma.timetable.create({
         data: {
@@ -347,4 +459,183 @@ export async function verifyUntisCredentials(
         }
         throw new AppError('Untis login failed', 502, 'UNTIS_LOGIN_FAILED');
     }
+}
+
+async function storeHomeworkData(
+    userId: string,
+    homeworkData: any[],
+    lessonSubjectByLessonId?: Map<number, string>
+) {
+    for (const hw of homeworkData) {
+        try {
+            // Determine subject string via mapping (fallback to hw.subject?.name)
+            const subjectStr =
+                (typeof hw.lessonId === 'number' &&
+                    lessonSubjectByLessonId?.get(hw.lessonId)) ||
+                hw.subject?.name ||
+                '';
+            await (prisma as any).homework.upsert({
+                where: { untisId: hw.id },
+                update: {
+                    lessonId: hw.lessonId,
+                    // Store due date; Untis returns both date (assigned) and dueDate
+                    date: hw.dueDate ?? hw.date,
+                    subjectId: Number.isInteger(hw.subject?.id)
+                        ? hw.subject?.id
+                        : 0,
+                    subject: subjectStr,
+                    text: hw.text || '',
+                    remark: hw.remark,
+                    completed: hw.completed || false,
+                    fetchedAt: new Date(),
+                },
+                create: {
+                    untisId: hw.id,
+                    userId,
+                    lessonId: hw.lessonId,
+                    // Store due date; Untis returns both date (assigned) and dueDate
+                    date: hw.dueDate ?? hw.date,
+                    subjectId: Number.isInteger(hw.subject?.id)
+                        ? hw.subject?.id
+                        : 0,
+                    subject: subjectStr,
+                    text: hw.text || '',
+                    remark: hw.remark,
+                    completed: hw.completed || false,
+                },
+            });
+        } catch (e: any) {
+            console.warn(
+                `[homework] failed to store homework ${hw?.id}:`,
+                e?.message
+            );
+        }
+    }
+}
+
+async function storeExamData(userId: string, examData: any[]) {
+    for (const exam of examData) {
+        try {
+            await (prisma as any).exam.upsert({
+                where: { untisId: exam.id },
+                update: {
+                    date: exam.date,
+                    startTime: exam.startTime,
+                    endTime: exam.endTime,
+                    subjectId: exam.subject?.id,
+                    subject: exam.subject?.name || '',
+                    name: exam.name || '',
+                    text: exam.text,
+                    // Store as JSON or set null when absent
+                    teachers: exam.teachers ?? null,
+                    rooms: exam.rooms ?? null,
+                    fetchedAt: new Date(),
+                },
+                create: {
+                    untisId: exam.id,
+                    userId,
+                    date: exam.date,
+                    startTime: exam.startTime,
+                    endTime: exam.endTime,
+                    subjectId: exam.subject?.id,
+                    subject: exam.subject?.name || '',
+                    name: exam.name || '',
+                    text: exam.text,
+                    // Store as JSON or set null when absent
+                    teachers: exam.teachers ?? null,
+                    rooms: exam.rooms ?? null,
+                },
+            });
+        } catch (e: any) {
+            console.warn(`[exam] failed to store exam ${exam.id}:`, e?.message);
+        }
+    }
+}
+
+async function enrichLessonsWithHomeworkAndExams(
+    userId: string,
+    lessons: any[],
+    startDate?: Date,
+    endDate?: Date
+): Promise<any[]> {
+    if (!Array.isArray(lessons)) return lessons;
+
+    // Get homework and exams for the date range (due date for homework)
+    const whereClause: any = { userId };
+    if (startDate && endDate) {
+        const startDateInt = parseInt(
+            startDate.toISOString().slice(0, 10).replace(/-/g, '')
+        );
+        const endDateInt = parseInt(
+            endDate.toISOString().slice(0, 10).replace(/-/g, '')
+        );
+        whereClause.date = {
+            gte: startDateInt,
+            lte: endDateInt,
+        };
+    }
+
+    const [homework, exams] = await Promise.all([
+        (prisma as any).homework.findMany({ where: whereClause }),
+        (prisma as any).exam.findMany({ where: whereClause }),
+    ]);
+
+    const lessonMatchesHw = (hw: any, lesson: any) => {
+        const idsToCheck = [
+            lesson?.id,
+            lesson?.lsnumber,
+            lesson?.lsNumber,
+            lesson?.ls,
+            lesson?.lessonId,
+        ].filter((v) => typeof v === 'number');
+        return idsToCheck.some((v) => v === hw.lessonId);
+    };
+
+    // Enrich lessons with homework and exam data
+    return lessons.map((lesson) => {
+        const subjectName = lesson.su?.[0]?.name;
+        const lessonHomework = homework
+            .filter(
+                (hw: any) =>
+                    lessonMatchesHw(hw, lesson) ||
+                    (hw.date === lesson.date &&
+                        hw.subject &&
+                        subjectName &&
+                        hw.subject === subjectName)
+            )
+            .map((hw: any) => ({
+                id: hw.untisId,
+                lessonId: hw.lessonId,
+                date: hw.date,
+                subject: { id: hw.subjectId, name: hw.subject },
+                text: hw.text,
+                remark: hw.remark,
+                completed: hw.completed,
+            }));
+
+        const lessonExams = exams
+            .filter(
+                (exam: any) =>
+                    exam.date === lesson.date &&
+                    exam.subject === lesson.su?.[0]?.name
+            )
+            .map((exam: any) => ({
+                id: exam.untisId,
+                date: exam.date,
+                startTime: exam.startTime,
+                endTime: exam.endTime,
+                subject: { id: exam.subjectId, name: exam.subject },
+                // Values are already JSON in DB
+                teachers: exam.teachers ?? undefined,
+                rooms: exam.rooms ?? undefined,
+                name: exam.name,
+                text: exam.text,
+            }));
+
+        return {
+            ...lesson,
+            homework: lessonHomework.length > 0 ? lessonHomework : undefined,
+            exams: lessonExams.length > 0 ? lessonExams : undefined,
+        };
+    });
 }

@@ -126,6 +126,9 @@ const DayColumn: FC<DayColumnProps> = ({
         return out;
     })();
 
+    // Track the last bottom pixel per visual column signature to enforce gaps
+    const lastBottomByCol: Record<string, number> = {};
+
     return (
         <div
             key={keyStr}
@@ -196,163 +199,283 @@ const DayColumn: FC<DayColumnProps> = ({
                     }px, rgba(100,116,139,0.12) ${30 * SCALE}px)`,
                 }}
             />
-            {blocks.map((b) => {
-                const { l } = b;
-                // On mobile: if overlapping columns exist, only render the rightmost (highest colIndex)
-                if (
-                    isMobile &&
-                    b.colCount > 1 &&
-                    b.colIndex !== b.colCount - 1
-                ) {
-                    return null;
-                }
-                const top = (b.startMin - START_MIN) * SCALE + DAY_HEADER_PX;
-                const height = Math.max(14, (b.endMin - b.startMin) * SCALE);
-                const cancelled = l.code === 'cancelled';
-                const irregular = l.code === 'irregular';
-                const subject = l.su?.[0]?.name ?? l.activityType ?? '—';
-                // Display variant: strip everything from first underscore onward
-                const displaySubject = subject.includes('_')
-                    ? subject.split('_')[0] || subject
-                    : subject;
-                const room = l.ro?.map((r) => r.name).join(', ');
-                const teacher = l.te?.map((t) => t.name).join(', ');
-                // Mobile-friendly room string without trailing markers like B, WB, TV
-                const roomMobile = room
-                    ? room
-                          .split(',')
-                          .map((part) =>
-                              part.replace(/\s+(?:WB?|TV|B)$/i, '').trim()
-                          )
-                          .join(', ')
-                    : room;
+            {blocks
+                // render in top order to make bottom tracking deterministic
+                .slice()
+                .sort((a, b) => a.startMin - b.startMin || a.endMin - b.endMin)
+                .map((b) => {
+                    const { l } = b;
+                    // On mobile: collapse overlapping columns by rendering only the rightmost
+                    if (
+                        isMobile &&
+                        b.colCount > 1 &&
+                        b.colIndex !== b.colCount - 1
+                    ) {
+                        return null;
+                    }
 
-                const effectiveColor =
-                    lessonColors[subject] ??
-                    defaultLessonColors[subject] ??
-                    null;
-                const offset = gradientOffsets?.[subject] ?? 0.5;
-                const gradient = effectiveColor
-                    ? generateGradient(effectiveColor, offset)
-                    : getDefaultGradient();
+                    const cancelled = l.code === 'cancelled';
+                    const irregular = l.code === 'irregular';
+                    const subject = l.su?.[0]?.name ?? l.activityType ?? '—';
+                    const displaySubject = subject.includes('_')
+                        ? subject.split('_')[0] || subject
+                        : subject;
+                    const room = l.ro?.map((r) => r.name).join(', ');
+                    const teacher = l.te?.map((t) => t.name).join(', ');
+                    const roomMobile = room
+                        ? room
+                              .split(',')
+                              .map((part) =>
+                                  part.replace(/\s+(?:WB?|TV|B)$/i, '').trim()
+                              )
+                              .join(', ')
+                        : room;
 
-                const GAP_PCT = 2.25;
-                let widthPct = (100 - GAP_PCT * (b.colCount - 1)) / b.colCount;
-                let leftPct = b.colIndex * (widthPct + GAP_PCT);
-                if (isMobile && b.colCount > 1) {
-                    widthPct = 100; // occupy full width when collapsing columns
-                    leftPct = 0;
-                }
-                const PAD_TOP = 4;
-                const PAD_BOTTOM = 4;
-                const adjTop = top + PAD_TOP;
-                const adjHeight = Math.max(12, height - (PAD_TOP + PAD_BOTTOM));
+                    const effectiveColor =
+                        lessonColors[subject] ??
+                        defaultLessonColors[subject] ??
+                        null;
+                    const offset = gradientOffsets?.[subject] ?? 0.5;
+                    const gradient = effectiveColor
+                        ? generateGradient(effectiveColor, offset)
+                        : getDefaultGradient();
 
-                return (
-                    <div
-                        key={l.id}
-                        className={`absolute rounded-md p-2 sm:p-2 text-[12px] sm:text-xs ring-1 ring-slate-900/15 dark:ring-white/20 overflow-hidden cursor-pointer transform-gpu transition duration-150 hover:shadow-lg hover:brightness-115 hover:saturate-150 hover:contrast-110 hover:-translate-y-0.5 text-white ${
-                            cancelled
-                                ? 'bg-rose-500/90'
-                                : irregular
-                                ? 'bg-emerald-500/90'
-                                : ''
-                        }`}
-                        style={{
-                            top: adjTop,
-                            height: adjHeight,
-                            left: `${leftPct}%`,
-                            width: `${widthPct}%`,
-                            background: cancelled
-                                ? undefined
-                                : irregular
-                                ? undefined
-                                : (`linear-gradient(to right, ${gradient.from}, ${gradient.via}, ${gradient.to})` as string),
-                        }}
-                        title={`${fmtHM(b.startMin)}–${fmtHM(
-                            b.endMin
-                        )} | ${subject} ${room ? `| ${room}` : ''} ${
-                            teacher ? `| ${teacher}` : ''
-                        }`}
-                        onClick={() => onLessonClick(l)}
-                    >
-                        <div className="flex h-full min-w-0 flex-col">
-                            {/* Mobile centered layout */}
-                            <div className="flex flex-col items-center justify-center text-center gap-1 h-full sm:hidden px-0.5">
-                                <div
-                                    className="font-semibold leading-snug break-words w-full"
-                                    style={{
-                                        fontSize: 'clamp(11px, 3.4vw, 14px)',
-                                        wordBreak: 'break-word',
-                                        overflowWrap: 'anywhere',
-                                    }}
-                                >
-                                    {displaySubject}
+                    const GAP_PCT = 2.25;
+                    let widthPct =
+                        (100 - GAP_PCT * (b.colCount - 1)) / b.colCount;
+                    let leftPct = b.colIndex * (widthPct + GAP_PCT);
+                    if (isMobile && b.colCount > 1) {
+                        widthPct = 100;
+                        leftPct = 0;
+                    }
+
+                    // Pixel-snapped positioning with enforced 2px vertical gap
+                    const PAD_TOP = 4;
+                    const PAD_BOTTOM = 4;
+                    const startPxRaw =
+                        (b.startMin - START_MIN) * SCALE + DAY_HEADER_PX;
+                    const endPxRaw =
+                        (b.endMin - START_MIN) * SCALE + DAY_HEADER_PX;
+                    let topPx = Math.round(startPxRaw) + PAD_TOP;
+                    const endPx = Math.round(endPxRaw) - PAD_BOTTOM;
+                    let heightPx = Math.max(12, endPx - topPx - 2); // 2px gap budget
+
+                    // Enforce per-column cumulative bottom to avoid tiny overlaps from rounding
+                    const colKey = `${b.colIndex}/${b.colCount}`;
+                    const lastBottom = lastBottomByCol[colKey] ?? -Infinity;
+                    const desiredTop = lastBottom + 2; // 2px minimum gap
+                    if (topPx < desiredTop) {
+                        const delta = desiredTop - topPx;
+                        topPx += delta;
+                        heightPx = Math.max(12, heightPx - delta);
+                    }
+                    lastBottomByCol[colKey] = topPx + heightPx;
+
+                    // Reserve space for bottom labels and pad right for indicators
+                    const labelReservePx = cancelled || irregular ? 22 : 0;
+                    const MIN_BOTTOM_RESERVE = 6; // always keep a little breathing room
+                    const reservedBottomPx = Math.max(
+                        labelReservePx,
+                        MIN_BOTTOM_RESERVE
+                    );
+                    const indicatorCount =
+                        (l.homework && l.homework.length > 0 ? 1 : 0) +
+                        (l.info ? 1 : 0) +
+                        (l.lstext ? 1 : 0) +
+                        (l.exams && l.exams.length > 0 ? 1 : 0);
+                    // icon (12px) + gap (4px) each, plus 8px extra margin
+                    const indicatorsPadRightPx =
+                        indicatorCount > 0
+                            ? indicatorCount * 12 + (indicatorCount - 1) * 4 + 8
+                            : 0;
+                    // Extra right padding for room label shown under icons on desktop
+                    const roomPadRightPx = !isMobile && room ? 88 : 0;
+                    const MIN_PREVIEW_HEIGHT = 56;
+                    const canShowPreview =
+                        heightPx - reservedBottomPx >= MIN_PREVIEW_HEIGHT;
+
+                    // Compute content padding so mobile remains centered when icons exist
+                    const contentPadRight = isMobile
+                        ? 0 // no overlay on mobile; icons will be in their own centered row
+                        : indicatorsPadRightPx + roomPadRightPx;
+                    const contentPadLeft = 0;
+
+                    return (
+                        <div
+                            key={l.id}
+                            className={`absolute rounded-md p-2 sm:p-2 text-[12px] sm:text-xs ring-1 ring-slate-900/15 dark:ring-white/20 overflow-hidden cursor-pointer transform-gpu transition duration-150 hover:shadow-lg hover:brightness-115 hover:saturate-150 hover:contrast-110 text-white ${
+                                cancelled
+                                    ? 'bg-rose-500/90'
+                                    : irregular
+                                    ? 'bg-emerald-500/90'
+                                    : ''
+                            }`}
+                            style={{
+                                top: topPx,
+                                height: heightPx,
+                                left: `${leftPct}%`,
+                                width: `${widthPct}%`,
+                                background: cancelled
+                                    ? undefined
+                                    : irregular
+                                    ? undefined
+                                    : (`linear-gradient(to right, ${gradient.from}, ${gradient.via}, ${gradient.to})` as string),
+                            }}
+                            title={`${fmtHM(b.startMin)}–${fmtHM(
+                                b.endMin
+                            )} | ${subject} ${room ? `| ${room}` : ''} ${
+                                teacher ? `| ${teacher}` : ''
+                            }`}
+                            onClick={() => onLessonClick(l)}
+                        >
+                            {/* Indicators + room label (desktop) */}
+                            <div className="absolute top-1 right-1 hidden sm:flex flex-col items-end gap-1">
+                                <div className="flex gap-1">
+                                    {l.homework && l.homework.length > 0 && (
+                                        <div className="w-3 h-3 bg-amber-400 dark:bg-amber-500 rounded-full flex items-center justify-center shadow-sm">
+                                            <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
+                                            </svg>
+                                        </div>
+                                    )}
+                                    {l.info && (
+                                        <div className="w-3 h-3 bg-blue-400 dark:bg-blue-500 rounded-full flex items-center justify-center shadow-sm">
+                                            <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                                            </svg>
+                                        </div>
+                                    )}
+                                    {l.lstext && (
+                                        <div className="w-3 h-3 bg-indigo-400 dark:bg-indigo-500 rounded-full flex items-center justify-center shadow-sm">
+                                            <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                                <path d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h8.5a2 2 0 001.414-.586l2.5-2.5A2 2 0 0017 12.5V5a2 2 0 00-2-2H4zm9 10h1.586L13 14.586V13z" />
+                                            </svg>
+                                        </div>
+                                    )}
+                                    {l.exams && l.exams.length > 0 && (
+                                        <div className="w-3 h-3 bg-red-400 dark:bg-red-500 rounded-full flex items-center justify-center shadow-sm">
+                                            <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
+                                            </svg>
+                                        </div>
+                                    )}
                                 </div>
-                                {teacher && (
-                                    <div className="text-[11px] opacity-90 leading-tight break-words">
-                                        {teacher}
-                                    </div>
-                                )}
-                                {roomMobile && (
-                                    <div className="text-[11px] opacity-90 leading-tight break-words">
-                                        {roomMobile}
+                                {room && (
+                                    <div className="hidden sm:block text-[11px] leading-tight whitespace-nowrap text-white/95 drop-shadow-sm">
+                                        {room}
                                     </div>
                                 )}
                             </div>
-                            {/* Original flexible desktop layout */}
-                            <div className="hidden sm:flex flex-col sm:flex-row items-stretch justify-between gap-1.5 sm:gap-2 min-w-0 h-full">
-                                <FitText
-                                    mode="both"
-                                    maxScale={1.8}
-                                    reserveBottom={0}
-                                    className="min-w-0 self-stretch"
-                                >
-                                    <div className="font-semibold">
+
+                            {/* Content */}
+                            <div className="flex h-full min-w-0 flex-col" style={{ paddingBottom: reservedBottomPx, paddingRight: contentPadRight, paddingLeft: contentPadLeft }}>
+                                {/* Mobile-only centered indicators (restore icons, improve contrast) */}
+                                <div className="flex sm:hidden justify-center gap-1 -mt-0.5 mb-0.5">
+                                    {l.homework && l.homework.length > 0 && (
+                                        <div className="w-4 h-4 bg-amber-500 dark:bg-amber-500 rounded-full flex items-center justify-center ring-1 ring-black/10 dark:ring-white/15 shadow">
+                                            <svg className="w-2.5 h-2.5 text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.35)]" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
+                                            </svg>
+                                        </div>
+                                    )}
+                                    {l.info && (
+                                        <div className="w-4 h-4 bg-blue-500 dark:bg-blue-500 rounded-full flex items-center justify-center ring-1 ring-black/10 dark:ring-white/15 shadow">
+                                            <svg className="w-2.5 h-2.5 text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.35)]" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                                            </svg>
+                                        </div>
+                                    )}
+                                    {l.lstext && (
+                                        <div className="w-4 h-4 bg-violet-500 dark:bg-violet-400 rounded-full flex items-center justify-center ring-1 ring-black/10 dark:ring-white/15 shadow">
+                                            <svg className="w-2.5 h-2.5 text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.35)]" fill="currentColor" viewBox="0 0 20 20">
+                                                <path d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h8.5a2 2 0 001.414-.586l2.5-2.5A2 2 0 0017 12.5V5a2 2 0 00-2-2H4zm9 10h1.586L13 14.586V13z" />
+                                            </svg>
+                                        </div>
+                                    )}
+                                    {l.exams && l.exams.length > 0 && (
+                                        <div className="w-4 h-4 bg-red-500 dark:bg-red-500 rounded-full flex items-center justify-center ring-1 ring-black/10 dark:ring-white/15 shadow">
+                                            <svg className="w-2.5 h-2.5 text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.35)]" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
+                                            </svg>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Mobile centered layout */}
+                                <div className="flex flex-col items-center justify-center text-center gap-1 h-full sm:hidden px-0.5">
+                                    <div
+                                        className="font-semibold leading-snug w-full whitespace-nowrap truncate"
+                                        style={{ fontSize: 'clamp(11px, 3.4vw, 14px)' }}
+                                    >
                                         {displaySubject}
                                     </div>
-                                    <div className="opacity-90 sm:mt-0">
-                                        <span className="whitespace-nowrap">
-                                            {fmtHM(b.startMin)}–
-                                            {fmtHM(b.endMin)}
-                                        </span>
-                                    </div>
                                     {teacher && (
-                                        <div className="opacity-90">
+                                        <div className="text-[11px] opacity-90 leading-tight truncate max-w-full">
                                             {teacher}
                                         </div>
                                     )}
-                                </FitText>
-                                {room && (
+                                    {roomMobile && (
+                                        <div className="text-[11px] opacity-90 leading-tight truncate max-w-full">
+                                            {roomMobile}
+                                        </div>
+                                    )}
+                                    {l.info && canShowPreview && (
+                                        <div className="text-[11px] opacity-90 leading-tight break-words whitespace-pre-wrap">
+                                            {l.info}
+                                        </div>
+                                    )}
+                                    {/* Removed lstext preview in timetable (mobile) */}
+                                </div>
+                                {/* Original flexible desktop layout */}
+                                <div className="hidden sm:flex flex-col sm:flex-row items-stretch justify-between gap-1.5 sm:gap-2 min-w-0 h-full">
                                     <FitText
                                         mode="both"
                                         maxScale={1.8}
-                                        reserveBottom={
-                                            cancelled || irregular ? 16 : 0
-                                        }
-                                        align="right"
-                                        className="min-w-0 sm:max-w-[45%] sm:text-right self-stretch"
+                                        reserveBottom={reservedBottomPx}
+                                        className="min-w-0 self-stretch"
                                     >
-                                        <div className="truncate sm:whitespace-normal">
-                                            {room}
+                                        <div className="font-semibold">
+                                            {displaySubject}
                                         </div>
+                                        <div className="opacity-90 sm:mt-0">
+                                            <span className="whitespace-nowrap">
+                                                {fmtHM(b.startMin)}–
+                                                {fmtHM(b.endMin)}
+                                            </span>
+                                        </div>
+                                        {teacher && (
+                                            <div className="opacity-90">
+                                                {teacher}
+                                            </div>
+                                        )}
                                     </FitText>
+                                </div>
+                                {/* Info/Notes preview (desktop) */}
+                                {l.info && canShowPreview && (
+                                    <div className="hidden sm:block mt-1 text-[11px] leading-snug text-white/90 whitespace-pre-wrap">
+                                        {l.info}
+                                    </div>
+                                )}
+                                {/* Removed lstext preview in timetable (desktop) */}
+                                {/* {l.lstext && canShowPreview && (
+                                    <div className="hidden sm:block mt-0.5 text-[11px] leading-snug text-white/90 whitespace-pre-wrap">
+                                        {l.lstext}
+                                    </div>
+                                )} */}
+                                {cancelled && (
+                                    <div className="hidden sm:block absolute bottom-1 right-2 text-right text-[10px] font-semibold uppercase tracking-wide">
+                                        Cancelled
+                                    </div>
+                                )}
+                                {irregular && (
+                                    <div className="hidden sm:block absolute bottom-1 right-2 text-right text-[10px] font-semibold uppercase tracking-wide">
+                                        Irregular
+                                    </div>
                                 )}
                             </div>
-                            {cancelled && (
-                                <div className="hidden sm:block absolute bottom-1 right-2 text-right text-[10px] font-semibold uppercase tracking-wide">
-                                    Cancelled
-                                </div>
-                            )}
-                            {irregular && (
-                                <div className="hidden sm:block absolute bottom-1 right-2 text-right text-[10px] font-semibold uppercase tracking-wide">
-                                    Irregular
-                                </div>
-                            )}
                         </div>
-                    </div>
-                );
-            })}
+                    );
+                })}
         </div>
     );
 };
