@@ -2,6 +2,7 @@ import { WebUntis } from 'webuntis';
 import { prisma } from '../store/prisma.js';
 import { UNTIS_DEFAULT_SCHOOL, UNTIS_HOST } from '../server/config.js';
 import { AppError } from '../server/errors.js';
+import { Prisma } from '@prisma/client';
 
 // Host is fixed via env. Keep helper for future flexibility.
 function toHost() {
@@ -205,7 +206,7 @@ export async function verifyUntisCredentials(
 async function storeHomeworkData(userId: string, homeworkData: any[]) {
     for (const hw of homeworkData) {
         try {
-            await prisma.homework.upsert({
+            await (prisma as any).homework.upsert({
                 where: { untisId: hw.id },
                 update: {
                     lessonId: hw.lessonId,
@@ -238,7 +239,7 @@ async function storeHomeworkData(userId: string, homeworkData: any[]) {
 async function storeExamData(userId: string, examData: any[]) {
     for (const exam of examData) {
         try {
-            await prisma.exam.upsert({
+            await (prisma as any).exam.upsert({
                 where: { untisId: exam.id },
                 update: {
                     date: exam.date,
@@ -248,8 +249,9 @@ async function storeExamData(userId: string, examData: any[]) {
                     subject: exam.subject?.name || '',
                     name: exam.name || '',
                     text: exam.text,
-                    teachers: exam.teachers ? JSON.stringify(exam.teachers) : null,
-                    rooms: exam.rooms ? JSON.stringify(exam.rooms) : null,
+                    // Store as JSON or set DB NULL when absent
+                    teachers: exam.teachers ?? Prisma.DbNull,
+                    rooms: exam.rooms ?? Prisma.DbNull,
                     fetchedAt: new Date(),
                 },
                 create: {
@@ -262,8 +264,9 @@ async function storeExamData(userId: string, examData: any[]) {
                     subject: exam.subject?.name || '',
                     name: exam.name || '',
                     text: exam.text,
-                    teachers: exam.teachers ? JSON.stringify(exam.teachers) : null,
-                    rooms: exam.rooms ? JSON.stringify(exam.rooms) : null,
+                    // Store as JSON or set DB NULL when absent
+                    teachers: exam.teachers ?? Prisma.DbNull,
+                    rooms: exam.rooms ?? Prisma.DbNull,
                 },
             });
         } catch (e: any) {
@@ -292,8 +295,8 @@ async function enrichLessonsWithHomeworkAndExams(
     }
 
     const [homework, exams] = await Promise.all([
-        prisma.homework.findMany({ where: whereClause }),
-        prisma.exam.findMany({ where: whereClause }),
+        (prisma as any).homework.findMany({ where: whereClause }),
+        (prisma as any).exam.findMany({ where: whereClause }),
     ]);
 
     // Enrich lessons with homework and exam data
@@ -319,8 +322,9 @@ async function enrichLessonsWithHomeworkAndExams(
             startTime: exam.startTime,
             endTime: exam.endTime,
             subject: { id: exam.subjectId, name: exam.subject },
-            teachers: exam.teachers ? JSON.parse(exam.teachers as string) : undefined,
-            rooms: exam.rooms ? JSON.parse(exam.rooms as string) : undefined,
+            // Values are already JSON in DB
+            teachers: exam.teachers ?? undefined,
+            rooms: exam.rooms ?? undefined,
             name: exam.name,
             text: exam.text,
         }));
