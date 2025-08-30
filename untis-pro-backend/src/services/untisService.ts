@@ -215,11 +215,22 @@ async function fetchAndStoreUntis(args: {
                 sampleLesson: Array.isArray(lessonsData) && lessonsData.length > 0 ? {
                     id: lessonsData[0].id,
                     date: lessonsData[0].date,
+                    startTime: lessonsData[0].startTime,
+                    endTime: lessonsData[0].endTime,
                     hasInfo: 'info' in lessonsData[0],
                     infoValue: lessonsData[0].info,
                     hasLstext: 'lstext' in lessonsData[0],
                     lstextValue: lessonsData[0].lstext,
+                    subject: lessonsData[0].su?.[0]?.name,
                     allKeys: Object.keys(lessonsData[0]),
+                    // Look for alternative information fields
+                    alternativeInfoFields: Object.keys(lessonsData[0]).filter(key => 
+                        key.toLowerCase().includes('info') || 
+                        key.toLowerCase().includes('text') ||
+                        key.toLowerCase().includes('note') ||
+                        key.toLowerCase().includes('description') ||
+                        key.toLowerCase().includes('activity')
+                    ).map(key => ({ [key]: lessonsData[0][key] })),
                 } : null,
             });
         } else if (typeof untis.getOwnTimetableForToday === 'function') {
@@ -301,7 +312,20 @@ async function fetchAndStoreUntis(args: {
                     : await untis.getExamsForRange(sd, ed);
                 console.debug('[timetable] fetched exam data', {
                     count: Array.isArray(examData) ? examData.length : 0,
-                    sample: Array.isArray(examData) && examData.length > 0 ? examData[0] : null,
+                    sample: Array.isArray(examData) && examData.length > 0 ? {
+                        id: examData[0].id,
+                        allFields: Object.keys(examData[0]),
+                        examDate: examData[0].examDate,
+                        date: examData[0].date,
+                        subject: examData[0].subject,
+                        subjectType: typeof examData[0].subject,
+                        name: examData[0].name,
+                        startTime: examData[0].startTime,
+                        endTime: examData[0].endTime,
+                        hasTeachers: 'teachers' in examData[0],
+                        hasRooms: 'rooms' in examData[0],
+                    } : null,
+                    allExamIds: Array.isArray(examData) ? examData.map(e => e.id) : [],
                 });
             } catch (e: any) {
                 console.warn(
@@ -632,50 +656,103 @@ async function storeHomeworkData(
 }
 
 async function storeExamData(userId: string, examData: any[]) {
+    console.debug('[storeExamData] Processing exams', {
+        count: examData.length,
+        sampleExam: examData.length > 0 ? {
+            id: examData[0].id,
+            allFields: Object.keys(examData[0]),
+            examDate: examData[0].examDate,
+            date: examData[0].date,
+            subject: examData[0].subject,
+            subjectType: typeof examData[0].subject,
+            name: examData[0].name,
+            startTime: examData[0].startTime,
+            endTime: examData[0].endTime,
+        } : null,
+    });
+
     for (const exam of examData) {
         try {
             // Handle the correct WebUntis API response format
             // examDate vs date, subject string vs object, etc.
             const examDate = exam.examDate || exam.date;
-            const subjectName = typeof exam.subject === 'string' 
-                ? exam.subject 
-                : exam.subject?.name || '';
-            const subjectId = typeof exam.subject === 'object' 
-                ? exam.subject?.id 
-                : null;
+            
+            // Handle subject field variations
+            let subjectName = '';
+            let subjectId = null;
+            
+            if (typeof exam.subject === 'string') {
+                subjectName = exam.subject;
+            } else if (typeof exam.subject === 'object' && exam.subject) {
+                subjectName = exam.subject.name || exam.subject.longName || String(exam.subject);
+                subjectId = exam.subject.id;
+            }
+            
+            // Fallback to other possible subject fields
+            if (!subjectName) {
+                subjectName = exam.subjectName || exam.subjectShort || exam.su || '';
+            }
+            
+            // Handle exam name variations
+            const examName = exam.name || exam.examName || exam.title || exam.description || 'Exam';
+            
+            // Handle time fields - they might be in different formats
+            const startTime = exam.startTime || exam.starttime || exam.start || 0;
+            const endTime = exam.endTime || exam.endtime || exam.end || startTime + 100; // Default to 1 hour if not provided
             
             await (prisma as any).exam.upsert({
                 where: { untisId: exam.id },
                 update: {
                     date: examDate,
-                    startTime: exam.startTime,
-                    endTime: exam.endTime,
+                    startTime: startTime,
+                    endTime: endTime,
                     subjectId: subjectId,
                     subject: subjectName,
-                    name: exam.name || '',
-                    text: exam.text || null,
-                    // Handle teachers and rooms arrays
-                    teachers: Array.isArray(exam.teachers) ? exam.teachers : null,
-                    rooms: Array.isArray(exam.rooms) ? exam.rooms : null,
+                    name: examName,
+                    text: exam.text || exam.description || exam.note || null,
+                    // Handle teachers and rooms arrays - they can be in various formats
+                    teachers: exam.teachers ? 
+                        (Array.isArray(exam.teachers) ? exam.teachers : [exam.teachers]) : 
+                        (exam.te ? (Array.isArray(exam.te) ? exam.te : [exam.te]) : null),
+                    rooms: exam.rooms ? 
+                        (Array.isArray(exam.rooms) ? exam.rooms : [exam.rooms]) : 
+                        (exam.ro ? (Array.isArray(exam.ro) ? exam.ro : [exam.ro]) : null),
                     fetchedAt: new Date(),
                 },
                 create: {
                     untisId: exam.id,
                     userId,
                     date: examDate,
-                    startTime: exam.startTime,
-                    endTime: exam.endTime,
+                    startTime: startTime,
+                    endTime: endTime,
                     subjectId: subjectId,
                     subject: subjectName,
-                    name: exam.name || '',
-                    text: exam.text || null,
+                    name: examName,
+                    text: exam.text || exam.description || exam.note || null,
                     // Handle teachers and rooms arrays
-                    teachers: Array.isArray(exam.teachers) ? exam.teachers : null,
-                    rooms: Array.isArray(exam.rooms) ? exam.rooms : null,
+                    teachers: exam.teachers ? 
+                        (Array.isArray(exam.teachers) ? exam.teachers : [exam.teachers]) : 
+                        (exam.te ? (Array.isArray(exam.te) ? exam.te : [exam.te]) : null),
+                    rooms: exam.rooms ? 
+                        (Array.isArray(exam.rooms) ? exam.rooms : [exam.rooms]) : 
+                        (exam.ro ? (Array.isArray(exam.ro) ? exam.ro : [exam.ro]) : null),
                 },
+            });
+            
+            console.debug('[storeExamData] Successfully stored exam', {
+                examId: exam.id,
+                examName: examName,
+                subject: subjectName,
+                date: examDate,
             });
         } catch (e: any) {
             console.warn(`[exam] failed to store exam ${exam.id}:`, e?.message);
+            // Log additional context for debugging
+            console.debug('[storeExamData] Failed exam details', {
+                examId: exam.id,
+                examFields: Object.keys(exam),
+                exam: exam,
+            });
         }
     }
 }
@@ -712,11 +789,20 @@ async function enrichLessonsWithHomeworkAndExams(
         lessonsCount: lessons.length,
         homeworkCount: homework.length,
         examsCount: exams.length,
-        exampleExam: exams.length > 0 ? exams[0] : null,
+        exampleExam: exams.length > 0 ? {
+            id: exams[0].untisId,
+            date: exams[0].date,
+            subject: exams[0].subject,
+            name: exams[0].name,
+        } : null,
         exampleLesson: lessons.length > 0 ? {
+            id: lessons[0].id,
             date: lessons[0].date,
             subject: lessons[0].su?.[0]?.name,
+            allLessonFields: Object.keys(lessons[0]),
         } : null,
+        allExamSubjects: exams.map((e: any) => e.subject),
+        allLessonSubjects: lessons.map((l: any) => l.su?.[0]?.name).filter(Boolean),
     });
 
     const lessonMatchesHw = (hw: any, lesson: any) => {
@@ -730,17 +816,99 @@ async function enrichLessonsWithHomeworkAndExams(
         return idsToCheck.some((v) => v === hw.lessonId);
     };
 
+    // Helper function for flexible subject matching
+    const subjectsMatch = (subject1: string, subject2: string): boolean => {
+        if (!subject1 || !subject2) return false;
+        
+        // Direct case-sensitive match
+        if (subject1 === subject2) return true;
+        
+        // Case-insensitive match
+        const s1Lower = subject1.toLowerCase().trim();
+        const s2Lower = subject2.toLowerCase().trim();
+        if (s1Lower === s2Lower) return true;
+        
+        // Partial match (one contains the other)
+        if (s1Lower.includes(s2Lower) || s2Lower.includes(s1Lower)) return true;
+        
+        // Remove common suffixes/prefixes and match
+        const cleanSubject = (s: string) => s
+            .replace(/\b(klasse|class|course|lesson|grade)\s*/gi, '')
+            .replace(/\b(advanced|basic|elementary|intermediate)\s*/gi, '')
+            .replace(/[^\w\s]/g, '') // Remove punctuation
+            .trim();
+            
+        const clean1 = cleanSubject(s1Lower);
+        const clean2 = cleanSubject(s2Lower);
+        if (clean1 && clean2 && (clean1 === clean2 || clean1.includes(clean2) || clean2.includes(clean1))) {
+            return true;
+        }
+        
+        return false;
+    };
+
+    // Extract comprehensive lesson information from various possible fields
+    const extractLessonInfo = (lesson: any): { info?: string; lstext?: string } => {
+        // Try multiple field names for lesson information
+        const infoFields = [
+            lesson.info,
+            lesson.periodInfo, 
+            lesson.lessonText,
+            lesson.lessonInfo,
+            lesson.activity,
+            lesson.activityInfo,
+            lesson.note,
+            lesson.notes,
+            lesson.description,
+            lesson.periodText,
+            lesson.lstext,
+        ].filter(Boolean);
+        
+        // Try multiple field names for lesson text/notes
+        const textFields = [
+            lesson.lstext,
+            lesson.periodText,
+            lesson.lessonText,
+            lesson.text,
+            lesson.note,
+            lesson.notes,
+            lesson.remark,
+            lesson.comment,
+        ].filter(Boolean);
+        
+        // Combine unique info fields
+        const info = infoFields.length > 0 ? [...new Set(infoFields)].join(' | ') : undefined;
+        const lstext = textFields.length > 0 ? [...new Set(textFields)].join(' | ') : undefined;
+        
+        const result: { info?: string; lstext?: string } = {};
+        if (info) result.info = info;
+        if (lstext) result.lstext = lstext;
+        
+        return result;
+    };
+
     // Enrich lessons with homework and exam data
     return lessons.map((lesson) => {
         const subjectName = lesson.su?.[0]?.name;
         
-        // Debug lesson data to see what fields are available
+        // Debug lesson data to see what fields are available - only for first lesson to avoid spam
         if (lesson.id === lessons[0]?.id) {
-            console.debug('[enrichLessonsWithHomeworkAndExams] first lesson sample', {
-                hasInfo: !!lesson.info,
-                hasLstext: !!lesson.lstext,
-                hasAlternativeInfo: !!(lesson.periodInfo || lesson.lessonText),
-                hasAlternativeText: !!lesson.periodText,
+            const availableFields = Object.keys(lesson);
+            const infoRelatedFields = availableFields.filter(key => 
+                key.toLowerCase().includes('info') || 
+                key.toLowerCase().includes('text') ||
+                key.toLowerCase().includes('note') ||
+                key.toLowerCase().includes('description') ||
+                key.toLowerCase().includes('activity')
+            );
+            
+            console.debug('[enrichLessonsWithHomeworkAndExams] first lesson detailed analysis', {
+                lessonId: lesson.id,
+                allFields: availableFields,
+                infoRelatedFields,
+                currentInfoValue: lesson.info,
+                currentLstextValue: lesson.lstext,
+                extractedInfo: extractLessonInfo(lesson),
             });
         }
         
@@ -751,7 +919,7 @@ async function enrichLessonsWithHomeworkAndExams(
                     (hw.date === lesson.date &&
                         hw.subject &&
                         subjectName &&
-                        hw.subject === subjectName)
+                        subjectsMatch(hw.subject, subjectName))
             )
             .map((hw: any) => ({
                 id: hw.untisId,
@@ -766,23 +934,45 @@ async function enrichLessonsWithHomeworkAndExams(
         const lessonExams = exams
             .filter(
                 (exam: any) => {
-                    // Match by date first
-                    if (exam.date !== lesson.date) return false;
+                    // Match by date first - be more flexible with date matching
+                    if (exam.date !== lesson.date) {
+                        // Also try to match if exam is on the same day but time overlaps
+                        const examStartTime = exam.startTime || 0;
+                        const examEndTime = exam.endTime || 2359;
+                        const lessonStartTime = lesson.startTime || 0;
+                        const lessonEndTime = lesson.endTime || 2359;
+                        
+                        // If dates don't match exactly, skip this exam
+                        return false;
+                    }
                     
-                    // Try to match by subject name - be more flexible with matching
+                    // Try to match by subject name with flexible matching
                     const lessonSubject = lesson.su?.[0]?.name;
-                    if (!lessonSubject || !exam.subject) return false;
+                    if (!lessonSubject || !exam.subject) {
+                        // If either subject is missing, try time-based matching for same-date exams
+                        const timeOverlap = exam.startTime >= lesson.startTime && exam.startTime <= lesson.endTime;
+                        if (timeOverlap) {
+                            console.debug('[enrichLessonsWithHomeworkAndExams] exam matched by time overlap', {
+                                examId: exam.untisId,
+                                examName: exam.name,
+                                examTime: `${exam.startTime}-${exam.endTime}`,
+                                lessonTime: `${lesson.startTime}-${lesson.endTime}`,
+                            });
+                            return true;
+                        }
+                        return false;
+                    }
                     
-                    // Direct match or case-insensitive match
-                    const matches = exam.subject === lessonSubject || 
-                           exam.subject.toLowerCase() === lessonSubject.toLowerCase();
+                    // Use flexible subject matching
+                    const matches = subjectsMatch(exam.subject, lessonSubject);
                            
-                    // Log only when matches are found for debugging
+                    // Log matches for debugging
                     if (matches) {
-                        console.debug('[enrichLessonsWithHomeworkAndExams] exam matched to lesson', {
+                        console.debug('[enrichLessonsWithHomeworkAndExams] exam matched to lesson by subject', {
                             examId: exam.untisId,
                             examSubject: exam.subject,
                             lessonSubject: lessonSubject,
+                            examName: exam.name,
                         });
                     }
                     
@@ -794,23 +984,26 @@ async function enrichLessonsWithHomeworkAndExams(
                 date: exam.date,
                 startTime: exam.startTime,
                 endTime: exam.endTime,
-                subject: { id: exam.subjectId, name: exam.subject },
+                subject: { id: exam.subjectId || 0, name: exam.subject },
                 // Handle teachers and rooms - they might be arrays of strings or objects
                 teachers: Array.isArray(exam.teachers) 
                     ? exam.teachers.map((t: any) => typeof t === 'string' ? { name: t } : t)
-                    : undefined,
+                    : exam.teachers ? [exam.teachers] : undefined,
                 rooms: Array.isArray(exam.rooms)
                     ? exam.rooms.map((r: any) => typeof r === 'string' ? { name: r } : r) 
-                    : undefined,
-                name: exam.name,
+                    : exam.rooms ? [exam.rooms] : undefined,
+                name: exam.name || 'Exam',
                 text: exam.text,
             }));
 
+        // Extract comprehensive lesson information
+        const extractedInfo = extractLessonInfo(lesson);
+
         return {
             ...lesson,
-            // Ensure lesson info fields are preserved, check alternative field names
-            info: lesson.info || lesson.periodInfo || lesson.lessonText || undefined,
-            lstext: lesson.lstext || lesson.periodText || undefined,
+            // Use extracted lesson info with fallbacks to preserve any existing data
+            info: extractedInfo.info || undefined,
+            lstext: extractedInfo.lstext || undefined,
             homework: lessonHomework.length > 0 ? lessonHomework : undefined,
             exams: lessonExams.length > 0 ? lessonExams : undefined,
         };
