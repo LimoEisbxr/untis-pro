@@ -22,6 +22,8 @@ import {
     userManagerListWhitelist,
     userManagerAddWhitelistRule,
     userManagerDeleteWhitelistRule,
+    grantUserManagerStatus,
+    revokeUserManagerStatus,
 } from '../api';
 
 export default function SettingsModal({
@@ -78,7 +80,7 @@ export default function SettingsModal({
 
     // User management state for admin users
     const [users, setUsers] = useState<
-        Array<{ id: string; username: string; displayName: string | null }>
+        Array<{ id: string; username: string; displayName: string | null; isUserManager: boolean }>
     >([]);
     const [userManagementLoading, setUserManagementLoading] = useState(false);
     const [userManagementError, setUserManagementError] = useState<
@@ -112,6 +114,10 @@ export default function SettingsModal({
     const [umWlLoading, setUmWlLoading] = useState(false);
     const [umWlError, setUmWlError] = useState<string | null>(null);
 
+    // User-manager status management state
+    const [userManagerChanging, setUserManagerChanging] = useState<string | null>(null);
+    const [showConfirmUserManager, setShowConfirmUserManager] = useState<{ userId: string; username: string; isGranting: boolean } | null>(null);
+
     const loadUsers = useCallback(async () => {
         setUserManagementLoading(true);
         setUserManagementError(null);
@@ -121,6 +127,7 @@ export default function SettingsModal({
                     id: string;
                     username: string;
                     displayName: string | null;
+                    isUserManager: boolean;
                 }>;
             }>('/api/admin/users', { token });
             setUsers(response.users);
@@ -497,6 +504,53 @@ export default function SettingsModal({
         [token]
     );
 
+    // User-manager status management functions
+    const handleGrantUserManager = useCallback(
+        async (userId: string) => {
+            setUserManagerChanging(userId);
+            setUserManagementError(null);
+            try {
+                const result = await grantUserManagerStatus(token, userId);
+                setUsers((prev) =>
+                    prev.map((u) =>
+                        u.id === userId ? { ...u, isUserManager: result.user.isUserManager } : u
+                    )
+                );
+                setShowConfirmUserManager(null);
+            } catch (e) {
+                setUserManagementError(
+                    e instanceof Error ? e.message : 'Failed to grant user manager status'
+                );
+            } finally {
+                setUserManagerChanging(null);
+            }
+        },
+        [token]
+    );
+
+    const handleRevokeUserManager = useCallback(
+        async (userId: string) => {
+            setUserManagerChanging(userId);
+            setUserManagementError(null);
+            try {
+                const result = await revokeUserManagerStatus(token, userId);
+                setUsers((prev) =>
+                    prev.map((u) =>
+                        u.id === userId ? { ...u, isUserManager: result.user.isUserManager } : u
+                    )
+                );
+                setShowConfirmUserManager(null);
+            } catch (e) {
+                setUserManagementError(
+                    e instanceof Error ? e.message : 'Failed to revoke user manager status'
+                );
+            } finally {
+                setUserManagerChanging(null);
+            }
+        },
+        [token]
+    );
+
     // Load settings when modal opens (with stable callbacks)
     useEffect(() => {
         if (isOpen) {
@@ -866,6 +920,9 @@ export default function SettingsModal({
                                                         Display name
                                                     </th>
                                                     <th className="py-2 pr-4">
+                                                        User Manager
+                                                    </th>
+                                                    <th className="py-2 pr-4">
                                                         Actions
                                                     </th>
                                                 </tr>
@@ -937,12 +994,21 @@ export default function SettingsModal({
                                                                 </span>
                                                             )}
                                                         </td>
+                                                        <td className="py-3 px-4 text-slate-600 dark:text-slate-300">
+                                                            {u.isUserManager ? (
+                                                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400">
+                                                                    ✓ Manager
+                                                                </span>
+                                                            ) : (
+                                                                <span className="text-slate-400 dark:text-slate-500">—</span>
+                                                            )}
+                                                        </td>
                                                         <td className="py-3 px-4">
                                                             {editingUserId ===
                                                             u.id ? null : (
-                                                                <>
+                                                                <div className="flex flex-wrap gap-2">
                                                                     <button
-                                                                        className="btn-secondary text-sm mr-2"
+                                                                        className="btn-secondary text-sm"
                                                                         onClick={() =>
                                                                             startEditUser(
                                                                                 u.id,
@@ -950,11 +1016,44 @@ export default function SettingsModal({
                                                                             )
                                                                         }
                                                                         disabled={
-                                                                            userManagementLoading
+                                                                            userManagementLoading || userManagerChanging === u.id
                                                                         }
                                                                     >
                                                                         Edit
                                                                     </button>
+                                                                    {u.isUserManager ? (
+                                                                        <button
+                                                                            className="btn-secondary text-sm bg-orange-100 text-orange-700 hover:bg-orange-200 dark:bg-orange-900/20 dark:text-orange-400 dark:hover:bg-orange-900/30"
+                                                                            onClick={() =>
+                                                                                setShowConfirmUserManager({
+                                                                                    userId: u.id,
+                                                                                    username: u.username,
+                                                                                    isGranting: false,
+                                                                                })
+                                                                            }
+                                                                            disabled={
+                                                                                userManagementLoading || userManagerChanging === u.id
+                                                                            }
+                                                                        >
+                                                                            {userManagerChanging === u.id ? 'Loading...' : 'Revoke'}
+                                                                        </button>
+                                                                    ) : (
+                                                                        <button
+                                                                            className="btn-primary text-sm"
+                                                                            onClick={() =>
+                                                                                setShowConfirmUserManager({
+                                                                                    userId: u.id,
+                                                                                    username: u.username,
+                                                                                    isGranting: true,
+                                                                                })
+                                                                            }
+                                                                            disabled={
+                                                                                userManagementLoading || userManagerChanging === u.id
+                                                                            }
+                                                                        >
+                                                                            {userManagerChanging === u.id ? 'Loading...' : 'Grant'}
+                                                                        </button>
+                                                                    )}
                                                                     <button
                                                                         className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 text-sm px-3 py-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20"
                                                                         onClick={() =>
@@ -963,12 +1062,12 @@ export default function SettingsModal({
                                                                             )
                                                                         }
                                                                         disabled={
-                                                                            userManagementLoading
+                                                                            userManagementLoading || userManagerChanging === u.id
                                                                         }
                                                                     >
                                                                         Delete
                                                                     </button>
-                                                                </>
+                                                                </div>
                                                             )}
                                                         </td>
                                                     </tr>
@@ -976,7 +1075,7 @@ export default function SettingsModal({
                                                 {users.length === 0 && (
                                                     <tr>
                                                         <td
-                                                            colSpan={3}
+                                                            colSpan={4}
                                                             className="py-8 text-center text-slate-500 dark:text-slate-400"
                                                         >
                                                             No users found
@@ -1342,6 +1441,52 @@ export default function SettingsModal({
                     )}
                 </div>
             </div>
+
+            {/* User Manager Grant/Revoke Confirmation Modal */}
+            {showConfirmUserManager && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl max-w-md w-full p-6">
+                        <h3 className="text-lg font-semibold mb-4 text-slate-900 dark:text-slate-100">
+                            {showConfirmUserManager.isGranting ? 'Grant User Manager Status' : 'Revoke User Manager Status'}
+                        </h3>
+                        <p className="text-slate-600 dark:text-slate-300 mb-6">
+                            {showConfirmUserManager.isGranting ? (
+                                <>
+                                    Grant <strong>{showConfirmUserManager.username}</strong> user manager privileges? They
+                                    will be able to manage users, whitelist, and access requests.
+                                </>
+                            ) : (
+                                <>
+                                    Revoke <strong>{showConfirmUserManager.username}</strong> user manager privileges? They
+                                    will lose access to user management features.
+                                </>
+                            )}
+                        </p>
+                        <div className="flex justify-end gap-3">
+                            <button
+                                className="btn-secondary"
+                                onClick={() => setShowConfirmUserManager(null)}
+                                disabled={userManagerChanging !== null}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                className={showConfirmUserManager.isGranting ? "btn-primary" : "btn-secondary bg-orange-100 text-orange-700 hover:bg-orange-200 dark:bg-orange-900/20 dark:text-orange-400 dark:hover:bg-orange-900/30"}
+                                onClick={() => {
+                                    if (showConfirmUserManager.isGranting) {
+                                        handleGrantUserManager(showConfirmUserManager.userId);
+                                    } else {
+                                        handleRevokeUserManager(showConfirmUserManager.userId);
+                                    }
+                                }}
+                                disabled={userManagerChanging !== null}
+                            >
+                                {userManagerChanging !== null ? 'Loading...' : (showConfirmUserManager.isGranting ? 'Grant' : 'Revoke')}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
