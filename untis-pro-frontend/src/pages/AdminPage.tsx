@@ -167,7 +167,7 @@ export default function AdminPage({
         } finally {
             setUserManagerChanging(null);
         }
-    }, [token, showConfirmUserManager, grantUserManagerStatus, revokeUserManagerStatus]);
+    }, [token, showConfirmUserManager]);
 
     const handleCancelUserManagerChange = useCallback(() => {
         setShowConfirmUserManager(null);

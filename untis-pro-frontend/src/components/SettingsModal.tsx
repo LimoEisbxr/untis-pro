@@ -22,9 +22,6 @@ import {
     userManagerListWhitelist,
     userManagerAddWhitelistRule,
     userManagerDeleteWhitelistRule,
-    userManagerListAccessRequests,
-    userManagerAcceptAccessRequest,
-    userManagerDeclineAccessRequest,
 } from '../api';
 
 export default function SettingsModal({
@@ -114,10 +111,6 @@ export default function SettingsModal({
     const [umWlValue, setUmWlValue] = useState('');
     const [umWlLoading, setUmWlLoading] = useState(false);
     const [umWlError, setUmWlError] = useState<string | null>(null);
-
-    const [umAccessRequests, setUmAccessRequests] = useState<AccessRequest[]>([]);
-    const [umArLoading, setUmArLoading] = useState(false);
-    const [umArError, setUmArError] = useState<string | null>(null);
 
     const loadUsers = useCallback(async () => {
         setUserManagementLoading(true);
@@ -270,6 +263,84 @@ export default function SettingsModal({
             setArLoading(false);
         }
     }, [token]);
+
+    // User-manager callbacks
+    const loadUserManagerWhitelist = useCallback(async () => {
+        setUmWlLoading(true);
+        setUmWlError(null);
+        try {
+            const wl = await userManagerListWhitelist(token);
+            setUmWhitelist(wl.rules);
+        } catch (e) {
+            setUmWlError(
+                e instanceof Error ? e.message : 'Failed to load whitelist'
+            );
+        } finally {
+            setUmWlLoading(false);
+        }
+    }, [token]);
+
+    const handleUserManagerAddRule = useCallback(
+        async (value: string) => {
+            setUmWlLoading(true);
+            setUmWlError(null);
+            try {
+                await userManagerAddWhitelistRule(token, value);
+                setUmWlValue('');
+                await loadUserManagerWhitelist();
+            } catch (e) {
+                setUmWlError(
+                    e instanceof Error ? e.message : 'Failed to add rule'
+                );
+            } finally {
+                setUmWlLoading(false);
+            }
+        },
+        [token, loadUserManagerWhitelist]
+    );
+
+    const handleUserManagerDeleteRule = useCallback(
+        async (id: string) => {
+            setUmWlLoading(true);
+            setUmWlError(null);
+            try {
+                await userManagerDeleteWhitelistRule(token, id);
+                await loadUserManagerWhitelist();
+            } catch (e) {
+                setUmWlError(
+                    e instanceof Error ? e.message : 'Failed to delete rule'
+                );
+            } finally {
+                setUmWlLoading(false);
+            }
+        },
+        [token, loadUserManagerWhitelist]
+    );
+
+    const handleSaveMyDisplayName = useCallback(async () => {
+        setSavingMyName(true);
+        setMyNameError(null);
+        setMyNameSaved(false);
+        try {
+            const trimmedName = myDisplayName.trim();
+            const displayNameToSave = trimmedName === '' ? null : trimmedName;
+            await updateMyDisplayName(token, displayNameToSave);
+            
+            // Update the user in the parent component
+            if (onUserUpdate) {
+                onUserUpdate({
+                    ...user,
+                    displayName: displayNameToSave,
+                });
+            }
+            setMyNameSaved(true);
+            setTimeout(() => setMyNameSaved(false), 3000);
+        } catch (e) {
+            setMyNameError(e instanceof Error ? e.message : 'Failed to update display name');
+        } finally {
+            setSavingMyName(false);
+        }
+    }, [token, myDisplayName, user, onUserUpdate]);
 
     const handleToggleSharing = async (enabled: boolean) => {
         if (!settings) return;
@@ -442,12 +513,22 @@ export default function SettingsModal({
 
     // Load whitelist and access requests only when enabled in settings
     useEffect(() => {
-        if (!isOpen || !user.isAdmin) return;
-        if (settings?.whitelistEnabled) {
-            loadWhitelistRules();
-            loadAccessRequests();
+        if (!isOpen) return;
+        
+        if (user.isAdmin) {
+            // Admin loads admin-specific data
+            if (settings?.whitelistEnabled) {
+                loadWhitelistRules();
+                loadAccessRequests();
+            }
+        } else if (user.isUserManager) {
+            // User-manager loads user-manager-specific data
+            if (settings?.whitelistEnabled) {
+                loadUserManagerWhitelist();
+                // TODO: Add loadUserManagerAccessRequests when implemented
+            }
         }
-    }, [isOpen, user.isAdmin, settings?.whitelistEnabled, loadWhitelistRules, loadAccessRequests]);
+    }, [isOpen, user.isAdmin, user.isUserManager, settings?.whitelistEnabled, loadWhitelistRules, loadAccessRequests, loadUserManagerWhitelist]);
 
     if (!showModal) return null;
 
@@ -907,6 +988,129 @@ export default function SettingsModal({
                                     </div>
                                 </div>
                             )}
+                        </>
+                    ) : user.isUserManager ? (
+                        // User Manager Section
+                        <>
+                            <div className="p-6">
+                                <h2 className="text-xl font-semibold mb-4 text-slate-900 dark:text-slate-100">
+                                    User Management
+                                </h2>
+                                <p className="text-slate-600 dark:text-slate-300 mb-6">
+                                    You have user manager privileges. You can manage users, whitelist entries, and access requests.
+                                </p>
+
+                                {/* User-manager whitelist management */}
+                                {settings?.whitelistEnabled && (
+                                    <div className="mb-6 p-4 bg-slate-50 dark:bg-slate-900/30 rounded-lg border border-slate-200 dark:border-slate-700">
+                                        <div className="flex items-center justify-between mb-3">
+                                            <h4 className="font-medium text-slate-800 dark:text-slate-100">
+                                                Manage Whitelist
+                                            </h4>
+                                        </div>
+                                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                                            <input
+                                                className="input"
+                                                placeholder="Enter username"
+                                                value={umWlValue}
+                                                onChange={(e) => setUmWlValue(e.target.value)}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter' && umWlValue.trim()) {
+                                                        handleUserManagerAddRule(umWlValue.trim());
+                                                    }
+                                                }}
+                                                disabled={umWlLoading}
+                                            />
+                                            <button
+                                                className="btn-primary whitespace-nowrap"
+                                                onClick={() => handleUserManagerAddRule(umWlValue.trim())}
+                                                disabled={umWlLoading || !umWlValue.trim()}
+                                            >
+                                                Add
+                                            </button>
+                                        </div>
+                                        {umWlError && (
+                                            <div className="mt-2 text-sm text-red-600">{umWlError}</div>
+                                        )}
+                                        <div className="mt-4 overflow-x-auto">
+                                            <table className="min-w-full text-sm">
+                                                <thead className="text-left text-slate-700 dark:text-slate-200">
+                                                    <tr>
+                                                        <th className="py-2 pr-4">Username</th>
+                                                        <th className="py-2 pr-4">Actions</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {umWhitelist.map((r) => (
+                                                        <tr
+                                                            key={r.id}
+                                                            className="border-t border-slate-200/70 dark:border-slate-700/70"
+                                                        >
+                                                            <td className="py-2 pr-4 text-slate-900 dark:text-slate-100">
+                                                                {r.value}
+                                                            </td>
+                                                            <td className="py-2 pr-4 text-slate-900 dark:text-slate-100">
+                                                                <button 
+                                                                    className="btn-secondary" 
+                                                                    onClick={() => handleUserManagerDeleteRule(r.id)}
+                                                                    disabled={umWlLoading}
+                                                                >
+                                                                    Delete
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                    {umWhitelist.length === 0 && (
+                                                        <tr>
+                                                            <td
+                                                                colSpan={2}
+                                                                className="py-3 text-center text-slate-500 dark:text-slate-400"
+                                                            >
+                                                                No usernames whitelisted
+                                                            </td>
+                                                        </tr>
+                                                    )}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Personal display name section for user-managers */}
+                            <div className="p-6 border-t border-slate-200 dark:border-slate-700">
+                                <h3 className="text-lg font-medium mb-4 text-slate-900 dark:text-slate-100">
+                                    Personal Settings
+                                </h3>
+                                <div className="mb-4">
+                                    <label htmlFor="displayName" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                                        Display Name
+                                    </label>
+                                    <div className="flex gap-2">
+                                        <input
+                                            id="displayName"
+                                            className="input flex-1"
+                                            placeholder="Your display name"
+                                            value={myDisplayName}
+                                            onChange={(e) => setMyDisplayName(e.target.value)}
+                                            disabled={savingMyName}
+                                        />
+                                        <button
+                                            className="btn-primary"
+                                            onClick={handleSaveMyDisplayName}
+                                            disabled={savingMyName || myDisplayName === (user.displayName ?? '')}
+                                        >
+                                            {savingMyName ? 'Saving...' : 'Save'}
+                                        </button>
+                                    </div>
+                                    {myNameError && (
+                                        <div className="mt-2 text-sm text-red-600">{myNameError}</div>
+                                    )}
+                                    {myNameSaved && (
+                                        <div className="mt-2 text-sm text-green-600">Display name updated!</div>
+                                    )}
+                                </div>
+                            </div>
                         </>
                     ) : (
                         // Regular User Sharing Settings Section
