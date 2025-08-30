@@ -70,8 +70,9 @@ export default function Dashboard({
     const [retrySeconds, setRetrySeconds] = useState<number | null>(null);
     // Settings modal state
     const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
-    // Animation state for smooth week transitions
+    // Animation state for smooth week transitions - content only
     const [weekTransitionDirection, setWeekTransitionDirection] = useState<'left' | 'right' | null>(null);
+    const [transitioningData, setTransitioningData] = useState<TimetableResponse | null>(null);
 
     // Swipe gesture handling (moved to Dashboard level to work even when no timetable)
     const mainContentRef = useRef<HTMLDivElement | null>(null);
@@ -405,18 +406,28 @@ export default function Dashboard({
                 Math.abs(dx) > SWIPE_THRESHOLD &&
                 Math.abs(dy) < SWIPE_MAX_OFF_AXIS
             ) {
-                if (dx < 0) {
-                    // Swipe left = next week
-                    setWeekTransitionDirection('left');
-                    const ns = fmtLocal(addDays(new Date(start), 7));
-                    setStart(ns);
-                    setTimeout(() => setWeekTransitionDirection(null), 400);
-                } else {
-                    // Swipe right = previous week
+                if (dx > 0) {
+                    // Swipe right = previous week (content moves right, new comes from left)
+                    const newData = { ...mine! }; // Current data becomes "old"
+                    setTransitioningData(newData);
                     setWeekTransitionDirection('right');
                     const ns = fmtLocal(addDays(new Date(start), -7));
                     setStart(ns);
-                    setTimeout(() => setWeekTransitionDirection(null), 400);
+                    setTimeout(() => {
+                        setWeekTransitionDirection(null);
+                        setTransitioningData(null);
+                    }, 400);
+                } else {
+                    // Swipe left = next week (content moves left, new comes from right)
+                    const newData = { ...mine! }; // Current data becomes "old"
+                    setTransitioningData(newData);
+                    setWeekTransitionDirection('left');
+                    const ns = fmtLocal(addDays(new Date(start), 7));
+                    setStart(ns);
+                    setTimeout(() => {
+                        setWeekTransitionDirection(null);
+                        setTransitioningData(null);
+                    }, 400);
                 }
             }
             touchStartX.current = null;
@@ -428,7 +439,7 @@ export default function Dashboard({
             el.removeEventListener('touchstart', handleTouchStart);
             el.removeEventListener('touchend', handleTouchEnd);
         };
-    }, [start]);
+    }, [start, mine]);
 
     return (
         <div className={'min-h-screen'}>
@@ -513,12 +524,17 @@ export default function Dashboard({
                             <button
                                 className="btn-secondary px-3 py-1.5 text-sm sm:text-sm flex items-center justify-center"
                                 onClick={() => {
+                                    const newData = { ...mine! };
+                                    setTransitioningData(newData);
                                     setWeekTransitionDirection('right');
                                     const ns = fmtLocal(
                                         addDays(new Date(start), -7)
                                     );
                                     setStart(ns);
-                                    setTimeout(() => setWeekTransitionDirection(null), 400);
+                                    setTimeout(() => {
+                                        setWeekTransitionDirection(null);
+                                        setTransitioningData(null);
+                                    }, 400);
                                 }}
                                 aria-label="Previous week"
                             >
@@ -534,7 +550,10 @@ export default function Dashboard({
                                 onClick={() => {
                                     setWeekTransitionDirection('left');
                                     setStart(fmtLocal(new Date()));
-                                    setTimeout(() => setWeekTransitionDirection(null), 400);
+                                    setTimeout(() => {
+                                        setWeekTransitionDirection(null);
+                                        setTransitioningData(null);
+                                    }, 400);
                                 }}
                                 aria-label="This week"
                             >
@@ -545,12 +564,17 @@ export default function Dashboard({
                             <button
                                 className="btn-secondary px-3 py-1.5 text-sm sm:text-sm flex items-center justify-center"
                                 onClick={() => {
+                                    const newData = { ...mine! };
+                                    setTransitioningData(newData);
                                     setWeekTransitionDirection('left');
                                     const ns = fmtLocal(
                                         addDays(new Date(start), 7)
                                     );
                                     setStart(ns);
-                                    setTimeout(() => setWeekTransitionDirection(null), 400);
+                                    setTimeout(() => {
+                                        setWeekTransitionDirection(null);
+                                        setTransitioningData(null);
+                                    }, 400);
                                 }}
                                 aria-label="Next week"
                             >
@@ -730,7 +754,7 @@ export default function Dashboard({
                                 })()}
                             </div>
                         ) : null}
-                        <div className={`week-transition ${weekTransitionDirection === 'left' ? 'animate-slide-in-left' : weekTransitionDirection === 'right' ? 'animate-slide-in-right' : ''}`}>
+                        <div className="content-transition-wrapper">
                             <Timetable
                                 data={mine}
                                 weekStart={weekStartDate}
@@ -742,6 +766,9 @@ export default function Dashboard({
                                 token={token}
                                 viewingUserId={selectedUser?.id}
                                 onWeekNavigate={(dir) => {
+                                    const newData = { ...mine! };
+                                    setTransitioningData(newData);
+                                    
                                     // Trigger animation based on direction
                                     setWeekTransitionDirection(dir === 'prev' ? 'right' : 'left');
                                     
@@ -758,8 +785,13 @@ export default function Dashboard({
                                     }
                                     
                                     // Reset animation state after animation completes
-                                    setTimeout(() => setWeekTransitionDirection(null), 400);
+                                    setTimeout(() => {
+                                        setWeekTransitionDirection(null);
+                                        setTransitioningData(null);
+                                    }, 400);
                                 }}
+                                transitionDirection={weekTransitionDirection}
+                                transitioningData={transitioningData}
                             />
                         </div>
                     </div>
