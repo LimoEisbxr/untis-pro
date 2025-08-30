@@ -352,36 +352,44 @@ html.dark .link-admin {
 @keyframes slide-content-in-left {
     from {
         transform: translateX(-100%);
+        opacity: 1;
     }
     to {
         transform: translateX(0);
+        opacity: 1;
     }
 }
 
 @keyframes slide-content-in-right {
     from {
         transform: translateX(100%);
+        opacity: 1;
     }
     to {
         transform: translateX(0);
+        opacity: 1;
     }
 }
 
 @keyframes slide-content-out-left {
     from {
         transform: translateX(0);
+        opacity: 1;
     }
     to {
         transform: translateX(-100%);
+        opacity: 1;
     }
 }
 
 @keyframes slide-content-out-right {
     from {
         transform: translateX(0);
+        opacity: 1;
     }
     to {
         transform: translateX(100%);
+        opacity: 1;
     }
 }
 
@@ -417,4 +425,7 @@ html.dark .link-admin {
 
 .content-slide-container {
     width: 100%;
+    background: inherit; /* Inherit background to prevent transparency issues */
+    position: relative;
+    z-index: 1;
 }

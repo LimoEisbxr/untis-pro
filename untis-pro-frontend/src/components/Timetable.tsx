@@ -466,16 +466,12 @@ export default function Timetable({
         () => Object.values(lessonsByDay).some((arr) => arr.length > 0),
         [lessonsByDay]
     );
-    if (!data)
+    
+    // Don't show loading or empty states during transitions
+    if (!data && !transitionDirection)
         return (
             <div className="text-sm text-slate-600 dark:text-slate-300">
                 Loading…
-            </div>
-        );
-    if (!hasLessons)
-        return (
-            <div className="rounded-lg border border-dashed p-4 text-center text-slate-600 dark:text-slate-300">
-                No timetable for this week.
             </div>
         );
 
@@ -577,7 +573,7 @@ export default function Timetable({
                     {days.map((d) => (
                         <div
                             key={fmtLocal(d)}
-                            className="px-0 first:pl-0 last:pr-0 sm:px-1.5 sm:first:pl-3 sm:last:pr-3 h-0"
+                            className="px-0 first:pl-0 last:pr-0 sm:px-1.5 sm:first:pl-3 sm:last:pr-3 h-0 overflow-hidden"
                         />
                     ))}
 
@@ -623,10 +619,10 @@ export default function Timetable({
                         const isToday = key === todayISO;
                         
                         return (
-                            <div key={key} className="relative">
+                            <div key={key} className="relative overflow-hidden">
                                 {/* Transitioning content (old data sliding out) */}
                                 {transitionDirection && transitioningData && (
-                                    <div className={`absolute inset-0 content-slide-container ${
+                                    <div className={`absolute inset-0 content-slide-container bg-gradient-to-br from-white/90 via-slate-50/80 to-sky-50/70 dark:bg-slate-900/80 dark:bg-none backdrop-blur rounded-xl ${
                                         transitionDirection === 'left' 
                                             ? 'animate-slide-content-out-left' 
                                             : 'animate-slide-content-out-right'
@@ -651,7 +647,7 @@ export default function Timetable({
                                 )}
                                 
                                 {/* Current content (new data sliding in) */}
-                                <div className={`content-slide-container ${
+                                <div className={`content-slide-container bg-gradient-to-br from-white/90 via-slate-50/80 to-sky-50/70 dark:bg-slate-900/80 dark:bg-none backdrop-blur rounded-xl ${
                                     transitionDirection 
                                         ? (transitionDirection === 'left' 
                                             ? 'animate-slide-content-in-right' 
@@ -679,6 +675,15 @@ export default function Timetable({
                         );
                     })}
                 </div>
+                
+                {/* Show "No timetable" message when there are no lessons and not transitioning */}
+                {!hasLessons && !transitionDirection && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="rounded-lg border border-dashed p-4 text-center text-slate-600 dark:text-slate-300 bg-white/80 dark:bg-slate-900/80 backdrop-blur">
+                            No timetable for this week.
+                        </div>
+                    </div>
+                )}
             </div>
 
             <LessonModal
