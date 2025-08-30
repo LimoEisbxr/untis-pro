@@ -9,6 +9,7 @@ import adminRoutes from './routes/admin.js';
 import usersRoutes from './routes/users.js';
 import lessonColorsRoutes from './routes/lessonColors.js';
 import sharingRoutes from './routes/sharing.js';
+import accessRequestRoutes from './routes/accessRequest.js';
 
 dotenv.config();
 
@@ -69,5 +70,6 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/lesson-colors', lessonColorsRoutes);
 app.use('/api/sharing', sharingRoutes);
+app.use('/api/access-request', accessRequestRoutes);
 
 export default app;

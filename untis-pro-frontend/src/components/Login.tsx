@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { api } from '../api';
 import type { User } from '../types';
+import RequestAccessModal from './RequestAccessModal';
 
 export default function Login({
     onAuth,
@@ -11,6 +12,7 @@ export default function Login({
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [showRequestAccessModal, setShowRequestAccessModal] = useState(false);
 
     async function submit() {
         setLoading(true);
@@ -27,6 +29,13 @@ export default function Login({
             onAuth(res.token, res.user);
         } catch (e) {
             const msg = e instanceof Error ? e.message : String(e);
+            
+            // Check if this is a whitelist error by looking for the error message
+            if (msg.includes('NOT_WHITELISTED') || msg.includes('not authorized for this beta')) {
+                setShowRequestAccessModal(true);
+                return;
+            }
+            
             setError(msg || 'Failed');
         } finally {
             setLoading(false);
@@ -70,6 +79,12 @@ export default function Login({
                     </div>
                 </div>
             </div>
+            
+            <RequestAccessModal 
+                isOpen={showRequestAccessModal}
+                onClose={() => setShowRequestAccessModal(false)}
+                username={username}
+            />
         </div>
     );
 }
