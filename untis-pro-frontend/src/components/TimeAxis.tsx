@@ -6,9 +6,8 @@ type TimeAxisProps = {
     START_MIN: number;
     END_MIN: number;
     SCALE: number;
-    DAY_HEADER_PX: number; // original configured header height
+    DAY_HEADER_PX: number;
     BOTTOM_PAD_PX: number;
-    internalHeaderPx?: number; // actual in-column spacer when sticky external header used (defaults to DAY_HEADER_PX)
 };
 
 const TimeAxis: FC<TimeAxisProps> = ({
@@ -17,10 +16,8 @@ const TimeAxis: FC<TimeAxisProps> = ({
     SCALE,
     DAY_HEADER_PX,
     BOTTOM_PAD_PX,
-    internalHeaderPx,
 }) => {
     const timesHeight = (END_MIN - START_MIN) * SCALE;
-    const headerPx = internalHeaderPx ?? DAY_HEADER_PX;
 
     // Build unique timestamp labels (dedupe touching boundaries) with a minimum vertical gap.
     const timeLabelPositions = (() => {
@@ -77,28 +74,25 @@ const TimeAxis: FC<TimeAxisProps> = ({
     return (
         <div
             className="relative"
-            style={{ height: headerPx + timesHeight + BOTTOM_PAD_PX }}
+            style={{ height: DAY_HEADER_PX + timesHeight + BOTTOM_PAD_PX }}
         >
             <div
                 className="absolute left-0 right-0"
                 style={{
                     top: 0,
-                    height: headerPx + timesHeight + BOTTOM_PAD_PX,
+                    height: DAY_HEADER_PX + timesHeight + BOTTOM_PAD_PX,
                 }}
             >
-                <div className="mx-1 h-full rounded-md ring-1 ring-slate-900/10 dark:ring-white/10 border border-slate-300/50 dark:border-slate-600/50 shadow-sm overflow-hidden bg-gradient-to-b from-slate-50/85 via-slate-100/80 to-sky-50/70 dark:bg-slate-800/40 dark:bg-none relative">
-                    {timeLabelPositions.map((t, i) => {
-                        const extraTop = i === 0 ? 5 : 0; // only nudge first label for breathing space
-                        return (
-                            <div
-                                key={i}
-                                className="absolute left-0 right-0 -translate-y-1/2 text-[11px] leading-none text-slate-500 dark:text-slate-400 select-none text-center"
-                                style={{ top: t.y + headerPx + extraTop }}
-                            >
-                                {t.label}
-                            </div>
-                        );
-                    })}
+                <div className="mx-1 h-full rounded-md ring-1 ring-slate-900/10 dark:ring-white/10 shadow-sm overflow-hidden bg-gradient-to-b from-slate-50/85 via-slate-100/80 to-sky-50/70 dark:bg-slate-800/40 dark:bg-none relative">
+                    {timeLabelPositions.map((t, i) => (
+                        <div
+                            key={i}
+                            className="absolute left-0 right-0 -translate-y-1/2 text-[11px] leading-none text-slate-500 dark:text-slate-400 select-none text-center"
+                            style={{ top: t.y + DAY_HEADER_PX }}
+                        >
+                            {t.label}
+                        </div>
+                    ))}
                     {DEFAULT_PERIODS.map((p) => {
                         const sMin = untisToMinutes(p.start);
                         const eMin = untisToMinutes(p.end);
@@ -113,7 +107,7 @@ const TimeAxis: FC<TimeAxisProps> = ({
                                         top:
                                             ((sMin + eMin) / 2 - START_MIN) *
                                                 SCALE +
-                                            headerPx,
+                                            DAY_HEADER_PX,
                                         fontSize: 22,
                                         fontWeight: 800,
                                     }}

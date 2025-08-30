@@ -48,20 +48,6 @@ export default function Dashboard({
     } | null>(null);
     const abortRef = useRef<AbortController | null>(null);
     const searchBoxRef = useRef<HTMLDivElement | null>(null);
-    const [mobileSearchOpen, setMobileSearchOpen] = useState(false); // full-screen popup on mobile
-
-    // Auto-focus mobile search input when overlay opens
-    useEffect(() => {
-        if (mobileSearchOpen) {
-            const t = setTimeout(() => {
-                const el = document.getElementById(
-                    'mobile-search-input'
-                ) as HTMLInputElement | null;
-                el?.focus();
-            }, 30);
-            return () => clearTimeout(t);
-        }
-    }, [mobileSearchOpen]);
     const [lessonColors, setLessonColors] = useState<LessonColors>({});
     const [defaultLessonColors, setDefaultLessonColors] =
         useState<LessonColors>({});
@@ -486,37 +472,22 @@ export default function Dashboard({
                             </button>
                         </div>
 
-
-                        {/* Row 2: search (desktop), mobile icons (search+home), week picker */}
-                        <div className="flex flex-wrap items-end gap-3">
-                            {/* Desktop search */}
-                            <div
-                                className="hidden sm:block max-w-lg flex-1"
-                                ref={searchBoxRef}
-                            >
+                        {/* Row 2: search, week selector, home icon (single row on mobile) */}
+                        <div className="grid grid-cols-12 gap-2 items-end sm:flex sm:flex-wrap sm:items-end sm:gap-3">
+                            {/* Search (col-span-7) */}
+                            <div className="col-span-7 sm:col-auto">
                                 <label className="label sm:text-sm text-[11px]">
                                     Search
                                 </label>
-                                <div className="relative">
+                                <div className="relative" ref={searchBoxRef}>
                                     <input
-                                        className="input text-sm pr-8"
-
+                                        className="input text-sm"
                                         placeholder="Student…"
                                         value={queryText}
                                         onChange={(e) =>
                                             setQueryText(e.target.value)
                                         }
                                     />
-                                    {queryText && (
-                                        <button
-                                            type="button"
-                                            className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
-                                            aria-label="Clear search"
-                                            onClick={() => setQueryText('')}
-                                        >
-                                            ×
-                                        </button>
-                                    )}
                                     {results.length > 0 && (
                                         <div className="absolute z-20 mt-1 w-full rounded-md border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-800">
                                             <ul className="max-h-60 overflow-auto py-1 text-sm">
@@ -560,29 +531,8 @@ export default function Dashboard({
                                     )}
                                 </div>
                             </div>
-                            {/* Mobile icon cluster */}
-                            <div className="flex items-end gap-2 sm:hidden">
-                                <button
-                                    type="button"
-                                    className="rounded-md p-2 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
-                                    aria-label="Open search"
-                                    onClick={() => setMobileSearchOpen(true)}
-                                >
-                                    <svg
-                                        width="20"
-                                        height="20"
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        strokeWidth="2"
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                    >
-                                        <circle cx="11" cy="11" r="8" />
-                                        <path d="m21 21-4.35-4.35" />
-                                    </svg>
-                                </button>
-
+                            {/* Home icon (col-span-1) */}
+                            <div className="col-span-1 flex items-end justify-center sm:items-center">
                                 <button
                                     className="rounded-full p-2 hover:bg-slate-200 dark:hover:bg-slate-700"
                                     title="My timetable"
@@ -607,24 +557,23 @@ export default function Dashboard({
                                     </svg>
                                 </button>
                             </div>
-                            {/* Week picker (week info removed) */}
-                            <div className="flex items-end gap-3 ml-auto">
-                                <div>
-                                    <label className="label sm:text-sm text-[11px]">
-                                        Week
-                                    </label>
-                                    <input
-                                        type="date"
-                                        className="input text-sm"
-                                        value={start}
-                                        onChange={(e) =>
-                                            setStart(e.target.value)
-                                        }
-                                    />
-                                </div>
+                            {/* Week picker (col-span-4) */}
+                            <div className="col-span-4 sm:col-auto mr-5 sm:mr-0">
+                                <label className="label sm:text-sm text-[11px]">
+                                    Week
+                                </label>
+                                <input
+                                    type="date"
+                                    className="input text-sm"
+                                    value={start}
+                                    onChange={(e) => setStart(e.target.value)}
+                                />
+                            </div>
+                            {/* Desktop week range */}
+                            <div className="hidden sm:block text-sm text-slate-600 dark:text-slate-300 ml-auto pb-2">
+                                {weekStartStr} → {weekEndStr}
                             </div>
                         </div>
-                        {/* Week info removed */}
                     </div>
                     <div className="mt-4">
                         {retrySeconds !== null ? (
@@ -657,92 +606,10 @@ export default function Dashboard({
                             serverLessonOffsets={lessonOffsets}
                             token={token}
                             viewingUserId={selectedUser?.id}
-                            onWeekNavigate={(dir) => {
-                                if (dir === 'prev') {
-                                    const ns = fmtLocal(
-                                        addDays(new Date(start), -7)
-                                    );
-                                    setStart(ns);
-                                } else {
-                                    const ns = fmtLocal(
-                                        addDays(new Date(start), 7)
-                                    );
-                                    setStart(ns);
-                                }
-                            }}
                         />
                     </div>
                 </section>
             </main>
-
-
-            {/* Mobile full-screen search overlay */}
-            {mobileSearchOpen && (
-                <div className="sm:hidden fixed inset-0 z-50 bg-white dark:bg-slate-900 p-4 flex flex-col">
-                    <div className="flex items-center gap-2 mb-3">
-                        <input
-                            id="mobile-search-input"
-                            className="input flex-1 text-sm"
-                            placeholder="Search student…"
-                            value={queryText}
-                            onChange={(e) => setQueryText(e.target.value)}
-                        />
-                        {queryText && (
-                            <button
-                                className="rounded-md px-2 py-1 text-xs bg-slate-200 hover:bg-slate-300 text-slate-700 dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-slate-200"
-                                onClick={() => setQueryText('')}
-                                aria-label="Clear"
-                            >
-                                Clear
-                            </button>
-                        )}
-                        <button
-                            className="rounded-md px-3 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-slate-200"
-                            onClick={() => setMobileSearchOpen(false)}
-                            aria-label="Close search"
-                        >
-                            Close
-                        </button>
-                    </div>
-                    <div className="flex-1 overflow-auto -mx-2 px-2">
-                        {results.length === 0 && queryText ? (
-                            <div className="text-sm text-slate-500 dark:text-slate-400">
-                                No results
-                            </div>
-                        ) : (
-                            <ul className="space-y-1">
-                                {results.map((r) => (
-                                    <li key={r.id}>
-                                        <button
-                                            className="w-full rounded-md px-3 py-2 text-left bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-sm"
-                                            onClick={() => {
-                                                setSelectedUser(r);
-                                                setQueryText(
-                                                    r.displayName || r.username
-                                                );
-                                                setResults([]);
-                                                setMobileSearchOpen(false);
-                                                if (r.id !== user.id)
-                                                    loadUser(r.id);
-                                                else loadMine();
-                                            }}
-                                        >
-                                            <div className="font-medium">
-                                                {r.displayName || r.username}
-                                            </div>
-                                            {r.displayName && (
-                                                <div className="text-xs text-slate-500 dark:text-slate-400">
-                                                    {r.username}
-                                                </div>
-                                            )}
-                                        </button>
-                                    </li>
-                                ))}
-                            </ul>
-                        )}
-                    </div>
-                </div>
-            )}
 
             <SettingsModal
                 token={token}

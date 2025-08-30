@@ -48,15 +48,6 @@ export default function App() {
         localStorage.setItem('user', JSON.stringify(next));
     }
 
-    // Manage scroll locking: only lock when authenticated dashboard is visible
-    useEffect(() => {
-        if (token && user) {
-            document.body.classList.add('scroll-lock');
-        } else {
-            document.body.classList.remove('scroll-lock');
-        }
-    }, [token, user]);
-
     if (!token || !user) return <Login onAuth={onAuth} />;
 
     return (

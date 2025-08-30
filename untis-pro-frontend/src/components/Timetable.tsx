@@ -223,7 +223,6 @@ export default function Timetable({
     serverLessonOffsets = {},
     token,
     viewingUserId,
-    onWeekNavigate,
 }: {
     data: TimetableResponse | null;
     weekStart: Date;
@@ -238,7 +237,6 @@ export default function Timetable({
     serverLessonOffsets?: Record<string, number>;
     token?: string;
     viewingUserId?: string; // if admin is viewing a student
-    onWeekNavigate?: (direction: 'prev' | 'next') => void; // optional external navigation handler
     // Extended: allow passing current offset when color set
     // (so initial color creation can persist chosen offset)
     // Keeping backwards compatibility (third param optional)
@@ -247,7 +245,7 @@ export default function Timetable({
     const END_MIN = 17 * 60 + 15; // 17:15
     const totalMinutes = END_MIN - START_MIN;
     const [SCALE, setSCALE] = useState<number>(1);
-    const [axisWidth, setAxisWidth] = useState<number>(56); // dynamic; shrinks on mobile
+    const [axisWidth, setAxisWidth] = useState<number>(56); // narrower on very small screens
 
     const isDeveloperModeEnabled =
         String(import.meta.env.VITE_ENABLE_DEVELOPER_MODE ?? '')
@@ -363,26 +361,26 @@ export default function Timetable({
     useEffect(() => {
         function computeScale() {
             const vh = typeof window !== 'undefined' ? window.innerHeight : 800;
-            const vw = typeof window !== 'undefined' ? window.innerWidth : 1024;
-            const isMobile = vw < 640;
-            // Target vertical pixels for timetable (excludes header) – dynamic for better fill
-            // Mobile: keep more compact (1.0–1.15 px/min) to avoid excessive scrolling
+            const isMobile =
+                typeof window !== 'undefined' && window.innerWidth < 640;
+            // New compact mobile strategy: previously we expanded height (≈1.6–1.7 px/min).
+            // Goal: fit more lessons on screen. Target ~1.05–1.2 px/min on typical phones.
             if (isMobile) {
-                const targetHeight = Math.min(
-                    880,
-                    Math.max(660, Math.floor(vh * 0.9))
+                // Slightly reduced (was larger) to fit a bit more while remaining readable.
+                const target = Math.min(
+                    950,
+                    Math.max(720, Math.floor(vh * 0.95))
                 );
-                setSCALE(targetHeight / totalMinutes);
-                setAxisWidth(vw < 400 ? 40 : 44);
-                setDAY_HEADER_PX(40); // a little taller, easier tap
-                setBOTTOM_PAD_PX(6);
+                setSCALE(target / totalMinutes);
+                setAxisWidth(44);
+                setDAY_HEADER_PX(36);
+                setBOTTOM_PAD_PX(5);
             } else {
-                const targetHeight = Math.max(560, Math.floor(vh * 0.78));
-                setSCALE(targetHeight / totalMinutes);
+                const target = Math.max(540, Math.floor(vh * 0.8));
+                setSCALE(target / totalMinutes);
                 setAxisWidth(56);
-                setDAY_HEADER_PX(32);
-                setBOTTOM_PAD_PX(14);
-
+                setDAY_HEADER_PX(28);
+                setBOTTOM_PAD_PX(12);
             }
         }
         computeScale();
@@ -391,67 +389,7 @@ export default function Timetable({
     }, [totalMinutes]);
 
     const monday = startOfWeek(weekStart);
-    const days = useMemo(
-        () => Array.from({ length: 5 }, (_, i) => addDays(monday, i)),
-        [monday]
-    );
-
-    // Swipe gestures (mobile) to navigate weeks
-    const touchStartX = useRef<number | null>(null);
-    const touchStartY = useRef<number | null>(null);
-    const SWIPE_THRESHOLD = 60; // px
-    const SWIPE_MAX_OFF_AXIS = 80; // allow some vertical movement
-    const containerRef = useRef<HTMLDivElement | null>(null);
-    useEffect(() => {
-        const el = containerRef.current;
-        if (!el) return;
-        let skipSwipe = false;
-        const INTERACTIVE_SELECTOR =
-            'input,textarea,select,button,[contenteditable="true"],[role="textbox"]';
-        const handleTouchStart = (e: TouchEvent) => {
-            if (e.touches.length !== 1) return;
-            const target = e.target as HTMLElement | null;
-            // Ignore swipe if user starts on an interactive control to allow focusing
-            if (
-                target &&
-                (target.closest(INTERACTIVE_SELECTOR) ||
-                    target.tagName === 'INPUT')
-            ) {
-                skipSwipe = true;
-                touchStartX.current = null;
-                touchStartY.current = null;
-                return; // let the browser handle focus normally
-            }
-            skipSwipe = false;
-            touchStartX.current = e.touches[0].clientX;
-            touchStartY.current = e.touches[0].clientY;
-        };
-        const handleTouchEnd = (e: TouchEvent) => {
-            if (skipSwipe) {
-                skipSwipe = false;
-                return;
-            }
-            if (touchStartX.current == null || touchStartY.current == null)
-                return;
-            const dx = e.changedTouches[0].clientX - touchStartX.current;
-            const dy = e.changedTouches[0].clientY - touchStartY.current;
-            if (
-                Math.abs(dx) > SWIPE_THRESHOLD &&
-                Math.abs(dy) < SWIPE_MAX_OFF_AXIS
-            ) {
-                if (dx < 0) onWeekNavigate?.('next');
-                else onWeekNavigate?.('prev');
-            }
-            touchStartX.current = null;
-            touchStartY.current = null;
-        };
-        el.addEventListener('touchstart', handleTouchStart, { passive: true });
-        el.addEventListener('touchend', handleTouchEnd);
-        return () => {
-            el.removeEventListener('touchstart', handleTouchStart);
-            el.removeEventListener('touchend', handleTouchEnd);
-        };
-    }, [onWeekNavigate]);
+    const days = Array.from({ length: 5 }, (_, i) => addDays(monday, i));
 
     // Track current time and compute line position
     const [now, setNow] = useState<Date>(() => new Date());
@@ -470,9 +408,7 @@ export default function Timetable({
     const nowMin = now.getHours() * 60 + now.getMinutes();
     const isWithinDay = nowMin >= START_MIN && nowMin <= END_MIN;
     const showNowLine = isCurrentWeek && isWithinDay;
-    // When using sticky external header we shrink internal header in columns to 8px
-    const internalHeaderPx = 8; // must match DayColumn hideHeader calculation
-    const nowY = (nowMin - START_MIN) * SCALE + internalHeaderPx;
+    const nowY = (nowMin - START_MIN) * SCALE + DAY_HEADER_PX;
 
     const lessonsByDay = useMemo(() => {
         const byDay: Record<string, Lesson[]> = {};
@@ -512,10 +448,7 @@ export default function Timetable({
         );
 
     return (
-        <div
-            ref={containerRef}
-            className="w-full overflow-x-hidden pt-[env(safe-area-inset-top)]"
-        >
+        <div className="w-full overflow-x-hidden">
             {isDeveloperModeEnabled && (
                 <div className="mb-4 flex justify-end px-2">
                     <button
@@ -552,54 +485,6 @@ export default function Timetable({
             )}
 
             {/* Unified horizontal week view (fits viewport width) */}
-            {/* Sticky weekday header (separate from columns so it stays visible during vertical scroll) */}
-            <div className="sticky top-0 z-30 bg-gradient-to-b from-white/85 to-white/60 dark:from-slate-900/85 dark:to-slate-900/60 backdrop-blur supports-[backdrop-filter]:backdrop-blur rounded-lg ring-1 ring-black/5 dark:ring-white/10 border border-slate-300/60 dark:border-slate-600/60 shadow-sm mb-2 px-1 sm:px-2">
-                <div
-                    className="grid"
-                    style={{
-                        gridTemplateColumns: `${axisWidth}px repeat(5, 1fr)`,
-                    }}
-                >
-                    <div className="h-10 flex items-center justify-center text-[11px] sm:text-xs font-medium text-slate-500 dark:text-slate-400">
-                        {/* Axis label placeholder */}
-                        <span>Time</span>
-                    </div>
-                    {days.map((d) => {
-                        const isToday = fmtLocal(d) === todayISO;
-                        return (
-                            <div
-                                key={fmtLocal(d)}
-                                className="h-10 flex flex-col items-center justify-center py-1"
-                            >
-                                <div
-                                    className={`text-[11px] sm:text-xs font-semibold leading-tight ${
-                                        isToday
-                                            ? 'text-amber-700 dark:text-amber-300'
-                                            : 'text-slate-700 dark:text-slate-200'
-                                    }`}
-                                >
-                                    {d.toLocaleDateString(undefined, {
-                                        weekday: 'short',
-                                    })}
-                                </div>
-                                <div
-                                    className={`text-[10px] sm:text-[11px] font-medium ${
-                                        isToday
-                                            ? 'text-amber-600 dark:text-amber-200'
-                                            : 'text-slate-500 dark:text-slate-400'
-                                    }`}
-                                >
-                                    {d.toLocaleDateString(undefined, {
-                                        day: '2-digit',
-                                        month: '2-digit',
-                                    })}
-                                </div>
-                            </div>
-                        );
-                    })}
-                </div>
-            </div>
-
             <div className="overflow-hidden w-full">
                 <div
                     className="grid gap-x-1 sm:gap-x-3 w-full relative"
@@ -647,7 +532,6 @@ export default function Timetable({
                         SCALE={SCALE}
                         DAY_HEADER_PX={DAY_HEADER_PX}
                         BOTTOM_PAD_PX={BOTTOM_PAD_PX}
-                        internalHeaderPx={internalHeaderPx}
                     />
                     {days.map((d) => {
                         const key = fmtLocal(d);
@@ -669,7 +553,6 @@ export default function Timetable({
                                 onLessonClick={handleLessonClick}
                                 isToday={isToday}
                                 gradientOffsets={gradientOffsets}
-                                hideHeader
                             />
                         );
                     })}
