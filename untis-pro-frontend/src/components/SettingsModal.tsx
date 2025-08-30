@@ -11,6 +11,10 @@ import {
     type SharingSettings,
     updateUserDisplayName,
     updateMyDisplayName,
+    listWhitelist,
+    addWhitelistRule,
+    deleteWhitelistRule,
+    type WhitelistRule,
 } from '../api';
 
 export default function SettingsModal({
@@ -83,6 +87,12 @@ export default function SettingsModal({
     const [savingMyName, setSavingMyName] = useState(false);
     const [myNameError, setMyNameError] = useState<string | null>(null);
     const [myNameSaved, setMyNameSaved] = useState(false);
+
+    // Whitelist (admin) state — username only
+    const [whitelist, setWhitelist] = useState<WhitelistRule[]>([]);
+    const [wlValue, setWlValue] = useState('');
+    const [wlLoading, setWlLoading] = useState(false);
+    const [wlError, setWlError] = useState<string | null>(null);
 
     const loadUsers = useCallback(async () => {
         setUserManagementLoading(true);
@@ -206,16 +216,20 @@ export default function SettingsModal({
         }
     }, [token]);
 
-    // Load settings when modal opens (with stable callbacks)
-    useEffect(() => {
-        if (isOpen) {
-            loadSettings();
-            if (user.isAdmin) loadUsers();
-            setMyDisplayName(user.displayName ?? '');
-            setMyNameSaved(false);
-            setMyNameError(null);
+    const loadWhitelistRules = useCallback(async () => {
+        setWlLoading(true);
+        setWlError(null);
+        try {
+            const res = await listWhitelist(token);
+            setWhitelist(res.rules);
+        } catch (e) {
+            setWlError(
+                e instanceof Error ? e.message : 'Failed to load whitelist'
+            );
+        } finally {
+            setWlLoading(false);
         }
-    }, [isOpen, user.isAdmin, user.displayName, loadSettings, loadUsers]);
+    }, [token]);
 
     const handleToggleSharing = async (enabled: boolean) => {
         if (!settings) return;
@@ -299,6 +313,62 @@ export default function SettingsModal({
             setSavingMyName(false);
         }
     };
+
+    const handleAddWhitelistRule = useCallback(async () => {
+        const v = wlValue.trim();
+        if (!v) return;
+        setWlLoading(true);
+        setWlError(null);
+        try {
+            await addWhitelistRule(token, v);
+            setWlValue('');
+            await loadWhitelistRules();
+        } catch (e) {
+            setWlError(e instanceof Error ? e.message : 'Failed to add rule');
+        } finally {
+            setWlLoading(false);
+        }
+    }, [token, wlValue, loadWhitelistRules]);
+
+    const handleDeleteWhitelistRule = useCallback(
+        async (id: string) => {
+            setWlLoading(true);
+            setWlError(null);
+            try {
+                await deleteWhitelistRule(token, id);
+                setWhitelist((prev) => prev.filter((r) => r.id !== id));
+            } catch (e) {
+                setWlError(
+                    e instanceof Error ? e.message : 'Failed to delete rule'
+                );
+            } finally {
+                setWlLoading(false);
+            }
+        },
+        [token]
+    );
+
+    // Load settings when modal opens (with stable callbacks)
+    useEffect(() => {
+        if (isOpen) {
+            loadSettings();
+            if (user.isAdmin) {
+                loadUsers();
+                // Defer whitelist loading until settings fetched and enabled
+            }
+            setMyDisplayName(user.displayName ?? '');
+            setMyNameSaved(false);
+            setMyNameError(null);
+        }
+    }, [isOpen, user.isAdmin, user.displayName, loadSettings, loadUsers]);
+
+    // Load whitelist only when enabled in settings
+    useEffect(() => {
+        if (!isOpen || !user.isAdmin) return;
+        if (settings?.whitelistEnabled) {
+            loadWhitelistRules();
+        }
+    }, [isOpen, user.isAdmin, settings?.whitelistEnabled, loadWhitelistRules]);
 
     if (!showModal) return null;
 
@@ -418,31 +488,113 @@ export default function SettingsModal({
                                         </div>
                                     )}
 
-                                    <div className="flex items-center justify-between mb-4">
-                                        <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-                                            Users
-                                        </h3>
-                                        <button
-                                            className="btn-primary text-sm"
-                                            onClick={loadUsers}
-                                            disabled={userManagementLoading}
-                                        >
-                                            Refresh
-                                        </button>
-                                    </div>
+                                    {/* Whitelist management (username-only) */}
+                                    {settings?.whitelistEnabled ? (
+                                        <div className="mb-6 p-4 bg-slate-50 dark:bg-slate-900/30 rounded-lg border border-slate-200 dark:border-slate-700">
+                                            <div className="flex items-center justify-between mb-3">
+                                                <h4 className="font-medium text-slate-800 dark:text-slate-100">
+                                                    Whitelist
+                                                </h4>
+                                            </div>
+                                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                                                <input
+                                                    className="input"
+                                                    placeholder={
+                                                        'Enter username'
+                                                    }
+                                                    value={wlValue}
+                                                    onChange={(e) =>
+                                                        setWlValue(
+                                                            e.target.value
+                                                        )
+                                                    }
+                                                />
+                                                <button
+                                                    className="btn-primary"
+                                                    disabled={
+                                                        wlLoading ||
+                                                        !wlValue.trim()
+                                                    }
+                                                    onClick={
+                                                        handleAddWhitelistRule
+                                                    }
+                                                >
+                                                    Add
+                                                </button>
+                                            </div>
+                                            {wlError && (
+                                                <div className="mt-2 text-sm text-red-600 dark:text-red-400">
+                                                    {wlError}
+                                                </div>
+                                            )}
+                                            <div className="mt-4 overflow-x-auto">
+                                                <table className="min-w-full text-sm">
+                                                    <thead className="text-left text-slate-700 dark:text-slate-200">
+                                                        <tr>
+                                                            <th className="py-2 pr-4">
+                                                                Username
+                                                            </th>
+                                                            <th className="py-2 pr-4">
+                                                                Actions
+                                                            </th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {whitelist.map((r) => (
+                                                            <tr
+                                                                key={r.id}
+                                                                className="border-t border-slate-200/70 dark:border-slate-700/70"
+                                                            >
+                                                                <td className="py-2 pr-4 text-slate-900 dark:text-slate-100">
+                                                                    {r.value}
+                                                                </td>
+                                                                <td className="py-2 pr-4 text-slate-900 dark:text-slate-100">
+                                                                    <button
+                                                                        className="btn-secondary"
+                                                                        disabled={
+                                                                            wlLoading
+                                                                        }
+                                                                        onClick={() =>
+                                                                            handleDeleteWhitelistRule(
+                                                                                r.id
+                                                                            )
+                                                                        }
+                                                                    >
+                                                                        Delete
+                                                                    </button>
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+                                                        {whitelist.length ===
+                                                            0 && (
+                                                            <tr>
+                                                                <td
+                                                                    colSpan={2}
+                                                                    className="py-3 text-center text-slate-500 dark:text-slate-400"
+                                                                >
+                                                                    No usernames
+                                                                    whitelisted
+                                                                </td>
+                                                            </tr>
+                                                        )}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    ) : null}
 
-                                    {/* Users table */}
-                                    <div className="border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
+                                    {/* Users list */}
+                                    <div className="overflow-x-auto">
                                         <table className="min-w-full text-sm">
-                                            <thead className="bg-slate-50 dark:bg-slate-800">
+                                            <thead className="text-left text-slate-600 dark:text-slate-300">
                                                 <tr>
-                                                    <th className="py-3 px-4 text-left text-slate-600 dark:text-slate-300 font-medium">
+                                                    <th className="py-2 pr-4">
                                                         Username
                                                     </th>
-                                                    <th className="py-3 px-4 text-left text-slate-600 dark:text-slate-300 font-medium">
+                                                    <th className="py-2 pr-4">
                                                         Display name
                                                     </th>
-                                                    <th className="py-3 px-4 text-left text-slate-600 dark:text-slate-300 font-medium">
+                                                    <th className="py-2 pr-4">
                                                         Actions
                                                     </th>
                                                 </tr>

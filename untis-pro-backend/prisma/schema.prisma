@@ -161,3 +161,10 @@ model Exam {
     // Metadata
     fetchedAt DateTime @default(now())
 }
+
+// DB-backed whitelist rules — username only
+model WhitelistRule {
+    id        String   @id @default(uuid())
+    createdAt DateTime @default(now())
+    value     String   @unique
+}

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import MoonIcon from '../components/MoonIcon';
-import { api, updateUserDisplayName } from '../api';
+import { api, updateUserDisplayName, listWhitelist, addWhitelistRule, deleteWhitelistRule, type WhitelistRule } from '../api';
 
 export default function AdminPage({
     token,
@@ -24,6 +24,10 @@ export default function AdminPage({
     const [editingUser, setEditingUser] = useState<string | null>(null);
     const [editDisplayName, setEditDisplayName] = useState('');
 
+    // Whitelist UI state (username-only)
+    const [whitelist, setWhitelist] = useState<WhitelistRule[]>([]);
+    const [wlValue, setWlValue] = useState('');
+
     const load = useCallback(async () => {
         setLoading(true);
         setError(null);
@@ -36,6 +40,8 @@ export default function AdminPage({
                 }>;
             }>('/api/admin/users', { token });
             setUsers(usersRes.users);
+            const wl = await listWhitelist(token);
+            setWhitelist(wl.rules);
         } catch (e) {
             setError(e instanceof Error ? e.message : String(e));
         } finally {
@@ -94,6 +100,36 @@ export default function AdminPage({
             setLoading(false);
         }
     }, [token, editDisplayName]);
+
+    const handleAddRule = useCallback(async () => {
+        const value = wlValue.trim();
+        if (!value) return;
+        setLoading(true);
+        setError(null);
+        try {
+            await addWhitelistRule(token, value);
+            setWlValue('');
+            const wl = await listWhitelist(token);
+            setWhitelist(wl.rules);
+        } catch (e) {
+            setError(e instanceof Error ? e.message : String(e));
+        } finally {
+            setLoading(false);
+        }
+    }, [token, wlValue]);
+
+    const handleDeleteRule = useCallback(async (id: string) => {
+        setLoading(true);
+        setError(null);
+        try {
+            await deleteWhitelistRule(token, id);
+            setWhitelist(prev => prev.filter(r => r.id !== id));
+        } catch (e) {
+            setError(e instanceof Error ? e.message : String(e));
+        } finally {
+            setLoading(false);
+        }
+    }, [token]);
 
     useEffect(() => {
         load();
@@ -228,6 +264,53 @@ export default function AdminPage({
                                             className="py-4 text-center text-slate-500"
                                         >
                                             No users
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                {/* Whitelist management */}
+                <section className="card p-4 mt-6">
+                    <div className="flex items-center justify-between">
+                        <h2 className="text-lg font-semibold">Whitelist</h2>
+                    </div>
+                    <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+                        <input
+                            className="input"
+                            placeholder={'Enter username'}
+                            value={wlValue}
+                            onChange={(e) => setWlValue(e.target.value)}
+                        />
+                        <button className="btn-primary" onClick={handleAddRule}>
+                            Add
+                        </button>
+                    </div>
+                    <div className="mt-4 overflow-x-auto">
+                        <table className="min-w-full text-sm">
+                            <thead className="text-left text-slate-700 dark:text-slate-200">
+                                <tr>
+                                    <th className="py-2 pr-4">Username</th>
+                                    <th className="py-2 pr-4">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {whitelist.map((r) => (
+                                    <tr key={r.id} className="border-t border-slate-200/70 dark:border-slate-700/70">
+                                        <td className="py-2 pr-4 text-slate-900 dark:text-slate-100">{r.value}</td>
+                                        <td className="py-2 pr-4 text-slate-900 dark:text-slate-100">
+                                            <button className="btn-secondary" onClick={() => handleDeleteRule(r.id)}>
+                                                Delete
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))}
+                                {whitelist.length === 0 && (
+                                    <tr>
+                                        <td colSpan={2} className="py-4 text-center text-slate-500">
+                                            No usernames whitelisted
                                         </td>
                                     </tr>
                                 )}
