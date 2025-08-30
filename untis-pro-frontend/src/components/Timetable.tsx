@@ -561,7 +561,17 @@ export default function Timetable({
                 </div>
             </div>
 
-            <div className="overflow-hidden w-full">
+            <div className="overflow-hidden w-full relative">
+                {/* Show "No timetable" message when there are no lessons and not transitioning */}
+                {!hasLessons && !transitionDirection && (
+                    <div className="absolute inset-0 flex items-center justify-center z-50">
+                        <div className="rounded-lg border border-dashed border-slate-300 dark:border-slate-600 p-6 text-center text-slate-600 dark:text-slate-300 bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm shadow-lg">
+                            <div className="text-lg font-medium mb-2">No timetable for this week</div>
+                            <div className="text-sm text-slate-500 dark:text-slate-400">Swipe left or right to navigate between weeks</div>
+                        </div>
+                    </div>
+                )}
+                
                 <div
                     className="grid gap-x-1 sm:gap-x-3 w-full relative"
                     style={{
@@ -675,15 +685,6 @@ export default function Timetable({
                         );
                     })}
                 </div>
-                
-                {/* Show "No timetable" message when there are no lessons and not transitioning */}
-                {!hasLessons && !transitionDirection && (
-                    <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="rounded-lg border border-dashed p-4 text-center text-slate-600 dark:text-slate-300 bg-white/80 dark:bg-slate-900/80 backdrop-blur">
-                            No timetable for this week.
-                        </div>
-                    </div>
-                )}
             </div>
 
             <LessonModal

@@ -37,6 +37,8 @@ export default function Dashboard({
     const [start, setStart] = useState<string>(() => fmtLocal(new Date()));
     const [mine, setMine] = useState<TimetableResponse | null>(null);
     const [loadError, setLoadError] = useState<string | null>(null);
+    // Week cache for smooth navigation - using ref to avoid dependency issues
+    const weekCacheRef = useRef<Record<string, TimetableResponse>>({});
     const [queryText, setQueryText] = useState('');
     const [results, setResults] = useState<
         Array<{ id: string; username: string; displayName: string | null }>
@@ -120,12 +122,26 @@ export default function Dashboard({
 
     const loadMine = useCallback(async () => {
         setLoadError(null);
+        
+        // Check cache first for instant navigation
+        const cacheKey = weekStartStr;
+        if (weekCacheRef.current[cacheKey]) {
+            setMine(weekCacheRef.current[cacheKey]);
+            // Still preload adjacent weeks in background
+            setTimeout(() => preloadAdjacentWeeks(), 100);
+            return;
+        }
+        
         try {
             const res = await api<TimetableResponse>(
                 `/api/timetable/me${query}`,
                 { token }
             );
             setMine(res);
+            // Cache this week's data
+            weekCacheRef.current[cacheKey] = res;
+            // Preload adjacent weeks for smooth navigation
+            preloadAdjacentWeeks();
         } catch (e) {
             const msg = e instanceof Error ? e.message : 'Failed to load';
             // Auto-retry if rate-limited; avoid replacing timetable with an empty one
@@ -150,27 +166,83 @@ export default function Dashboard({
             }
             setLoadError(msg);
             // Non-429: fall back to an empty timetable to keep UI consistent
-            setMine({
+            const emptyData = {
                 userId: user.id,
                 rangeStart: weekStartStr,
                 rangeEnd: weekEndStr,
                 payload: [],
-            });
+            };
+            setMine(emptyData);
+            weekCacheRef.current[cacheKey] = emptyData;
         } finally {
             /* no loading flag */
         }
-    }, [query, token, user.id, weekStartStr, weekEndStr]);
+    }, [query, token, user.id, weekStartStr, weekEndStr, preloadAdjacentWeeks]);
+
+    // Function to preload adjacent weeks
+    const preloadAdjacentWeeks = useCallback(async () => {
+        const currentWeekStart = new Date(weekStartStr);
+        const prevWeekStart = addDays(currentWeekStart, -7);
+        const nextWeekStart = addDays(currentWeekStart, 7);
+        
+        const prevWeekKey = fmtLocal(prevWeekStart);
+        const nextWeekKey = fmtLocal(nextWeekStart);
+        
+        // Preload previous week if not cached
+        if (!weekCacheRef.current[prevWeekKey]) {
+            try {
+                const prevWeekEnd = fmtLocal(addDays(prevWeekStart, 6));
+                const prevQuery = `?start=${prevWeekKey}&end=${prevWeekEnd}`;
+                const prevRes = await api<TimetableResponse>(
+                    `/api/timetable/me${prevQuery}`,
+                    { token }
+                );
+                weekCacheRef.current[prevWeekKey] = prevRes;
+            } catch {
+                // Ignore preload errors
+            }
+        }
+        
+        // Preload next week if not cached
+        if (!weekCacheRef.current[nextWeekKey]) {
+            try {
+                const nextWeekEnd = fmtLocal(addDays(nextWeekStart, 6));
+                const nextQuery = `?start=${nextWeekKey}&end=${nextWeekEnd}`;
+                const nextRes = await api<TimetableResponse>(
+                    `/api/timetable/me${nextQuery}`,
+                    { token }
+                );
+                weekCacheRef.current[nextWeekKey] = nextRes;
+            } catch {
+                // Ignore preload errors
+            }
+        }
+    }, [weekStartStr, token]);
 
     const loadUser = useCallback(
         async (userId: string) => {
             /* no loading flag */
             setLoadError(null);
+            
+            // Check cache first for instant navigation
+            const cacheKey = `${userId}:${weekStartStr}`;
+            if (weekCacheRef.current[cacheKey]) {
+                setMine(weekCacheRef.current[cacheKey]);
+                // Still preload adjacent weeks in background
+                setTimeout(() => preloadAdjacentWeeksForUser(userId), 100);
+                return;
+            }
+            
             try {
                 const res = await api<TimetableResponse>(
                     `/api/timetable/user/${userId}${query}`,
                     { token }
                 );
                 setMine(res);
+                // Cache this week's data
+                weekCacheRef.current[cacheKey] = res;
+                // Preload adjacent weeks for smooth navigation
+                preloadAdjacentWeeksForUser(userId);
             } catch (e) {
                 const msg = e instanceof Error ? e.message : 'Failed to load';
                 // Auto-retry if rate-limited; avoid replacing timetable with an empty one
@@ -193,18 +265,62 @@ export default function Dashboard({
                     // ignore JSON parse errors and non-structured messages
                 }
                 setLoadError(msg);
-                setMine({
+                const emptyData = {
                     userId,
                     rangeStart: weekStartStr,
                     rangeEnd: weekEndStr,
                     payload: [],
-                });
+                };
+                setMine(emptyData);
+                weekCacheRef.current[cacheKey] = emptyData;
             } finally {
                 /* no loading flag */
             }
         },
-        [query, token, weekStartStr, weekEndStr]
+        [query, token, weekStartStr, weekEndStr, preloadAdjacentWeeksForUser]
     );
+
+    // Function to preload adjacent weeks for a specific user
+    const preloadAdjacentWeeksForUser = useCallback(async (userId: string) => {
+        const currentWeekStart = new Date(weekStartStr);
+        const prevWeekStart = addDays(currentWeekStart, -7);
+        const nextWeekStart = addDays(currentWeekStart, 7);
+        
+        const prevWeekKey = `${userId}:${fmtLocal(prevWeekStart)}`;
+        const nextWeekKey = `${userId}:${fmtLocal(nextWeekStart)}`;
+        
+        // Preload previous week if not cached
+        if (!weekCacheRef.current[prevWeekKey]) {
+            try {
+                const prevWeekStartStr = fmtLocal(prevWeekStart);
+                const prevWeekEnd = fmtLocal(addDays(prevWeekStart, 6));
+                const prevQuery = `?start=${prevWeekStartStr}&end=${prevWeekEnd}`;
+                const prevRes = await api<TimetableResponse>(
+                    `/api/timetable/user/${userId}${prevQuery}`,
+                    { token }
+                );
+                weekCacheRef.current[prevWeekKey] = prevRes;
+            } catch {
+                // Ignore preload errors
+            }
+        }
+        
+        // Preload next week if not cached
+        if (!weekCacheRef.current[nextWeekKey]) {
+            try {
+                const nextWeekStartStr = fmtLocal(nextWeekStart);
+                const nextWeekEnd = fmtLocal(addDays(nextWeekStart, 6));
+                const nextQuery = `?start=${nextWeekStartStr}&end=${nextWeekEnd}`;
+                const nextRes = await api<TimetableResponse>(
+                    `/api/timetable/user/${userId}${nextQuery}`,
+                    { token }
+                );
+                weekCacheRef.current[nextWeekKey] = nextRes;
+            } catch {
+                // Ignore preload errors
+            }
+        }
+    }, [weekStartStr, token]);
 
     useEffect(() => {
         if (selectedUser && selectedUser.id !== user.id)
