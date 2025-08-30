@@ -96,7 +96,7 @@ async function pruneOldTimetables() {
                 skip: 0,
                 take: MAX_HISTORY_PER_RANGE,
             });
-            const keepIds = new Set(keep.map((k) => k.id));
+            const keepIds = new Set(keep.map((k: any) => k.id));
             await prisma.timetable.deleteMany({
                 where: {
                     ownerId: r.ownerId,
