@@ -56,6 +56,7 @@ router.post('/login', untisUserLimiter, async (req, res) => {
                 username: existingUser.username,
                 displayName: existingUser.displayName,
                 isAdmin: false,
+                isUserManager: existingUser.isUserManager || false,
             },
         });
     }
@@ -103,6 +104,7 @@ router.post('/login', untisUserLimiter, async (req, res) => {
             username: user.username,
             displayName: user.displayName,
             isAdmin: false,
+            isUserManager: user.isUserManager || false,
         },
     });
 });

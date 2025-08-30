@@ -19,6 +19,14 @@ import {
     acceptAccessRequest,
     declineAccessRequest,
     type AccessRequest,
+    userManagerListWhitelist,
+    userManagerAddWhitelistRule,
+    userManagerDeleteWhitelistRule,
+    userManagerListAccessRequests,
+    userManagerAcceptAccessRequest,
+    userManagerDeclineAccessRequest,
+    grantUserManagerStatus,
+    revokeUserManagerStatus,
 } from '../api';
 
 export default function SettingsModal({
@@ -75,7 +83,7 @@ export default function SettingsModal({
 
     // User management state for admin users
     const [users, setUsers] = useState<
-        Array<{ id: string; username: string; displayName: string | null }>
+        Array<{ id: string; username: string; displayName: string | null; isUserManager: boolean }>
     >([]);
     const [userManagementLoading, setUserManagementLoading] = useState(false);
     const [userManagementError, setUserManagementError] = useState<
@@ -103,6 +111,21 @@ export default function SettingsModal({
     const [arLoading, setArLoading] = useState(false);
     const [arError, setArError] = useState<string | null>(null);
 
+    // User-manager state (duplicate functionality for user-managers)
+    const [umWhitelist, setUmWhitelist] = useState<WhitelistRule[]>([]);
+    const [umWlValue, setUmWlValue] = useState('');
+    const [umWlLoading, setUmWlLoading] = useState(false);
+    const [umWlError, setUmWlError] = useState<string | null>(null);
+
+    // User-manager access requests state
+    const [umAccessRequests, setUmAccessRequests] = useState<AccessRequest[]>([]);
+    const [umArLoading, setUmArLoading] = useState(false);
+    const [umArError, setUmArError] = useState<string | null>(null);
+
+    // User-manager status management state
+    const [userManagerChanging, setUserManagerChanging] = useState<string | null>(null);
+    const [showConfirmUserManager, setShowConfirmUserManager] = useState<{ userId: string; username: string; isGranting: boolean } | null>(null);
+
     const loadUsers = useCallback(async () => {
         setUserManagementLoading(true);
         setUserManagementError(null);
@@ -112,6 +135,7 @@ export default function SettingsModal({
                     id: string;
                     username: string;
                     displayName: string | null;
+                    isUserManager: boolean;
                 }>;
             }>('/api/admin/users', { token });
             setUsers(response.users);
@@ -254,6 +278,137 @@ export default function SettingsModal({
             setArLoading(false);
         }
     }, [token]);
+
+    // User-manager callbacks
+    const loadUserManagerWhitelist = useCallback(async () => {
+        setUmWlLoading(true);
+        setUmWlError(null);
+        try {
+            const wl = await userManagerListWhitelist(token);
+            setUmWhitelist(wl.rules);
+        } catch (e) {
+            setUmWlError(
+                e instanceof Error ? e.message : 'Failed to load whitelist'
+            );
+        } finally {
+            setUmWlLoading(false);
+        }
+    }, [token]);
+
+    const loadUserManagerAccessRequests = useCallback(async () => {
+        setUmArLoading(true);
+        setUmArError(null);
+        try {
+            const res = await userManagerListAccessRequests(token);
+            setUmAccessRequests(res.requests);
+        } catch (e) {
+            setUmArError(
+                e instanceof Error ? e.message : 'Failed to load access requests'
+            );
+        } finally {
+            setUmArLoading(false);
+        }
+    }, [token]);
+
+    const handleUserManagerAddRule = useCallback(
+        async (value: string) => {
+            setUmWlLoading(true);
+            setUmWlError(null);
+            try {
+                await userManagerAddWhitelistRule(token, value);
+                setUmWlValue('');
+                await loadUserManagerWhitelist();
+            } catch (e) {
+                setUmWlError(
+                    e instanceof Error ? e.message : 'Failed to add rule'
+                );
+            } finally {
+                setUmWlLoading(false);
+            }
+        },
+        [token, loadUserManagerWhitelist]
+    );
+
+    const handleUserManagerDeleteRule = useCallback(
+        async (id: string) => {
+            setUmWlLoading(true);
+            setUmWlError(null);
+            try {
+                await userManagerDeleteWhitelistRule(token, id);
+                await loadUserManagerWhitelist();
+            } catch (e) {
+                setUmWlError(
+                    e instanceof Error ? e.message : 'Failed to delete rule'
+                );
+            } finally {
+                setUmWlLoading(false);
+            }
+        },
+        [token, loadUserManagerWhitelist]
+    );
+
+    const handleUserManagerAcceptAccessRequest = useCallback(
+        async (id: string) => {
+            setUmArLoading(true);
+            setUmArError(null);
+            try {
+                await userManagerAcceptAccessRequest(token, id);
+                setUmAccessRequests((prev) => prev.filter((r) => r.id !== id));
+                // Reload whitelist to show the newly added user
+                await loadUserManagerWhitelist();
+            } catch (e) {
+                setUmArError(
+                    e instanceof Error ? e.message : 'Failed to accept request'
+                );
+            } finally {
+                setUmArLoading(false);
+            }
+        },
+        [token, loadUserManagerWhitelist]
+    );
+
+    const handleUserManagerDeclineAccessRequest = useCallback(
+        async (id: string) => {
+            setUmArLoading(true);
+            setUmArError(null);
+            try {
+                await userManagerDeclineAccessRequest(token, id);
+                setUmAccessRequests((prev) => prev.filter((r) => r.id !== id));
+            } catch (e) {
+                setUmArError(
+                    e instanceof Error ? e.message : 'Failed to decline request'
+                );
+            } finally {
+                setUmArLoading(false);
+            }
+        },
+        [token]
+    );
+
+    const handleSaveMyDisplayName = useCallback(async () => {
+        setSavingMyName(true);
+        setMyNameError(null);
+        setMyNameSaved(false);
+        try {
+            const trimmedName = myDisplayName.trim();
+            const displayNameToSave = trimmedName === '' ? null : trimmedName;
+            await updateMyDisplayName(token, displayNameToSave);
+            
+            // Update the user in the parent component
+            if (onUserUpdate) {
+                onUserUpdate({
+                    ...user,
+                    displayName: displayNameToSave,
+                });
+            }
+            setMyNameSaved(true);
+            setTimeout(() => setMyNameSaved(false), 3000);
+        } catch (e) {
+            setMyNameError(e instanceof Error ? e.message : 'Failed to update display name');
+        } finally {
+            setSavingMyName(false);
+        }
+    }, [token, myDisplayName, user, onUserUpdate]);
 
     const handleToggleSharing = async (enabled: boolean) => {
         if (!settings) return;
@@ -410,6 +565,53 @@ export default function SettingsModal({
         [token]
     );
 
+    // User-manager status management functions
+    const handleGrantUserManager = useCallback(
+        async (userId: string) => {
+            setUserManagerChanging(userId);
+            setUserManagementError(null);
+            try {
+                const result = await grantUserManagerStatus(token, userId);
+                setUsers((prev) =>
+                    prev.map((u) =>
+                        u.id === userId ? { ...u, isUserManager: result.user.isUserManager } : u
+                    )
+                );
+                setShowConfirmUserManager(null);
+            } catch (e) {
+                setUserManagementError(
+                    e instanceof Error ? e.message : 'Failed to grant user manager status'
+                );
+            } finally {
+                setUserManagerChanging(null);
+            }
+        },
+        [token]
+    );
+
+    const handleRevokeUserManager = useCallback(
+        async (userId: string) => {
+            setUserManagerChanging(userId);
+            setUserManagementError(null);
+            try {
+                const result = await revokeUserManagerStatus(token, userId);
+                setUsers((prev) =>
+                    prev.map((u) =>
+                        u.id === userId ? { ...u, isUserManager: result.user.isUserManager } : u
+                    )
+                );
+                setShowConfirmUserManager(null);
+            } catch (e) {
+                setUserManagementError(
+                    e instanceof Error ? e.message : 'Failed to revoke user manager status'
+                );
+            } finally {
+                setUserManagerChanging(null);
+            }
+        },
+        [token]
+    );
+
     // Load settings when modal opens (with stable callbacks)
     useEffect(() => {
         if (isOpen) {
@@ -426,12 +628,22 @@ export default function SettingsModal({
 
     // Load whitelist and access requests only when enabled in settings
     useEffect(() => {
-        if (!isOpen || !user.isAdmin) return;
-        if (settings?.whitelistEnabled) {
-            loadWhitelistRules();
-            loadAccessRequests();
+        if (!isOpen) return;
+        
+        if (user.isAdmin) {
+            // Admin loads admin-specific data
+            if (settings?.whitelistEnabled) {
+                loadWhitelistRules();
+                loadAccessRequests();
+            }
+        } else if (user.isUserManager) {
+            // User-manager loads user-manager-specific data
+            if (settings?.whitelistEnabled) {
+                loadUserManagerWhitelist();
+                loadUserManagerAccessRequests();
+            }
         }
-    }, [isOpen, user.isAdmin, settings?.whitelistEnabled, loadWhitelistRules, loadAccessRequests]);
+    }, [isOpen, user.isAdmin, user.isUserManager, settings?.whitelistEnabled, loadWhitelistRules, loadAccessRequests, loadUserManagerWhitelist, loadUserManagerAccessRequests]);
 
     if (!showModal) return null;
 
@@ -769,6 +981,9 @@ export default function SettingsModal({
                                                         Display name
                                                     </th>
                                                     <th className="py-2 pr-4">
+                                                        User Manager
+                                                    </th>
+                                                    <th className="py-2 pr-4">
                                                         Actions
                                                     </th>
                                                 </tr>
@@ -840,12 +1055,21 @@ export default function SettingsModal({
                                                                 </span>
                                                             )}
                                                         </td>
+                                                        <td className="py-3 px-4 text-slate-600 dark:text-slate-300">
+                                                            {u.isUserManager ? (
+                                                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400">
+                                                                    ✓ Manager
+                                                                </span>
+                                                            ) : (
+                                                                <span className="text-slate-400 dark:text-slate-500">—</span>
+                                                            )}
+                                                        </td>
                                                         <td className="py-3 px-4">
                                                             {editingUserId ===
                                                             u.id ? null : (
-                                                                <>
+                                                                <div className="flex flex-wrap gap-2">
                                                                     <button
-                                                                        className="btn-secondary text-sm mr-2"
+                                                                        className="btn-secondary text-sm"
                                                                         onClick={() =>
                                                                             startEditUser(
                                                                                 u.id,
@@ -853,11 +1077,44 @@ export default function SettingsModal({
                                                                             )
                                                                         }
                                                                         disabled={
-                                                                            userManagementLoading
+                                                                            userManagementLoading || userManagerChanging === u.id
                                                                         }
                                                                     >
                                                                         Edit
                                                                     </button>
+                                                                    {u.isUserManager ? (
+                                                                        <button
+                                                                            className="btn-secondary text-sm bg-orange-100 text-orange-700 hover:bg-orange-200 dark:bg-orange-900/20 dark:text-orange-400 dark:hover:bg-orange-900/30"
+                                                                            onClick={() =>
+                                                                                setShowConfirmUserManager({
+                                                                                    userId: u.id,
+                                                                                    username: u.username,
+                                                                                    isGranting: false,
+                                                                                })
+                                                                            }
+                                                                            disabled={
+                                                                                userManagementLoading || userManagerChanging === u.id
+                                                                            }
+                                                                        >
+                                                                            {userManagerChanging === u.id ? 'Loading...' : 'Revoke'}
+                                                                        </button>
+                                                                    ) : (
+                                                                        <button
+                                                                            className="btn-primary text-sm"
+                                                                            onClick={() =>
+                                                                                setShowConfirmUserManager({
+                                                                                    userId: u.id,
+                                                                                    username: u.username,
+                                                                                    isGranting: true,
+                                                                                })
+                                                                            }
+                                                                            disabled={
+                                                                                userManagementLoading || userManagerChanging === u.id
+                                                                            }
+                                                                        >
+                                                                            {userManagerChanging === u.id ? 'Loading...' : 'Grant Manager'}
+                                                                        </button>
+                                                                    )}
                                                                     <button
                                                                         className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 text-sm px-3 py-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20"
                                                                         onClick={() =>
@@ -866,12 +1123,12 @@ export default function SettingsModal({
                                                                             )
                                                                         }
                                                                         disabled={
-                                                                            userManagementLoading
+                                                                            userManagementLoading || userManagerChanging === u.id
                                                                         }
                                                                     >
                                                                         Delete
                                                                     </button>
-                                                                </>
+                                                                </div>
                                                             )}
                                                         </td>
                                                     </tr>
@@ -879,7 +1136,7 @@ export default function SettingsModal({
                                                 {users.length === 0 && (
                                                     <tr>
                                                         <td
-                                                            colSpan={3}
+                                                            colSpan={4}
                                                             className="py-8 text-center text-slate-500 dark:text-slate-400"
                                                         >
                                                             No users found
@@ -891,6 +1148,240 @@ export default function SettingsModal({
                                     </div>
                                 </div>
                             )}
+                        </>
+                    ) : user.isUserManager ? (
+                        // User Manager Section
+                        <>
+                            <div className="p-6">
+                                <h2 className="text-xl font-semibold mb-4 text-slate-900 dark:text-slate-100">
+                                    User Management
+                                </h2>
+                                <p className="text-slate-600 dark:text-slate-300 mb-6">
+                                    You have user manager privileges. You can manage users, whitelist entries, and access requests.
+                                </p>
+
+                                {/* User-manager whitelist management */}
+                                {settings?.whitelistEnabled && (
+                                    <div className="mb-6 p-4 bg-slate-50 dark:bg-slate-900/30 rounded-lg border border-slate-200 dark:border-slate-700">
+                                        <div className="flex items-center justify-between mb-3">
+                                            <h4 className="font-medium text-slate-800 dark:text-slate-100">
+                                                Manage Whitelist
+                                            </h4>
+                                        </div>
+                                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                                            <input
+                                                className="input"
+                                                placeholder="Enter username"
+                                                value={umWlValue}
+                                                onChange={(e) => setUmWlValue(e.target.value)}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter' && umWlValue.trim()) {
+                                                        handleUserManagerAddRule(umWlValue.trim());
+                                                    }
+                                                }}
+                                                disabled={umWlLoading}
+                                            />
+                                            <button
+                                                className="btn-primary whitespace-nowrap"
+                                                onClick={() => handleUserManagerAddRule(umWlValue.trim())}
+                                                disabled={umWlLoading || !umWlValue.trim()}
+                                            >
+                                                Add
+                                            </button>
+                                        </div>
+                                        {umWlError && (
+                                            <div className="mt-2 text-sm text-red-600">{umWlError}</div>
+                                        )}
+                                        <div className="mt-4 overflow-x-auto">
+                                            <table className="min-w-full text-sm">
+                                                <thead className="text-left text-slate-700 dark:text-slate-200">
+                                                    <tr>
+                                                        <th className="py-2 pr-4">Username</th>
+                                                        <th className="py-2 pr-4">Actions</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {umWhitelist.map((r) => (
+                                                        <tr
+                                                            key={r.id}
+                                                            className="border-t border-slate-200/70 dark:border-slate-700/70"
+                                                        >
+                                                            <td className="py-2 pr-4 text-slate-900 dark:text-slate-100">
+                                                                {r.value}
+                                                            </td>
+                                                            <td className="py-2 pr-4 text-slate-900 dark:text-slate-100">
+                                                                <button 
+                                                                    className="btn-secondary" 
+                                                                    onClick={() => handleUserManagerDeleteRule(r.id)}
+                                                                    disabled={umWlLoading}
+                                                                >
+                                                                    Delete
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                    {umWhitelist.length === 0 && (
+                                                        <tr>
+                                                            <td
+                                                                colSpan={2}
+                                                                className="py-3 text-center text-slate-500 dark:text-slate-400"
+                                                            >
+                                                                No usernames whitelisted
+                                                            </td>
+                                                        </tr>
+                                                    )}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* User-manager access requests management */}
+                                {settings?.whitelistEnabled && (
+                                    <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700">
+                                        <div className="flex items-center justify-between mb-3">
+                                            <h4 className="font-medium text-blue-800 dark:text-blue-200">
+                                                Pending Access Requests
+                                            </h4>
+                                            <button
+                                                className="btn-secondary text-xs"
+                                                onClick={loadUserManagerAccessRequests}
+                                                disabled={umArLoading}
+                                            >
+                                                {umArLoading ? 'Loading...' : 'Refresh'}
+                                            </button>
+                                        </div>
+                                        {umArError && (
+                                            <div className="mb-3 text-sm text-red-600 dark:text-red-400">
+                                                {umArError}
+                                            </div>
+                                        )}
+                                        <div className="overflow-x-auto">
+                                            <table className="min-w-full text-sm">
+                                                <thead className="text-left text-blue-700 dark:text-blue-200">
+                                                    <tr>
+                                                        <th className="py-2 pr-4">
+                                                            Username
+                                                        </th>
+                                                        <th className="py-2 pr-4">
+                                                            Message
+                                                        </th>
+                                                        <th className="py-2 pr-4">
+                                                            Requested
+                                                        </th>
+                                                        <th className="py-2 pr-4">
+                                                            Actions
+                                                        </th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {umAccessRequests.map((request) => (
+                                                        <tr
+                                                            key={request.id}
+                                                            className="border-t border-blue-200/70 dark:border-blue-700/70"
+                                                        >
+                                                            <td className="py-2 pr-4 text-slate-900 dark:text-slate-100 font-medium">
+                                                                {request.username}
+                                                            </td>
+                                                            <td className="py-2 pr-4 text-slate-700 dark:text-slate-300 max-w-xs">
+                                                                {request.message ? (
+                                                                    <div className="truncate" title={request.message}>
+                                                                        {request.message}
+                                                                    </div>
+                                                                ) : (
+                                                                    <span className="text-slate-500 italic">
+                                                                        No message
+                                                                    </span>
+                                                                )}
+                                                            </td>
+                                                            <td className="py-2 pr-4 text-slate-600 dark:text-slate-400 text-xs">
+                                                                {new Date(request.createdAt).toLocaleDateString()}
+                                                            </td>
+                                                            <td className="py-2 pr-4">
+                                                                <div className="flex gap-2">
+                                                                    <button
+                                                                        className="btn-primary text-xs px-2 py-1"
+                                                                        disabled={umArLoading}
+                                                                        onClick={() =>
+                                                                            handleUserManagerAcceptAccessRequest(request.id)
+                                                                        }
+                                                                    >
+                                                                        Accept
+                                                                    </button>
+                                                                    <button
+                                                                        className="btn-secondary text-xs px-2 py-1"
+                                                                        disabled={umArLoading}
+                                                                        onClick={() =>
+                                                                            handleUserManagerDeclineAccessRequest(request.id)
+                                                                        }
+                                                                    >
+                                                                        Decline
+                                                                    </button>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                    {umAccessRequests.length === 0 && !umArLoading && (
+                                                        <tr>
+                                                            <td
+                                                                colSpan={4}
+                                                                className="py-3 text-center text-slate-500 dark:text-slate-400"
+                                                            >
+                                                                No pending access requests
+                                                            </td>
+                                                        </tr>
+                                                    )}
+                                                    {umArLoading && (
+                                                        <tr>
+                                                            <td
+                                                                colSpan={4}
+                                                                className="py-3 text-center text-slate-500 dark:text-slate-400"
+                                                            >
+                                                                Loading access requests...
+                                                            </td>
+                                                        </tr>
+                                                    )}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Personal display name section for user-managers */}
+                            <div className="p-6 border-t border-slate-200 dark:border-slate-700">
+                                <h3 className="text-lg font-medium mb-4 text-slate-900 dark:text-slate-100">
+                                    Personal Settings
+                                </h3>
+                                <div className="mb-4">
+                                    <label htmlFor="displayName" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                                        Display Name
+                                    </label>
+                                    <div className="flex gap-2">
+                                        <input
+                                            id="displayName"
+                                            className="input flex-1"
+                                            placeholder="Your display name"
+                                            value={myDisplayName}
+                                            onChange={(e) => setMyDisplayName(e.target.value)}
+                                            disabled={savingMyName}
+                                        />
+                                        <button
+                                            className="btn-primary"
+                                            onClick={handleSaveMyDisplayName}
+                                            disabled={savingMyName || myDisplayName === (user.displayName ?? '')}
+                                        >
+                                            {savingMyName ? 'Saving...' : 'Save'}
+                                        </button>
+                                    </div>
+                                    {myNameError && (
+                                        <div className="mt-2 text-sm text-red-600">{myNameError}</div>
+                                    )}
+                                    {myNameSaved && (
+                                        <div className="mt-2 text-sm text-green-600">Display name updated!</div>
+                                    )}
+                                </div>
+                            </div>
                         </>
                     ) : (
                         // Regular User Sharing Settings Section
@@ -1122,6 +1613,52 @@ export default function SettingsModal({
                     )}
                 </div>
             </div>
+
+            {/* User Manager Grant/Revoke Confirmation Modal */}
+            {showConfirmUserManager && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl max-w-md w-full p-6">
+                        <h3 className="text-lg font-semibold mb-4 text-slate-900 dark:text-slate-100">
+                            {showConfirmUserManager.isGranting ? 'Grant User Manager Status' : 'Revoke User Manager Status'}
+                        </h3>
+                        <p className="text-slate-600 dark:text-slate-300 mb-6">
+                            {showConfirmUserManager.isGranting ? (
+                                <>
+                                    Grant <strong>{showConfirmUserManager.username}</strong> user manager privileges? They
+                                    will be able to manage users, whitelist, and access requests.
+                                </>
+                            ) : (
+                                <>
+                                    Revoke <strong>{showConfirmUserManager.username}</strong> user manager privileges? They
+                                    will lose access to user management features.
+                                </>
+                            )}
+                        </p>
+                        <div className="flex justify-end gap-3">
+                            <button
+                                className="btn-secondary"
+                                onClick={() => setShowConfirmUserManager(null)}
+                                disabled={userManagerChanging !== null}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                className={showConfirmUserManager.isGranting ? "btn-primary" : "btn-secondary bg-orange-100 text-orange-700 hover:bg-orange-200 dark:bg-orange-900/20 dark:text-orange-400 dark:hover:bg-orange-900/30"}
+                                onClick={() => {
+                                    if (showConfirmUserManager.isGranting) {
+                                        handleGrantUserManager(showConfirmUserManager.userId);
+                                    } else {
+                                        handleRevokeUserManager(showConfirmUserManager.userId);
+                                    }
+                                }}
+                                disabled={userManagerChanging !== null}
+                            >
+                                {userManagerChanging !== null ? 'Loading...' : (showConfirmUserManager.isGranting ? 'Grant' : 'Revoke')}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

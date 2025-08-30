@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { adminOnly } from '../server/authMiddleware.js';
+import { adminOrUserManagerOnly } from '../server/authMiddleware.js';
 import { prisma } from '../store/prisma.js';
 
 const router = Router();
@@ -9,17 +9,17 @@ const updateUserSchema = z.object({
     displayName: z.string().trim().max(100).nullable(),
 });
 
-// List users (basic fields only)
-router.get('/users', adminOnly, async (_req, res) => {
+// List users (basic fields only) - accessible by admin or user-manager
+router.get('/users', adminOrUserManagerOnly, async (_req, res) => {
     const users = await (prisma as any).user.findMany({
-        select: { id: true, username: true, displayName: true, isUserManager: true },
+        select: { id: true, username: true, displayName: true },
         orderBy: { username: 'asc' },
     });
     res.json({ users });
 });
 
-// Delete user by id
-router.delete('/users/:id', adminOnly, async (req, res) => {
+// Delete user by id - accessible by admin or user-manager
+router.delete('/users/:id', adminOrUserManagerOnly, async (req, res) => {
     const id = req.params.id;
     if (!id) return res.status(400).json({ error: 'Missing id' });
     try {
@@ -33,8 +33,8 @@ router.delete('/users/:id', adminOnly, async (req, res) => {
     }
 });
 
-// Update user display name
-router.patch('/users/:id', adminOnly, async (req, res) => {
+// Update user display name - accessible by admin or user-manager
+router.patch('/users/:id', adminOrUserManagerOnly, async (req, res) => {
     const id = req.params.id;
     if (!id) return res.status(400).json({ error: 'Missing id' });
     
@@ -47,47 +47,11 @@ router.patch('/users/:id', adminOnly, async (req, res) => {
         const user = await (prisma as any).user.update({
             where: { id },
             data: { displayName: parsed.data.displayName },
-            select: { id: true, username: true, displayName: true, isUserManager: true },
+            select: { id: true, username: true, displayName: true },
         });
         res.json({ user });
     } catch (e: any) {
         const msg = e?.message || 'Failed to update user';
-        res.status(400).json({ error: msg });
-    }
-});
-
-// Grant user-manager status (admin only)
-router.patch('/users/:id/grant-user-manager', adminOnly, async (req, res) => {
-    const id = req.params.id;
-    if (!id) return res.status(400).json({ error: 'Missing id' });
-    
-    try {
-        const user = await (prisma as any).user.update({
-            where: { id },
-            data: { isUserManager: true },
-            select: { id: true, username: true, displayName: true, isUserManager: true },
-        });
-        res.json({ user });
-    } catch (e: any) {
-        const msg = e?.message || 'Failed to grant user manager status';
-        res.status(400).json({ error: msg });
-    }
-});
-
-// Revoke user-manager status (admin only)
-router.patch('/users/:id/revoke-user-manager', adminOnly, async (req, res) => {
-    const id = req.params.id;
-    if (!id) return res.status(400).json({ error: 'Missing id' });
-    
-    try {
-        const user = await (prisma as any).user.update({
-            where: { id },
-            data: { isUserManager: false },
-            select: { id: true, username: true, displayName: true, isUserManager: true },
-        });
-        res.json({ user });
-    } catch (e: any) {
-        const msg = e?.message || 'Failed to revoke user manager status';
         res.status(400).json({ error: msg });
     }
 });
@@ -97,8 +61,8 @@ const whitelistCreateSchema = z.object({
     value: z.string().trim().min(1).max(100),
 });
 
-// List whitelist rules
-router.get('/whitelist', adminOnly, async (_req, res) => {
+// List whitelist rules - accessible by admin or user-manager
+router.get('/whitelist', adminOrUserManagerOnly, async (_req, res) => {
     const rules = await (prisma as any).whitelistRule.findMany({
         orderBy: [{ value: 'asc' }],
         select: { id: true, value: true, createdAt: true },
@@ -106,8 +70,8 @@ router.get('/whitelist', adminOnly, async (_req, res) => {
     res.json({ rules });
 });
 
-// Add a whitelist rule (idempotent)
-router.post('/whitelist', adminOnly, async (req, res) => {
+// Add a whitelist rule (idempotent) - accessible by admin or user-manager
+router.post('/whitelist', adminOrUserManagerOnly, async (req, res) => {
     const parsed = whitelistCreateSchema.safeParse(req.body);
     if (!parsed.success) {
         return res.status(400).json({ error: parsed.error.flatten() });
@@ -131,8 +95,8 @@ router.post('/whitelist', adminOnly, async (req, res) => {
     }
 });
 
-// Delete a whitelist rule
-router.delete('/whitelist/:id', adminOnly, async (req, res) => {
+// Delete a whitelist rule - accessible by admin or user-manager
+router.delete('/whitelist/:id', adminOrUserManagerOnly, async (req, res) => {
     const id = req.params.id;
     if (!id) return res.status(400).json({ error: 'Missing id' });
     try {
@@ -146,10 +110,10 @@ router.delete('/whitelist/:id', adminOnly, async (req, res) => {
     }
 });
 
-// Access request management (admin only)
+// Access request management - accessible by admin or user-manager
 
 // List all pending access requests
-router.get('/access-requests', adminOnly, async (_req, res) => {
+router.get('/access-requests', adminOrUserManagerOnly, async (_req, res) => {
     const requests = await (prisma as any).accessRequest.findMany({
         orderBy: [{ createdAt: 'desc' }],
         select: { id: true, username: true, message: true, createdAt: true },
@@ -158,7 +122,7 @@ router.get('/access-requests', adminOnly, async (_req, res) => {
 });
 
 // Accept an access request (add to whitelist and delete request)
-router.post('/access-requests/:id/accept', adminOnly, async (req, res) => {
+router.post('/access-requests/:id/accept', adminOrUserManagerOnly, async (req, res) => {
     const id = req.params.id;
     if (!id) return res.status(400).json({ error: 'Missing id' });
 
@@ -200,7 +164,7 @@ router.post('/access-requests/:id/accept', adminOnly, async (req, res) => {
 });
 
 // Decline an access request (delete request)
-router.delete('/access-requests/:id', adminOnly, async (req, res) => {
+router.delete('/access-requests/:id', adminOrUserManagerOnly, async (req, res) => {
     const id = req.params.id;
     if (!id) return res.status(400).json({ error: 'Missing id' });
 
