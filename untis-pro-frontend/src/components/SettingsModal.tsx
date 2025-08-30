@@ -22,6 +22,9 @@ import {
     userManagerListWhitelist,
     userManagerAddWhitelistRule,
     userManagerDeleteWhitelistRule,
+    userManagerListAccessRequests,
+    userManagerAcceptAccessRequest,
+    userManagerDeclineAccessRequest,
     grantUserManagerStatus,
     revokeUserManagerStatus,
 } from '../api';
@@ -113,6 +116,11 @@ export default function SettingsModal({
     const [umWlValue, setUmWlValue] = useState('');
     const [umWlLoading, setUmWlLoading] = useState(false);
     const [umWlError, setUmWlError] = useState<string | null>(null);
+
+    // User-manager access requests state
+    const [umAccessRequests, setUmAccessRequests] = useState<AccessRequest[]>([]);
+    const [umArLoading, setUmArLoading] = useState(false);
+    const [umArError, setUmArError] = useState<string | null>(null);
 
     // User-manager status management state
     const [userManagerChanging, setUserManagerChanging] = useState<string | null>(null);
@@ -287,6 +295,21 @@ export default function SettingsModal({
         }
     }, [token]);
 
+    const loadUserManagerAccessRequests = useCallback(async () => {
+        setUmArLoading(true);
+        setUmArError(null);
+        try {
+            const res = await userManagerListAccessRequests(token);
+            setUmAccessRequests(res.requests);
+        } catch (e) {
+            setUmArError(
+                e instanceof Error ? e.message : 'Failed to load access requests'
+            );
+        } finally {
+            setUmArLoading(false);
+        }
+    }, [token]);
+
     const handleUserManagerAddRule = useCallback(
         async (value: string) => {
             setUmWlLoading(true);
@@ -322,6 +345,44 @@ export default function SettingsModal({
             }
         },
         [token, loadUserManagerWhitelist]
+    );
+
+    const handleUserManagerAcceptAccessRequest = useCallback(
+        async (id: string) => {
+            setUmArLoading(true);
+            setUmArError(null);
+            try {
+                await userManagerAcceptAccessRequest(token, id);
+                setUmAccessRequests((prev) => prev.filter((r) => r.id !== id));
+                // Reload whitelist to show the newly added user
+                await loadUserManagerWhitelist();
+            } catch (e) {
+                setUmArError(
+                    e instanceof Error ? e.message : 'Failed to accept request'
+                );
+            } finally {
+                setUmArLoading(false);
+            }
+        },
+        [token, loadUserManagerWhitelist]
+    );
+
+    const handleUserManagerDeclineAccessRequest = useCallback(
+        async (id: string) => {
+            setUmArLoading(true);
+            setUmArError(null);
+            try {
+                await userManagerDeclineAccessRequest(token, id);
+                setUmAccessRequests((prev) => prev.filter((r) => r.id !== id));
+            } catch (e) {
+                setUmArError(
+                    e instanceof Error ? e.message : 'Failed to decline request'
+                );
+            } finally {
+                setUmArLoading(false);
+            }
+        },
+        [token]
     );
 
     const handleSaveMyDisplayName = useCallback(async () => {
@@ -579,10 +640,10 @@ export default function SettingsModal({
             // User-manager loads user-manager-specific data
             if (settings?.whitelistEnabled) {
                 loadUserManagerWhitelist();
-                // TODO: Add loadUserManagerAccessRequests when implemented
+                loadUserManagerAccessRequests();
             }
         }
-    }, [isOpen, user.isAdmin, user.isUserManager, settings?.whitelistEnabled, loadWhitelistRules, loadAccessRequests, loadUserManagerWhitelist]);
+    }, [isOpen, user.isAdmin, user.isUserManager, settings?.whitelistEnabled, loadWhitelistRules, loadAccessRequests, loadUserManagerWhitelist, loadUserManagerAccessRequests]);
 
     if (!showModal) return null;
 
@@ -1051,7 +1112,7 @@ export default function SettingsModal({
                                                                                 userManagementLoading || userManagerChanging === u.id
                                                                             }
                                                                         >
-                                                                            {userManagerChanging === u.id ? 'Loading...' : 'Grant'}
+                                                                            {userManagerChanging === u.id ? 'Loading...' : 'Grant Manager'}
                                                                         </button>
                                                                     )}
                                                                     <button
@@ -1166,6 +1227,117 @@ export default function SettingsModal({
                                                                 className="py-3 text-center text-slate-500 dark:text-slate-400"
                                                             >
                                                                 No usernames whitelisted
+                                                            </td>
+                                                        </tr>
+                                                    )}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* User-manager access requests management */}
+                                {settings?.whitelistEnabled && (
+                                    <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700">
+                                        <div className="flex items-center justify-between mb-3">
+                                            <h4 className="font-medium text-blue-800 dark:text-blue-200">
+                                                Pending Access Requests
+                                            </h4>
+                                            <button
+                                                className="btn-secondary text-xs"
+                                                onClick={loadUserManagerAccessRequests}
+                                                disabled={umArLoading}
+                                            >
+                                                {umArLoading ? 'Loading...' : 'Refresh'}
+                                            </button>
+                                        </div>
+                                        {umArError && (
+                                            <div className="mb-3 text-sm text-red-600 dark:text-red-400">
+                                                {umArError}
+                                            </div>
+                                        )}
+                                        <div className="overflow-x-auto">
+                                            <table className="min-w-full text-sm">
+                                                <thead className="text-left text-blue-700 dark:text-blue-200">
+                                                    <tr>
+                                                        <th className="py-2 pr-4">
+                                                            Username
+                                                        </th>
+                                                        <th className="py-2 pr-4">
+                                                            Message
+                                                        </th>
+                                                        <th className="py-2 pr-4">
+                                                            Requested
+                                                        </th>
+                                                        <th className="py-2 pr-4">
+                                                            Actions
+                                                        </th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {umAccessRequests.map((request) => (
+                                                        <tr
+                                                            key={request.id}
+                                                            className="border-t border-blue-200/70 dark:border-blue-700/70"
+                                                        >
+                                                            <td className="py-2 pr-4 text-slate-900 dark:text-slate-100 font-medium">
+                                                                {request.username}
+                                                            </td>
+                                                            <td className="py-2 pr-4 text-slate-700 dark:text-slate-300 max-w-xs">
+                                                                {request.message ? (
+                                                                    <div className="truncate" title={request.message}>
+                                                                        {request.message}
+                                                                    </div>
+                                                                ) : (
+                                                                    <span className="text-slate-500 italic">
+                                                                        No message
+                                                                    </span>
+                                                                )}
+                                                            </td>
+                                                            <td className="py-2 pr-4 text-slate-600 dark:text-slate-400 text-xs">
+                                                                {new Date(request.createdAt).toLocaleDateString()}
+                                                            </td>
+                                                            <td className="py-2 pr-4">
+                                                                <div className="flex gap-2">
+                                                                    <button
+                                                                        className="btn-primary text-xs px-2 py-1"
+                                                                        disabled={umArLoading}
+                                                                        onClick={() =>
+                                                                            handleUserManagerAcceptAccessRequest(request.id)
+                                                                        }
+                                                                    >
+                                                                        Accept
+                                                                    </button>
+                                                                    <button
+                                                                        className="btn-secondary text-xs px-2 py-1"
+                                                                        disabled={umArLoading}
+                                                                        onClick={() =>
+                                                                            handleUserManagerDeclineAccessRequest(request.id)
+                                                                        }
+                                                                    >
+                                                                        Decline
+                                                                    </button>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                    {umAccessRequests.length === 0 && !umArLoading && (
+                                                        <tr>
+                                                            <td
+                                                                colSpan={4}
+                                                                className="py-3 text-center text-slate-500 dark:text-slate-400"
+                                                            >
+                                                                No pending access requests
+                                                            </td>
+                                                        </tr>
+                                                    )}
+                                                    {umArLoading && (
+                                                        <tr>
+                                                            <td
+                                                                colSpan={4}
+                                                                className="py-3 text-center text-slate-500 dark:text-slate-400"
+                                                            >
+                                                                Loading access requests...
                                                             </td>
                                                         </tr>
                                                     )}
