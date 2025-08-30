@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import type { Lesson, TimetableResponse, LessonColors } from '../types';
 import {
     addDays,
@@ -99,14 +99,16 @@ export default function Timetable({
         }
     }, [storageKey]);
 
+    // Debounce timers per lesson to avoid hammering the API while user drags slider
+    const offsetPersistTimers = useRef<Record<string, number>>({});
+    const OFFSET_DEBOUNCE_MS = 600;
+
     const updateGradientOffset = (lessonName: string, offset: number) => {
+        // Immediate local/UI update
         setGradientOffsets((prev) => {
             const next = { ...prev };
-            if (offset === 0.5) {
-                delete next[lessonName];
-            } else {
-                next[lessonName] = offset;
-            }
+            if (offset === 0.5) delete next[lessonName];
+            else next[lessonName] = offset;
             try {
                 localStorage.setItem(storageKey, JSON.stringify(next));
             } catch {
@@ -114,10 +116,18 @@ export default function Timetable({
             }
             return next;
         });
-        // Only persist offset if there is an explicit color override (user or admin)
+
+        // Only schedule persistence if a real color override exists (custom or admin default)
         const hasExplicitColor =
             !!lessonColors[lessonName] || !!defaultLessonColors[lessonName];
-        if (token && hasExplicitColor) {
+        if (!token || !hasExplicitColor) return;
+
+        // Clear any pending timer for this lesson
+        const existing = offsetPersistTimers.current[lessonName];
+        if (existing) window.clearTimeout(existing);
+
+        // Schedule new persistence after user stops adjusting
+        offsetPersistTimers.current[lessonName] = window.setTimeout(() => {
             const color =
                 lessonColors[lessonName] || defaultLessonColors[lessonName]!;
             setLessonColor(
@@ -127,8 +137,17 @@ export default function Timetable({
                 viewingUserId,
                 offset
             ).catch(() => undefined);
-        }
+            delete offsetPersistTimers.current[lessonName];
+        }, OFFSET_DEBOUNCE_MS);
     };
+
+    // Cleanup timers on unmount
+    useEffect(() => {
+        const timersRef = offsetPersistTimers.current; // snapshot
+        return () => {
+            Object.values(timersRef).forEach((id) => window.clearTimeout(id));
+        };
+    }, []);
 
     const handleLessonClick = (lesson: Lesson) => {
         setSelectedLesson(lesson);
