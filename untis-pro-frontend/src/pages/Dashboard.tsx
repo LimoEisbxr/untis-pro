@@ -41,6 +41,13 @@ export default function Dashboard({
     const [results, setResults] = useState<
         Array<{ id: string; username: string; displayName: string | null }>
     >([]);
+    // Track loading & error state for search to avoid flicker on mobile
+    const [searchLoading, setSearchLoading] = useState(false);
+    const [searchError, setSearchError] = useState<string | null>(null);
+    // Persist last successful results so they don't vanish while a new request is in-flight
+    const lastResultsRef = useRef<
+        Array<{ id: string; username: string; displayName: string | null }>
+    >([]);
     const [selectedUser, setSelectedUser] = useState<{
         id: string;
         username: string;
@@ -302,38 +309,57 @@ export default function Dashboard({
     useEffect(() => {
         const q = queryText.trim();
         if (!q) {
+            // Clear everything when field emptied
             setResults([]);
+            lastResultsRef.current = [];
+            setSearchLoading(false);
+            setSearchError(null);
+            abortRef.current?.abort();
             return;
         }
+        let cancelled = false;
+        setSearchLoading(true);
+        setSearchError(null);
+        const currentQuery = q;
         const h = setTimeout(async () => {
             abortRef.current?.abort();
             const ac = new AbortController();
             abortRef.current = ac;
             try {
-                const url = API_BASE
-                    ? `${String(API_BASE).replace(
-                          /\/$/,
-                          ''
-                      )}/api/users/search?q=${encodeURIComponent(q)}`
-                    : `/api/users/search?q=${encodeURIComponent(q)}`;
+                const base = API_BASE ? String(API_BASE).replace(/\/$/, '') : '';
+                const url = `${base}/api/users/search?q=${encodeURIComponent(currentQuery)}`;
                 const res = await fetch(url, {
                     headers: { Authorization: `Bearer ${token}` },
                     signal: ac.signal,
                 });
-                if (!res.ok) throw new Error('Search failed');
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const data = await res.json();
-                setResults(Array.isArray(data.users) ? data.users : []);
+                if (cancelled) return;
+                if (queryText.trim() !== currentQuery) return; // stale
+                const users = Array.isArray(data.users) ? data.users : [];
+                setResults(users);
+                lastResultsRef.current = users;
             } catch (e: unknown) {
                 if (
                     e &&
                     typeof e === 'object' &&
                     (e as { name?: string }).name === 'AbortError'
                 )
-                    return;
-                setResults([]);
+                    return; // superseded
+                if (!cancelled) {
+                    setSearchError(
+                        e instanceof Error ? e.message : 'Search failed'
+                    );
+                    // Retain previous successful results (no setResults) to avoid disappear
+                }
+            } finally {
+                if (!cancelled) setSearchLoading(false);
             }
-        }, 250);
-        return () => clearTimeout(h);
+        }, 180); // slightly faster debounce for snappier feel
+        return () => {
+            cancelled = true;
+            clearTimeout(h);
+        };
     }, [queryText, token]);
 
     // Close the search dropdown on outside click or Escape (desktop only)
@@ -504,6 +530,14 @@ export default function Dashboard({
                                                 setQueryText(e.target.value)
                                             }
                                         />
+                                        {searchLoading && queryText.trim().length >= 2 && (
+                                            <div className="absolute right-7 top-1/2 -translate-y-1/2 animate-spin text-slate-400" aria-label="Loading" role="status">
+                                                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                                                    <circle cx="12" cy="12" r="9" className="opacity-25" />
+                                                    <path d="M21 12a9 9 0 0 0-9-9" className="opacity-75" />
+                                                </svg>
+                                            </div>
+                                        )}
                                         {queryText && (
                                             <button
                                                 type="button"
@@ -537,6 +571,16 @@ export default function Dashboard({
                                                         </li>
                                                     ))}
                                                 </ul>
+                                            </div>
+                                        )}
+                                        {searchError && queryText.trim().length >= 2 && (
+                                            <div className="absolute z-40 mt-1 w-full rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-600 dark:bg-amber-900/40 dark:text-amber-200">
+                                                {searchError}
+                                            </div>
+                                        )}
+                                        {queryText.trim().length === 1 && (
+                                            <div className="absolute z-40 mt-1 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-[11px] text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
+                                                Type at least 2 characters…
                                             </div>
                                         )}
                                     </div>
@@ -718,6 +762,24 @@ export default function Dashboard({
                                         </svg>
                                     </button>
                                 )}
+                                {searchLoading && queryText.trim().length >= 2 && (
+                                    <div className="absolute right-10 top-1/2 -translate-y-1/2 animate-spin text-slate-400" aria-label="Loading" role="status">
+                                        <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+                                            <circle cx="12" cy="12" r="9" className="opacity-25" />
+                                            <path d="M21 12a9 9 0 0 0-9-9" className="opacity-75" />
+                                        </svg>
+                                    </div>
+                                )}
+                                {searchError && queryText.trim().length >= 2 && (
+                                    <div className="absolute left-0 right-0 top-full mt-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-600 dark:bg-amber-900/40 dark:text-amber-200 shadow">
+                                        {searchError}
+                                    </div>
+                                )}
+                                {queryText.trim().length === 1 && (
+                                    <div className="absolute left-0 right-0 top-full mt-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 shadow">
+                                        Type at least 2 characters…
+                                    </div>
+                                )}
                             </div>
                             <button
                                 className="rounded-xl px-4 py-3 bg-slate-200/90 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-medium shadow-sm"
@@ -735,111 +797,118 @@ export default function Dashboard({
                     
                     {/* Results area with improved styling */}
                     <div className="flex-1 overflow-auto p-4">
-                        {results.length === 0 && queryText ? (
-                            <div className="flex flex-col items-center justify-center py-12 text-center">
-                                <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-4">
-                                    <svg
-                                        className="w-8 h-8 text-slate-400 dark:text-slate-500"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        viewBox="0 0 24 24"
-                                    >
-                                        <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            strokeWidth="1.5"
-                                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                                        />
-                                    </svg>
-                                </div>
-                                <p className="text-slate-500 dark:text-slate-400 text-lg font-medium mb-2">
-                                    No results found
-                                </p>
-                                <p className="text-slate-400 dark:text-slate-500 text-sm">
-                                    Try a different search term
-                                </p>
-                            </div>
-                        ) : results.length === 0 && !queryText ? (
-                            <div className="flex flex-col items-center justify-center py-12 text-center">
-                                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-sky-100 to-indigo-100 dark:from-sky-900/30 dark:to-indigo-900/30 flex items-center justify-center mb-4">
-                                    <svg
-                                        className="w-8 h-8 text-sky-600 dark:text-sky-400"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        viewBox="0 0 24 24"
-                                    >
-                                        <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            strokeWidth="1.5"
-                                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                                        />
-                                    </svg>
-                                </div>
-                                <p className="text-slate-600 dark:text-slate-300 text-lg font-medium mb-2">
-                                    Search for students
-                                </p>
-                                <p className="text-slate-500 dark:text-slate-400 text-sm">
-                                    Start typing to find students and view their timetables
-                                </p>
-                            </div>
-                        ) : (
-                            <div className="space-y-2">
-                                {results.map((r, index) => (
-                                    <div
-                                        key={r.id}
-                                        className="animate-fade-in"
-                                        style={{ animationDelay: `${index * 50}ms` }}
-                                    >
-                                        <button
-                                            className="w-full rounded-xl p-4 text-left bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/50 dark:hover:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 hover:border-slate-300 dark:hover:border-slate-600 transition-all duration-200 shadow-sm hover:shadow-md group"
-                                            onClick={() => {
-                                                setSelectedUser(r);
-                                                setQueryText(''); // Clear query to prevent search trigger
-                                                setResults([]); // Clear results immediately
-                                                setMobileSearchOpen(false);
-                                                if (r.id !== user.id)
-                                                    loadUser(r.id);
-                                                else loadMine();
-                                            }}
-                                        >
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center text-white font-semibold text-sm shadow-md">
-                                                    {(r.displayName || r.username)
-                                                        .charAt(0)
-                                                        .toUpperCase()}
-                                                </div>
-                                                <div className="flex-1">
-                                                    <div className="font-semibold text-slate-900 dark:text-slate-100 group-hover:text-sky-700 dark:group-hover:text-sky-300 transition-colors">
-                                                        {r.displayName || r.username}
-                                                    </div>
-                                                    {r.displayName && (
-                                                        <div className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-                                                            @{r.username}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                                <div className="text-slate-400 dark:text-slate-500 group-hover:text-sky-500 dark:group-hover:text-sky-400 transition-colors">
-                                                    <svg
-                                                        className="w-5 h-5"
-                                                        fill="none"
-                                                        stroke="currentColor"
-                                                        viewBox="0 0 24 24"
-                                                    >
-                                                        <path
-                                                            strokeLinecap="round"
-                                                            strokeLinejoin="round"
-                                                            strokeWidth="2"
-                                                            d="M9 5l7 7-7 7"
-                                                        />
-                                                    </svg>
-                                                </div>
-                                            </div>
-                                        </button>
+                        {(() => {
+                            const trimmed = queryText.trim();
+                            if (!trimmed) {
+                                return (
+                                    <div className="flex flex-col items-center justify-center py-12 text-center">
+                                        <div className="w-16 h-16 rounded-full bg-gradient-to-br from-sky-100 to-indigo-100 dark:from-sky-900/30 dark:to-indigo-900/30 flex items-center justify-center mb-4">
+                                            <svg className="w-8 h-8 text-sky-600 dark:text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                            </svg>
+                                        </div>
+                                        <p className="text-slate-600 dark:text-slate-300 text-lg font-medium mb-2">Search for students</p>
+                                        <p className="text-slate-500 dark:text-slate-400 text-sm">Start typing to find students and view their timetables</p>
                                     </div>
-                                ))}
-                            </div>
-                        )}
+                                );
+                            }
+                            if (trimmed.length === 1) {
+                                return (
+                                    <div className="flex flex-col items-center justify-center py-12 text-center">
+                                        <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-4">
+                                            <svg className="w-8 h-8 text-slate-400 dark:text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                            </svg>
+                                        </div>
+                                        <p className="text-slate-500 dark:text-slate-400 text-lg font-medium mb-2">Keep typing…</p>
+                                        <p className="text-slate-400 dark:text-slate-500 text-sm">Type at least 2 characters to search</p>
+                                    </div>
+                                );
+                            }
+                            if (searchLoading) {
+                                return (
+                                    <div className="flex flex-col items-center justify-center py-12 text-center">
+                                        <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-4 animate-spin text-slate-400 dark:text-slate-500">
+                                            <svg viewBox="0 0 24 24" className="w-8 h-8" fill="none" stroke="currentColor" strokeWidth="2">
+                                                <circle cx="12" cy="12" r="9" className="opacity-25" />
+                                                <path d="M21 12a9 9 0 0 0-9-9" className="opacity-75" />
+                                            </svg>
+                                        </div>
+                                        <p className="text-slate-500 dark:text-slate-400 text-sm">Searching…</p>
+                                    </div>
+                                );
+                            }
+                            if (searchError) {
+                                return (
+                                    <div className="flex flex-col items-center justify-center py-12 text-center">
+                                        <div className="w-16 h-16 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center mb-4">
+                                            <svg className="w-8 h-8 text-amber-600 dark:text-amber-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 9v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                            </svg>
+                                        </div>
+                                        <p className="text-amber-700 dark:text-amber-300 text-sm mb-1">{searchError}</p>
+                                        <p className="text-slate-400 dark:text-slate-500 text-xs">Adjust your search and try again</p>
+                                    </div>
+                                );
+                            }
+                            if (results.length === 0) {
+                                return (
+                                    <div className="flex flex-col items-center justify-center py-12 text-center">
+                                        <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-4">
+                                            <svg className="w-8 h-8 text-slate-400 dark:text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                            </svg>
+                                        </div>
+                                        <p className="text-slate-500 dark:text-slate-400 text-lg font-medium mb-2">No results found</p>
+                                        <p className="text-slate-400 dark:text-slate-500 text-sm">Try a different search term</p>
+                                    </div>
+                                );
+                            }
+                            return (
+                                <div className="space-y-2">
+                                    {results.map((r, index) => (
+                                        <div
+                                            key={r.id}
+                                            className="animate-fade-in"
+                                            style={{ animationDelay: `${index * 50}ms` }}
+                                        >
+                                            <button
+                                                className="w-full rounded-xl p-4 text-left bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/50 dark:hover:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 hover:border-slate-300 dark:hover:border-slate-600 transition-all duration-200 shadow-sm hover:shadow-md group"
+                                                onClick={() => {
+                                                    setSelectedUser(r);
+                                                    setQueryText('');
+                                                    setResults([]);
+                                                    setMobileSearchOpen(false);
+                                                    if (r.id !== user.id) loadUser(r.id);
+                                                    else loadMine();
+                                                }}
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center text-white font-semibold text-sm shadow-md">
+                                                        {(r.displayName || r.username).charAt(0).toUpperCase()}
+                                                    </div>
+                                                    <div className="flex-1">
+                                                        <div className="font-semibold text-slate-900 dark:text-slate-100 group-hover:text-sky-700 dark:group-hover:text-sky-300 transition-colors">
+                                                            {r.displayName || r.username}
+                                                        </div>
+                                                        {r.displayName && (
+                                                            <div className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+                                                                @{r.username}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <div className="text-slate-400 dark:text-slate-500 group-hover:text-sky-500 dark:group-hover:text-sky-400 transition-colors">
+                                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                                                        </svg>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            );
+                        })()}
                     </div>
                 </div>
             )}
