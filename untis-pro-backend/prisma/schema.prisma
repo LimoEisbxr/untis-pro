@@ -28,6 +28,8 @@ model User {
     timetables   Timetable[]
     sessions     SessionToken[]
     lessonColors LessonColorSetting[]
+    homework     Homework[]
+    exams        Exam[]
     
     // Sharing relationships
     sharingWith     TimetableShare[] @relation("UserSharingWith")
@@ -101,4 +103,58 @@ model AppSettings {
     
     // Global setting for admins to disable all sharing
     globalSharingEnabled Boolean @default(true)
+}
+
+model Homework {
+    id        String   @id @default(uuid())
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+    
+    // WebUntis homework ID
+    untisId   Int      @unique
+    
+    // User who owns this homework
+    userId    String
+    user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    
+    // Homework details from WebUntis
+    lessonId  Int?     // Associated lesson ID from WebUntis
+    date      Int      // Due date in yyyymmdd format
+    subjectId Int
+    subject   String   // Subject name
+    text      String   // Homework description
+    remark    String?  // Additional remarks
+    completed Boolean  @default(false)
+    
+    // Metadata
+    fetchedAt DateTime @default(now())
+}
+
+model Exam {
+    id        String   @id @default(uuid())
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+    
+    // WebUntis exam ID
+    untisId   Int      @unique
+    
+    // User who owns this exam
+    userId    String
+    user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    
+    // Exam details from WebUntis
+    date      Int      // Exam date in yyyymmdd format
+    startTime Int      // Start time in HHmm format
+    endTime   Int      // End time in HHmm format
+    subjectId Int
+    subject   String   // Subject name
+    name      String   // Exam name
+    text      String?  // Additional exam information
+    
+    // Related entities (stored as JSON for flexibility)
+    teachers  Json?    // Array of teacher objects
+    rooms     Json?    // Array of room objects
+    
+    // Metadata
+    fetchedAt DateTime @default(now())
 }

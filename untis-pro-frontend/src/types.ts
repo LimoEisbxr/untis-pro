@@ -23,6 +23,31 @@ export type Lesson = {
     ro?: Array<{ id: number; name: string; longname?: string }>;
     code?: string; // e.g. 'cancelled'
     activityType?: string;
+    info?: string; // Additional lesson information
+    homework?: Homework[]; // Associated homework
+    exams?: Exam[]; // Associated exams
+};
+
+export type Homework = {
+    id: number;
+    lessonId: number;
+    date: number; // yyyymmdd - due date
+    subject: { id: number; name: string; longname?: string };
+    text: string;
+    remark?: string;
+    completed: boolean;
+};
+
+export type Exam = {
+    id: number;
+    date: number; // yyyymmdd - exam date
+    startTime: number; // Untis HHmm integer
+    endTime: number; // Untis HHmm integer
+    subject: { id: number; name: string; longname?: string };
+    teachers?: Array<{ id: number; name: string; longname?: string }>;
+    rooms?: Array<{ id: number; name: string; longname?: string }>;
+    name: string;
+    text?: string;
 };
 
 export type LessonColors = Record<string, string>; // lessonName -> hex color
