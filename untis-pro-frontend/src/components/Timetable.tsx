@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useRef } from 'react';
-import type { Lesson, TimetableResponse, LessonColors } from '../types';
+import type { Lesson, TimetableResponse, LessonColors, Homework, Exam } from '../types';
 import {
     addDays,
     fmtLocal,
@@ -47,6 +47,77 @@ function canMergeLessons(lesson1: Lesson, lesson2: Lesson): boolean {
 }
 
 /**
+ * Check if two homework items are identical based on content
+ */
+function areHomeworkIdentical(hw1: Homework, hw2: Homework): boolean {
+    return (
+        hw1.text === hw2.text &&
+        hw1.subject?.name === hw2.subject?.name &&
+        hw1.date === hw2.date &&
+        hw1.remark === hw2.remark
+    );
+}
+
+/**
+ * Check if two exam items are identical based on content
+ */
+function areExamsIdentical(exam1: Exam, exam2: Exam): boolean {
+    return (
+        exam1.name === exam2.name &&
+        exam1.subject?.name === exam2.subject?.name &&
+        exam1.date === exam2.date &&
+        exam1.startTime === exam2.startTime &&
+        exam1.endTime === exam2.endTime &&
+        exam1.text === exam2.text
+    );
+}
+
+/**
+ * Deduplicate homework arrays, preserving completed status
+ */
+function deduplicateHomework(homework1: Homework[] = [], homework2: Homework[] = []): Homework[] {
+    const allHomework = [...homework1, ...homework2];
+    const deduplicated: Homework[] = [];
+
+    for (const hw of allHomework) {
+        const existingIndex = deduplicated.findIndex(existing => areHomeworkIdentical(existing, hw));
+        
+        if (existingIndex === -1) {
+            // New homework, add it
+            deduplicated.push(hw);
+        } else {
+            // Duplicate found, merge completion status (completed if either is completed)
+            deduplicated[existingIndex] = {
+                ...deduplicated[existingIndex],
+                completed: deduplicated[existingIndex].completed || hw.completed
+            };
+        }
+    }
+
+    return deduplicated;
+}
+
+/**
+ * Deduplicate exam arrays
+ */
+function deduplicateExams(exams1: Exam[] = [], exams2: Exam[] = []): Exam[] {
+    const allExams = [...exams1, ...exams2];
+    const deduplicated: Exam[] = [];
+
+    for (const exam of allExams) {
+        const existingIndex = deduplicated.findIndex(existing => areExamsIdentical(existing, exam));
+        
+        if (existingIndex === -1) {
+            // New exam, add it
+            deduplicated.push(exam);
+        }
+        // For exams, we don't merge anything - just avoid duplicates
+    }
+
+    return deduplicated;
+}
+
+/**
  * Merge two lessons into one, combining their time ranges and preserving all data
  */
 function mergeTwoLessons(lesson1: Lesson, lesson2: Lesson): Lesson {
@@ -54,16 +125,10 @@ function mergeTwoLessons(lesson1: Lesson, lesson2: Lesson): Lesson {
         ...lesson1, // Use first lesson as base
         startTime: Math.min(lesson1.startTime, lesson2.startTime),
         endTime: Math.max(lesson1.endTime, lesson2.endTime),
-        // Merge homework arrays if both exist
-        homework: [
-            ...(lesson1.homework || []),
-            ...(lesson2.homework || [])
-        ],
-        // Merge exam arrays if both exist
-        exams: [
-            ...(lesson1.exams || []),
-            ...(lesson2.exams || [])
-        ],
+        // Merge and deduplicate homework arrays
+        homework: deduplicateHomework(lesson1.homework, lesson2.homework),
+        // Merge and deduplicate exam arrays
+        exams: deduplicateExams(lesson1.exams, lesson2.exams),
         // Combine info and lstext with separator if both exist
         info: [lesson1.info, lesson2.info].filter(Boolean).join(' | ') || undefined,
         lstext: [lesson1.lstext, lesson2.lstext].filter(Boolean).join(' | ') || undefined,
