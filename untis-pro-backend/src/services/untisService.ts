@@ -72,7 +72,7 @@ export async function getOrFetchTimetableRange(args: {
                 end: ed,
             });
             const homeworkAndLessons = await untis.getHomeWorkAndLessons(sd, ed);
-            lessonsData = homeworkAndLessons.lessons || [];
+            lessonsData = normalizeLessonsData(homeworkAndLessons.lessons || []);
             homeworkData = homeworkAndLessons.homework || [];
         } else if (typeof untis.getOwnTimetableForRange === 'function' && sd && ed) {
             // Fallback to regular timetable
@@ -334,5 +334,63 @@ async function enrichLessonsWithHomeworkAndExams(
             homework: lessonHomework.length > 0 ? lessonHomework : undefined,
             exams: lessonExams.length > 0 ? lessonExams : undefined,
         };
+    });
+}
+
+// Normalize lessons data from getHomeWorkAndLessons to match standard timetable format
+function normalizeLessonsData(lessons: any[]): any[] {
+    if (!Array.isArray(lessons)) return [];
+    
+    return lessons.map((lesson: any) => {
+        // Debug log to understand the lesson structure
+        console.debug('[normalize] processing lesson:', {
+            keys: Object.keys(lesson),
+            sample: JSON.stringify(lesson).slice(0, 200)
+        });
+        
+        // If lesson already has the standard format, return as-is
+        if (lesson.date && lesson.startTime && lesson.endTime) {
+            return lesson;
+        }
+        
+        // Transform getHomeWorkAndLessons format to standard format
+        const normalized: any = {
+            id: lesson.id,
+            date: lesson.date || lesson.lessonDate || 0,
+            startTime: lesson.startTime || lesson.start || lesson.beginTime || 0,
+            endTime: lesson.endTime || lesson.end || lesson.endTime || 0,
+            code: lesson.code,
+            activityType: lesson.activityType || lesson.lessonType,
+            info: lesson.info || lesson.lessonText,
+        };
+        
+        // Handle subject transformation
+        if (lesson.subject) {
+            if (typeof lesson.subject === 'string') {
+                // Convert string subject to array format
+                normalized.su = [{ id: 0, name: lesson.subject, longname: lesson.subject }];
+            } else if (Array.isArray(lesson.subject)) {
+                normalized.su = lesson.subject;
+            } else if (typeof lesson.subject === 'object' && lesson.subject.name) {
+                normalized.su = [lesson.subject];
+            }
+        }
+        
+        // Handle teachers
+        if (lesson.teachers || lesson.te) {
+            normalized.te = lesson.teachers || lesson.te;
+        }
+        
+        // Handle rooms
+        if (lesson.rooms || lesson.ro) {
+            normalized.ro = lesson.rooms || lesson.ro;
+        }
+        
+        console.debug('[normalize] normalized lesson:', {
+            original: { id: lesson.id, subject: lesson.subject, lessonType: lesson.lessonType },
+            normalized: { id: normalized.id, date: normalized.date, startTime: normalized.startTime, endTime: normalized.endTime, su: normalized.su }
+        });
+        
+        return normalized;
     });
 }
