@@ -489,73 +489,79 @@ export default function Dashboard({
                         {/* Row 2: search (desktop), mobile icons (search+home), week picker */}
                         <div className="flex flex-wrap items-end gap-3">
                             {/* Desktop search */}
-                            <div
-                                className="hidden sm:block max-w-lg flex-1"
-                                ref={searchBoxRef}
-                            >
-                                <label className="label sm:text-sm text-[11px]">
-                                    Search
-                                </label>
-                                <div className="relative">
-                                    <input
-                                        className="input text-sm pr-8"
-                                        placeholder="Student…"
-                                        value={queryText}
-                                        onChange={(e) =>
-                                            setQueryText(e.target.value)
-                                        }
-                                    />
-                                    {queryText && (
-                                        <button
-                                            type="button"
-                                            className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
-                                            aria-label="Clear search"
-                                            onClick={() => setQueryText('')}
+                            <div className="hidden sm:flex items-end gap-3 flex-1 max-w-2xl" ref={searchBoxRef}>
+                                <div className="flex-1">
+                                    <label className="label sm:text-sm text-[11px]">Search</label>
+                                    <div className="relative">
+                                        <input
+                                            className="input text-sm pr-8"
+                                            placeholder="Student…"
+                                            value={queryText}
+                                            onChange={(e) =>
+                                                setQueryText(e.target.value)
+                                            }
+                                        />
+                                        {queryText && (
+                                            <button
+                                                type="button"
+                                                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                                                aria-label="Clear search"
+                                                onClick={() => setQueryText('')}
+                                            >
+                                                ×
+                                            </button>
+                                        )}
+                                        {results.length > 0 && (
+                                            <div className="absolute z-40 mt-1 w-full rounded-md border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-800">
+                                                <ul className="max-h-60 overflow-auto py-1 text-sm">
+                                                    {results.map((r) => (
+                                                        <li key={r.id}>
+                                                            <button
+                                                                className="w-full px-3 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-700"
+                                                                onClick={() => {
+                                                                    setSelectedUser(r);
+                                                                    setQueryText(r.displayName || r.username);
+                                                                    setResults([]);
+                                                                    if (r.id !== user.id) loadUser(r.id);
+                                                                    else loadMine();
+                                                                }}
+                                                            >
+                                                                <div className="font-medium">{r.displayName || r.username}</div>
+                                                                {r.displayName && (
+                                                                    <div className="text-xs text-slate-500">{r.username}</div>
+                                                                )}
+                                                            </button>
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                                <div className="hidden sm:flex pb-[2px]">
+                                    <button
+                                        className="rounded-full p-2 hover:bg-slate-200 dark:hover:bg-slate-700"
+                                        title="My timetable"
+                                        aria-label="Load my timetable"
+                                        onClick={() => {
+                                            setSelectedUser(null);
+                                            setQueryText('');
+                                            loadMine();
+                                        }}
+                                    >
+                                        <svg
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            viewBox="0 0 24 24"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            strokeWidth="1.8"
+                                            className="h-5 w-5 text-slate-900 dark:text-white"
                                         >
-                                            ×
-                                        </button>
-                                    )}
-                                    {results.length > 0 && (
-                                        <div className="absolute z-20 mt-1 w-full rounded-md border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-800">
-                                            <ul className="max-h-60 overflow-auto py-1 text-sm">
-                                                {results.map((r) => (
-                                                    <li key={r.id}>
-                                                        <button
-                                                            className="w-full px-3 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-700"
-                                                            onClick={() => {
-                                                                setSelectedUser(
-                                                                    r
-                                                                );
-                                                                setQueryText(
-                                                                    r.displayName ||
-                                                                        r.username
-                                                                );
-                                                                setResults([]);
-                                                                if (
-                                                                    r.id !==
-                                                                    user.id
-                                                                )
-                                                                    loadUser(
-                                                                        r.id
-                                                                    );
-                                                                else loadMine();
-                                                            }}
-                                                        >
-                                                            <div className="font-medium">
-                                                                {r.displayName ||
-                                                                    r.username}
-                                                            </div>
-                                                            {r.displayName && (
-                                                                <div className="text-xs text-slate-500">
-                                                                    {r.username}
-                                                                </div>
-                                                            )}
-                                                        </button>
-                                                    </li>
-                                                ))}
-                                            </ul>
-                                        </div>
-                                    )}
+                                            <path d="M3 10.5 12 3l9 7.5" />
+                                            <path d="M5 10v10h14V10" />
+                                            <path d="M9 21v-6h6v6" />
+                                        </svg>
+                                    </button>
                                 </div>
                             </div>
                             {/* Mobile icon cluster */}
