@@ -6,12 +6,99 @@ import {
     startOfWeek,
     yyyymmddToISO,
     fmtHM,
+    untisToMinutes,
 } from '../utils/dates';
 import { setLessonColor } from '../api';
 import LessonModal from './LessonModal';
 import TimeAxis from './TimeAxis';
 import DayColumn from './DayColumn';
 // (Mobile vertical layout removed; keeping original horizontal week view across breakpoints)
+
+/**
+ * Check if two lessons can be merged based on matching criteria
+ * and break time between them (5 minutes or less)
+ */
+function canMergeLessons(lesson1: Lesson, lesson2: Lesson): boolean {
+    // Check if subjects match
+    const subject1 = lesson1.su?.[0]?.name ?? lesson1.activityType ?? '';
+    const subject2 = lesson2.su?.[0]?.name ?? lesson2.activityType ?? '';
+    if (subject1 !== subject2) return false;
+
+    // Check if teachers match
+    const teacher1 = lesson1.te?.map(t => t.name).sort().join(',');
+    const teacher2 = lesson2.te?.map(t => t.name).sort().join(',');
+    if (teacher1 !== teacher2) return false;
+
+    // Check if rooms match
+    const room1 = lesson1.ro?.map(r => r.name).sort().join(',');
+    const room2 = lesson2.ro?.map(r => r.name).sort().join(',');
+    if (room1 !== room2) return false;
+
+    // Check if lesson codes match (both cancelled, both irregular, etc.)
+    if (lesson1.code !== lesson2.code) return false;
+
+    // Calculate break time in minutes
+    const lesson1EndMin = untisToMinutes(lesson1.endTime);
+    const lesson2StartMin = untisToMinutes(lesson2.startTime);
+    const breakMinutes = lesson2StartMin - lesson1EndMin;
+
+    // Merge if break is 5 minutes or less (including negative for overlapping)
+    return breakMinutes <= 5;
+}
+
+/**
+ * Merge two lessons into one, combining their time ranges and preserving all data
+ */
+function mergeTwoLessons(lesson1: Lesson, lesson2: Lesson): Lesson {
+    return {
+        ...lesson1, // Use first lesson as base
+        startTime: Math.min(lesson1.startTime, lesson2.startTime),
+        endTime: Math.max(lesson1.endTime, lesson2.endTime),
+        // Merge homework arrays if both exist
+        homework: [
+            ...(lesson1.homework || []),
+            ...(lesson2.homework || [])
+        ],
+        // Merge exam arrays if both exist
+        exams: [
+            ...(lesson1.exams || []),
+            ...(lesson2.exams || [])
+        ],
+        // Combine info and lstext with separator if both exist
+        info: [lesson1.info, lesson2.info].filter(Boolean).join(' | ') || undefined,
+        lstext: [lesson1.lstext, lesson2.lstext].filter(Boolean).join(' | ') || undefined,
+        // Use lower ID to maintain consistency
+        id: Math.min(lesson1.id, lesson2.id),
+    };
+}
+
+/**
+ * Merge consecutive lessons that meet the merging criteria
+ */
+function mergeLessons(lessons: Lesson[]): Lesson[] {
+    if (lessons.length <= 1) return lessons;
+
+    const merged: Lesson[] = [];
+    let current = lessons[0];
+
+    for (let i = 1; i < lessons.length; i++) {
+        const next = lessons[i];
+        
+        if (canMergeLessons(current, next)) {
+            // Merge current with next
+            current = mergeTwoLessons(current, next);
+        } else {
+            // Can't merge, add current to result and move to next
+            merged.push(current);
+            current = next;
+        }
+    }
+    
+    // Add the last lesson
+    merged.push(current);
+    
+    return merged;
+}
 
 export default function Timetable({
     data,
@@ -211,10 +298,13 @@ export default function Timetable({
             const dStr = yyyymmddToISO(l.date);
             if (byDay[dStr]) byDay[dStr].push(l);
         }
-        for (const k of Object.keys(byDay))
+        for (const k of Object.keys(byDay)) {
             byDay[k].sort(
                 (a, b) => a.startTime - b.startTime || a.endTime - b.endTime
             );
+            // Apply lesson merging after sorting
+            byDay[k] = mergeLessons(byDay[k]);
+        }
         return byDay;
     }, [data?.payload, days]);
 
