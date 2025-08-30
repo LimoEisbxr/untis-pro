@@ -166,8 +166,24 @@ async function fetchAndStoreUntis(args: {
         untisPassword,
         host
     ) as any;
+    
+    let userKlasseId: number | undefined = undefined;
+    
     try {
         await untis.login();
+        
+        // Try to get user's class information for exam API
+        try {
+            if (typeof untis.getOwnClassesList === 'function') {
+                const classes = await untis.getOwnClassesList();
+                if (Array.isArray(classes) && classes.length > 0 && classes[0]?.id) {
+                    userKlasseId = classes[0].id;
+                    console.debug('[timetable] found user class ID', userKlasseId);
+                }
+            }
+        } catch (e) {
+            console.debug('[timetable] could not get user class info, continuing without');
+        }
     } catch (e: any) {
         const msg = e?.message || '';
         if (msg.includes('bad credentials')) {
@@ -194,6 +210,18 @@ async function fetchAndStoreUntis(args: {
                 endType: typeof ed,
             });
             lessonsData = await untis.getOwnTimetableForRange(sd, ed);
+            console.debug('[timetable] fetched lessons data', {
+                count: Array.isArray(lessonsData) ? lessonsData.length : 0,
+                sampleLesson: Array.isArray(lessonsData) && lessonsData.length > 0 ? {
+                    id: lessonsData[0].id,
+                    date: lessonsData[0].date,
+                    hasInfo: 'info' in lessonsData[0],
+                    infoValue: lessonsData[0].info,
+                    hasLstext: 'lstext' in lessonsData[0],
+                    lstextValue: lessonsData[0].lstext,
+                    allKeys: Object.keys(lessonsData[0]),
+                } : null,
+            });
         } else if (typeof untis.getOwnTimetableForToday === 'function') {
             console.debug('[timetable] calling getOwnTimetableForToday');
             lessonsData = await untis.getOwnTimetableForToday();
@@ -264,10 +292,13 @@ async function fetchAndStoreUntis(args: {
             console.debug('[timetable] calling getExamsForRange', {
                 start: sd,
                 end: ed,
+                klasseId: userKlasseId,
             });
             try {
-                // Try without klasseId first (for student accounts)
-                examData = await untis.getExamsForRange(sd, ed);
+                // Try with klasseId if available, otherwise without
+                examData = userKlasseId 
+                    ? await untis.getExamsForRange(sd, ed, userKlasseId)
+                    : await untis.getExamsForRange(sd, ed);
                 console.debug('[timetable] fetched exam data', {
                     count: Array.isArray(examData) ? examData.length : 0,
                     sample: Array.isArray(examData) && examData.length > 0 ? examData[0] : null,
@@ -704,16 +735,14 @@ async function enrichLessonsWithHomeworkAndExams(
         const subjectName = lesson.su?.[0]?.name;
         
         // Debug lesson data to see what fields are available
-        console.debug('[enrichLessonsWithHomeworkAndExams] lesson sample', {
-            lessonId: lesson.id,
-            lessonDate: lesson.date,
-            lessonSubject: subjectName,
-            hasInfo: !!lesson.info,
-            infoValue: lesson.info,
-            hasLstext: !!lesson.lstext,
-            lstextValue: lesson.lstext,
-            allLessonKeys: Object.keys(lesson),
-        });
+        if (lesson.id === lessons[0]?.id) {
+            console.debug('[enrichLessonsWithHomeworkAndExams] first lesson sample', {
+                hasInfo: !!lesson.info,
+                hasLstext: !!lesson.lstext,
+                hasAlternativeInfo: !!(lesson.periodInfo || lesson.lessonText),
+                hasAlternativeText: !!lesson.periodText,
+            });
+        }
         
         const lessonHomework = homework
             .filter(
@@ -748,14 +777,14 @@ async function enrichLessonsWithHomeworkAndExams(
                     const matches = exam.subject === lessonSubject || 
                            exam.subject.toLowerCase() === lessonSubject.toLowerCase();
                            
-                    console.debug('[enrichLessonsWithHomeworkAndExams] exam matching', {
-                        examId: exam.untisId,
-                        examDate: exam.date,
-                        examSubject: exam.subject,
-                        lessonDate: lesson.date,
-                        lessonSubject: lessonSubject,
-                        matches: matches,
-                    });
+                    // Log only when matches are found for debugging
+                    if (matches) {
+                        console.debug('[enrichLessonsWithHomeworkAndExams] exam matched to lesson', {
+                            examId: exam.untisId,
+                            examSubject: exam.subject,
+                            lessonSubject: lessonSubject,
+                        });
+                    }
                     
                     return matches;
                 }
@@ -779,6 +808,9 @@ async function enrichLessonsWithHomeworkAndExams(
 
         return {
             ...lesson,
+            // Ensure lesson info fields are preserved, check alternative field names
+            info: lesson.info || lesson.periodInfo || lesson.lessonText || undefined,
+            lstext: lesson.lstext || lesson.periodText || undefined,
             homework: lessonHomework.length > 0 ? lessonHomework : undefined,
             exams: lessonExams.length > 0 ? lessonExams : undefined,
         };
