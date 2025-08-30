@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import MoonIcon from '../components/MoonIcon';
-import { api, updateUserDisplayName, listWhitelist, addWhitelistRule, deleteWhitelistRule, type WhitelistRule } from '../api';
+import { api, updateUserDisplayName, listWhitelist, addWhitelistRule, deleteWhitelistRule, grantUserManagerStatus, revokeUserManagerStatus, type WhitelistRule } from '../api';
 
 export default function AdminPage({
     token,
@@ -16,7 +16,7 @@ export default function AdminPage({
     setDark: (v: boolean) => void;
 }) {
     const [users, setUsers] = useState<
-        Array<{ id: string; username: string; displayName: string | null }>
+        Array<{ id: string; username: string; displayName: string | null; isUserManager: boolean }>
     >([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -28,6 +28,10 @@ export default function AdminPage({
     const [whitelist, setWhitelist] = useState<WhitelistRule[]>([]);
     const [wlValue, setWlValue] = useState('');
 
+    // User-manager status management state
+    const [userManagerChanging, setUserManagerChanging] = useState<string | null>(null);
+    const [showConfirmUserManager, setShowConfirmUserManager] = useState<{ userId: string; username: string; isGranting: boolean } | null>(null);
+
     const load = useCallback(async () => {
         setLoading(true);
         setError(null);
@@ -37,6 +41,7 @@ export default function AdminPage({
                     id: string;
                     username: string;
                     displayName: string | null;
+                    isUserManager: boolean;
                 }>;
             }>('/api/admin/users', { token });
             setUsers(usersRes.users);
@@ -131,6 +136,43 @@ export default function AdminPage({
         }
     }, [token]);
 
+    // User-manager status management handlers
+    const handleToggleUserManager = useCallback((user: { id: string; username: string; isUserManager: boolean }) => {
+        setShowConfirmUserManager({
+            userId: user.id,
+            username: user.username,
+            isGranting: !user.isUserManager
+        });
+    }, []);
+
+    const handleConfirmUserManagerChange = useCallback(async () => {
+        if (!showConfirmUserManager) return;
+        
+        setUserManagerChanging(showConfirmUserManager.userId);
+        setError(null);
+        try {
+            const result = showConfirmUserManager.isGranting 
+                ? await grantUserManagerStatus(token, showConfirmUserManager.userId)
+                : await revokeUserManagerStatus(token, showConfirmUserManager.userId);
+            
+            // Update the users state with the new user-manager status
+            setUsers(prev => prev.map(user => 
+                user.id === showConfirmUserManager.userId 
+                    ? { ...user, isUserManager: result.user.isUserManager }
+                    : user
+            ));
+            setShowConfirmUserManager(null);
+        } catch (e) {
+            setError(e instanceof Error ? e.message : String(e));
+        } finally {
+            setUserManagerChanging(null);
+        }
+    }, [token, showConfirmUserManager, grantUserManagerStatus, revokeUserManagerStatus]);
+
+    const handleCancelUserManagerChange = useCallback(() => {
+        setShowConfirmUserManager(null);
+    }, []);
+
     useEffect(() => {
         load();
     }, [load]);
@@ -195,6 +237,7 @@ export default function AdminPage({
                                 <tr>
                                     <th className="py-2 pr-4">Username</th>
                                     <th className="py-2 pr-4">Display name</th>
+                                    <th className="py-2 pr-4">User Manager</th>
                                     <th className="py-2 pr-4">Actions</th>
                                 </tr>
                             </thead>
@@ -247,6 +290,21 @@ export default function AdminPage({
                                             )}
                                         </td>
                                         <td className="py-2 pr-4">
+                                            <div className="flex items-center gap-2">
+                                                <span className={u.isUserManager ? "text-green-600 dark:text-green-400" : "text-slate-400"}>
+                                                    {u.isUserManager ? "✓ Manager" : "—"}
+                                                </span>
+                                                <button
+                                                    className={u.isUserManager ? "btn-secondary" : "btn-primary"}
+                                                    onClick={() => handleToggleUserManager(u)}
+                                                    disabled={loading || userManagerChanging === u.id}
+                                                    style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
+                                                >
+                                                    {userManagerChanging === u.id ? '...' : u.isUserManager ? 'Revoke' : 'Grant'}
+                                                </button>
+                                            </div>
+                                        </td>
+                                        <td className="py-2 pr-4">
                                             <button
                                                 className="btn-secondary"
                                                 onClick={() => del(u.id)}
@@ -260,7 +318,7 @@ export default function AdminPage({
                                 {users.length === 0 && !loading && (
                                     <tr>
                                         <td
-                                            colSpan={3}
+                                            colSpan={4}
                                             className="py-4 text-center text-slate-500"
                                         >
                                             No users
@@ -321,6 +379,46 @@ export default function AdminPage({
 
                 {/* Default Lesson Colors section removed */}
             </main>
+
+            {/* User Manager Confirmation Modal */}
+            {showConfirmUserManager && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white dark:bg-slate-800 rounded-lg p-6 max-w-md mx-4">
+                        <h3 className="text-lg font-semibold mb-4 text-slate-900 dark:text-slate-100">
+                            {showConfirmUserManager.isGranting ? 'Grant User Manager Status' : 'Revoke User Manager Status'}
+                        </h3>
+                        <p className="text-slate-600 dark:text-slate-300 mb-6">
+                            {showConfirmUserManager.isGranting ? (
+                                <>
+                                    Grant <strong>{showConfirmUserManager.username}</strong> user manager privileges? 
+                                    They will be able to manage users, whitelist, and access requests.
+                                </>
+                            ) : (
+                                <>
+                                    Revoke user manager privileges from <strong>{showConfirmUserManager.username}</strong>? 
+                                    They will lose access to user management features.
+                                </>
+                            )}
+                        </p>
+                        <div className="flex gap-3 justify-end">
+                            <button
+                                className="btn-secondary"
+                                onClick={handleCancelUserManagerChange}
+                                disabled={userManagerChanging === showConfirmUserManager.userId}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                className={showConfirmUserManager.isGranting ? "btn-primary" : "btn-secondary"}
+                                onClick={handleConfirmUserManagerChange}
+                                disabled={userManagerChanging === showConfirmUserManager.userId}
+                            >
+                                {userManagerChanging === showConfirmUserManager.userId ? 'Processing...' : (showConfirmUserManager.isGranting ? 'Grant' : 'Revoke')}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

@@ -325,4 +325,96 @@ export async function declineAccessRequest(
     });
 }
 
+// User-manager management (admin only)
+export async function grantUserManagerStatus(
+    token: string,
+    userId: string
+): Promise<{ user: { id: string; username: string; displayName: string | null; isUserManager: boolean } }> {
+    return api<{ user: { id: string; username: string; displayName: string | null; isUserManager: boolean } }>(
+        `/api/admin/users/${userId}/grant-user-manager`,
+        {
+            method: 'PATCH',
+            token,
+        }
+    );
+}
+
+export async function revokeUserManagerStatus(
+    token: string,
+    userId: string
+): Promise<{ user: { id: string; username: string; displayName: string | null; isUserManager: boolean } }> {
+    return api<{ user: { id: string; username: string; displayName: string | null; isUserManager: boolean } }>(
+        `/api/admin/users/${userId}/revoke-user-manager`,
+        {
+            method: 'PATCH',
+            token,
+        }
+    );
+}
+
+// User-manager API functions (accessible by admin or user-manager)
+export async function userManagerUpdateUserDisplayName(
+    token: string,
+    userId: string,
+    displayName: string | null
+): Promise<{ user: { id: string; username: string; displayName: string | null } }> {
+    return api<{ user: { id: string; username: string; displayName: string | null } }>(
+        `/api/user-manager/users/${userId}`,
+        {
+            method: 'PATCH',
+            token,
+            body: JSON.stringify({ displayName }),
+        }
+    );
+}
+
+export async function userManagerListWhitelist(token: string): Promise<{ rules: WhitelistRule[] }> {
+    return api<{ rules: WhitelistRule[] }>('/api/user-manager/whitelist', { token });
+}
+
+export async function userManagerAddWhitelistRule(
+    token: string,
+    value: string
+): Promise<{ rule: WhitelistRule; created: boolean }> {
+    return api<{ rule: WhitelistRule; created: boolean }>('/api/user-manager/whitelist', {
+        method: 'POST',
+        token,
+        body: JSON.stringify({ value }),
+    });
+}
+
+export async function userManagerDeleteWhitelistRule(
+    token: string,
+    id: string
+): Promise<{ ok: boolean }> {
+    return api<{ ok: boolean }>(`/api/user-manager/whitelist/${id}`, {
+        method: 'DELETE',
+        token,
+    });
+}
+
+export async function userManagerListAccessRequests(token: string): Promise<{ requests: AccessRequest[] }> {
+    return api<{ requests: AccessRequest[] }>('/api/user-manager/access-requests', { token });
+}
+
+export async function userManagerAcceptAccessRequest(
+    token: string,
+    id: string
+): Promise<{ success: boolean; message?: string }> {
+    return api<{ success: boolean; message?: string }>(`/api/user-manager/access-requests/${id}/accept`, {
+        method: 'POST',
+        token,
+    });
+}
+
+export async function userManagerDeclineAccessRequest(
+    token: string,
+    id: string
+): Promise<{ success: boolean }> {
+    return api<{ success: boolean }>(`/api/user-manager/access-requests/${id}`, {
+        method: 'DELETE',
+        token,
+    });
+}
+
 export { API_BASE };

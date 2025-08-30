@@ -3,6 +3,7 @@ export type User = {
     username: string;
     displayName?: string | null;
     isAdmin?: boolean;
+    isUserManager?: boolean;
     school?: string;
 };
 

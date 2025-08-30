@@ -19,6 +19,12 @@ import {
     acceptAccessRequest,
     declineAccessRequest,
     type AccessRequest,
+    userManagerListWhitelist,
+    userManagerAddWhitelistRule,
+    userManagerDeleteWhitelistRule,
+    userManagerListAccessRequests,
+    userManagerAcceptAccessRequest,
+    userManagerDeclineAccessRequest,
 } from '../api';
 
 export default function SettingsModal({
@@ -102,6 +108,16 @@ export default function SettingsModal({
     const [accessRequests, setAccessRequests] = useState<AccessRequest[]>([]);
     const [arLoading, setArLoading] = useState(false);
     const [arError, setArError] = useState<string | null>(null);
+
+    // User-manager state (duplicate functionality for user-managers)
+    const [umWhitelist, setUmWhitelist] = useState<WhitelistRule[]>([]);
+    const [umWlValue, setUmWlValue] = useState('');
+    const [umWlLoading, setUmWlLoading] = useState(false);
+    const [umWlError, setUmWlError] = useState<string | null>(null);
+
+    const [umAccessRequests, setUmAccessRequests] = useState<AccessRequest[]>([]);
+    const [umArLoading, setUmArLoading] = useState(false);
+    const [umArError, setUmArError] = useState<string | null>(null);
 
     const loadUsers = useCallback(async () => {
         setUserManagementLoading(true);
