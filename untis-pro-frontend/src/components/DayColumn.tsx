@@ -28,6 +28,7 @@ export type DayColumnProps = {
     onLessonClick: (lesson: Lesson) => void;
     isToday?: boolean;
     gradientOffsets?: Record<string, number>; // subject -> offset (0..1)
+    hideHeader?: boolean; // suppress built-in header (used when external sticky header is rendered)
 };
 
 const DayColumn: FC<DayColumnProps> = ({
@@ -44,6 +45,7 @@ const DayColumn: FC<DayColumnProps> = ({
     onLessonClick,
     isToday = false,
     gradientOffsets,
+    hideHeader = false,
 }) => {
     // Detect mobile (tailwind sm breakpoint <640px). Responsive hook to decide hiding side-by-side overlaps.
     const [isMobile, setIsMobile] = useState<boolean>(false);
@@ -54,8 +56,12 @@ const DayColumn: FC<DayColumnProps> = ({
         mq.addEventListener('change', update);
         return () => mq.removeEventListener('change', update);
     }, []);
+    const headerPx = hideHeader ? 8 : DAY_HEADER_PX; // minimal spacer when external sticky header used
     const containerHeight =
-        (END_MIN - START_MIN) * SCALE + BOTTOM_PAD_PX + DAY_HEADER_PX;
+        (END_MIN - START_MIN) * SCALE + BOTTOM_PAD_PX + headerPx;
+
+    // Precompute whether we should show denser or sparser grid lines (mobile gets 60‑min lines)
+    const gridSlotMinutes = isMobile ? 60 : 30;
 
     type ClusterBlock = {
         l: Lesson;
@@ -144,11 +150,38 @@ const DayColumn: FC<DayColumnProps> = ({
                 </div>
             )}
 
-            <div className="absolute left-0 right-0 top-0 z-10 pointer-events-none">
-                {/* Mobile: two centered rows (weekday, date) */}
-                <div className="block sm:hidden text-center leading-tight pt-1">
+            {!hideHeader && (
+                <div className="absolute left-0 right-0 top-0 z-10 pointer-events-none">
+                    {/* Mobile: two centered rows (weekday, date) */}
+                    <div className="block sm:hidden text-center leading-tight pt-1">
+                        <div
+                            className={`text-[11px] font-semibold ${
+                                isToday
+                                    ? 'text-amber-700 dark:text-amber-300'
+                                    : 'text-slate-700 dark:text-slate-200'
+                            }`}
+                        >
+                            {day.toLocaleDateString(undefined, {
+                                weekday: 'short',
+                            })}
+                        </div>
+                        <div
+                            className={`text-[10px] font-medium ${
+                                isToday
+                                    ? 'text-amber-600 dark:text-amber-200'
+                                    : 'text-slate-500 dark:text-slate-400'
+                            }`}
+                        >
+                            {day.toLocaleDateString(undefined, {
+                                day: '2-digit',
+                                month: '2-digit',
+                            })}
+                        </div>
+                    </div>
+
+                    {/* Desktop: single line */}
                     <div
-                        className={`text-[11px] font-semibold ${
+                        className={`hidden sm:block text-sm font-semibold tracking-tight leading-snug whitespace-nowrap overflow-hidden text-ellipsis px-2 pt-2 ${
                             isToday
                                 ? 'text-amber-700 dark:text-amber-300'
                                 : 'text-slate-700 dark:text-slate-200'
@@ -156,47 +189,22 @@ const DayColumn: FC<DayColumnProps> = ({
                     >
                         {day.toLocaleDateString(undefined, {
                             weekday: 'short',
-                        })}
-                    </div>
-                    <div
-                        className={`text-[10px] font-medium ${
-                            isToday
-                                ? 'text-amber-600 dark:text-amber-200'
-                                : 'text-slate-500 dark:text-slate-400'
-                        }`}
-                    >
-                        {day.toLocaleDateString(undefined, {
                             day: '2-digit',
                             month: '2-digit',
                         })}
                     </div>
                 </div>
-
-                {/* Desktop: single line */}
-                <div
-                    className={`hidden sm:block text-sm font-semibold tracking-tight leading-snug whitespace-nowrap overflow-hidden text-ellipsis px-2 pt-2 ${
-                        isToday
-                            ? 'text-amber-700 dark:text-amber-300'
-                            : 'text-slate-700 dark:text-slate-200'
-                    }`}
-                >
-                    {day.toLocaleDateString(undefined, {
-                        weekday: 'short',
-                        day: '2-digit',
-                        month: '2-digit',
-                    })}
-                </div>
-            </div>
+            )}
             <div
-                className="absolute left-0 right-0 opacity-60 dark:opacity-40 pointer-events-none rounded-b-xl overflow-hidden"
+                className="absolute left-0 right-0 opacity-55 dark:opacity-35 pointer-events-none rounded-b-xl overflow-hidden"
                 style={{
-                    top: DAY_HEADER_PX,
+                    top: headerPx,
                     bottom: 0,
                     backgroundImage: `repeating-linear-gradient(to bottom, transparent, transparent ${
-                        30 * SCALE - 1
-                    }px, rgba(100,116,139,0.12) ${
-                        30 * SCALE - 1
-                    }px, rgba(100,116,139,0.12) ${30 * SCALE}px)`,
+                        gridSlotMinutes * SCALE - 1
+                    }px, rgba(100,116,139,0.10) ${
+                        gridSlotMinutes * SCALE - 1
+                    }px, rgba(100,116,139,0.10) ${gridSlotMinutes * SCALE}px)`,
                 }}
             />
             {blocks
@@ -254,15 +262,14 @@ const DayColumn: FC<DayColumnProps> = ({
                     const PAD_TOP = isMobile ? 2 : 4;
                     const PAD_BOTTOM = isMobile ? 2 : 4;
                     const startPxRaw =
-                        (b.startMin - START_MIN) * SCALE + DAY_HEADER_PX;
-                    const endPxRaw =
-                        (b.endMin - START_MIN) * SCALE + DAY_HEADER_PX;
+                        (b.startMin - START_MIN) * SCALE + headerPx;
+                    const endPxRaw = (b.endMin - START_MIN) * SCALE + headerPx;
                     let topPx = Math.round(startPxRaw) + PAD_TOP;
                     const endPx = Math.round(endPxRaw) - PAD_BOTTOM;
                     // Gap budget (space we leave for enforced separation after adjustments)
                     const GAP_BUDGET = isMobile ? 1 : 2;
                     // Minimum visual height per lesson
-                    const MIN_EVENT_HEIGHT = isMobile ? 24 : 12;
+                    const MIN_EVENT_HEIGHT = isMobile ? 30 : 14; // slightly larger baseline on mobile for tap comfort
                     let heightPx = Math.max(
                         MIN_EVENT_HEIGHT,
                         endPx - topPx - GAP_BUDGET
@@ -304,10 +311,22 @@ const DayColumn: FC<DayColumnProps> = ({
                         : roomPadRightPx + 8; // exclude indicator width for better available text width
                     const contentPadLeft = 0;
 
+                    // Auto contrast decision based on middle gradient (via) luminance heuristics
+                    const viaColor = gradient.via;
+                    let luminance = 0.3;
+                    if (/^#[0-9A-Fa-f]{6}$/.test(viaColor)) {
+                        const r = parseInt(viaColor.slice(1, 3), 16) / 255;
+                        const g = parseInt(viaColor.slice(3, 5), 16) / 255;
+                        const b = parseInt(viaColor.slice(5, 7), 16) / 255;
+                        luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+                    }
+                    const textColorClass =
+                        luminance > 0.62 ? 'text-slate-900' : 'text-white';
+
                     return (
                         <div
                             key={l.id}
-                            className={`absolute rounded-md p-2 sm:p-2 text-[11px] sm:text-xs ring-1 ring-slate-900/15 dark:ring-white/20 overflow-hidden cursor-pointer transform duration-150 hover:shadow-lg hover:brightness-115 hover:saturate-150 hover:contrast-110 text-white ${
+                            className={`absolute rounded-md p-2 sm:p-2 text-[11px] sm:text-xs ring-1 ring-slate-900/10 dark:ring-white/15 overflow-hidden cursor-pointer transform duration-150 hover:shadow-lg hover:brightness-110 hover:saturate-140 hover:contrast-110 backdrop-blur-[1px] ${textColorClass} ${
                                 cancelled
                                     ? 'bg-rose-500/90'
                                     : irregular
@@ -324,6 +343,11 @@ const DayColumn: FC<DayColumnProps> = ({
                                     : irregular
                                     ? undefined
                                     : (`linear-gradient(to right, ${gradient.from}, ${gradient.via}, ${gradient.to})` as string),
+                                // Larger invisible hit target for touch
+                                paddingTop: isMobile ? 6 : undefined,
+                                paddingBottom: isMobile ? 6 : undefined,
+                                boxShadow:
+                                    '0 1px 2px -1px rgba(0,0,0,0.25), 0 2px 6px -1px rgba(0,0,0,0.25)',
                             }}
                             title={`${fmtHM(b.startMin)}–${fmtHM(
                                 b.endMin
@@ -479,7 +503,7 @@ const DayColumn: FC<DayColumnProps> = ({
                                         className="font-semibold leading-snug w-full whitespace-nowrap truncate"
                                         style={{
                                             fontSize:
-                                                'clamp(11.5px, 3.4vw, 14px)',
+                                                'clamp(12px, 3.5vw, 15px)',
                                         }}
                                     >
                                         {displaySubject}

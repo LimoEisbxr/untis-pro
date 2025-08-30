@@ -3,8 +3,9 @@
 @import 'tailwindcss';
 
 /* Disable native page scrollbar; we'll provide a custom one */
-html,
-body {
+/* Remove unconditional overflow hidden to allow native focus behavior on login/mobile.
+   We'll add a body.scroll-lock class post-auth to re-enable custom scroll isolation. */
+body.scroll-lock {
     overflow: hidden;
 }
 
@@ -210,14 +211,14 @@ html.dark .link-admin {
     border-radius: 999px;
     /* Use two layers: filled gradient (left) + remaining neutral (right) */
     background: linear-gradient(
-            90deg,
-            #4f46e5 0%,
-            #2563eb 25%,
-            #0284c7 45%,
-            #059669 75%,
-            #10b981 100%
-        )
-        left / var(--progress) 100% no-repeat,
+                90deg,
+                #4f46e5 0%,
+                #2563eb 25%,
+                #0284c7 45%,
+                #059669 75%,
+                #10b981 100%
+            )
+            left / var(--progress) 100% no-repeat,
         linear-gradient(
             to right,
             rgba(255, 255, 255, 0.18),
@@ -273,14 +274,14 @@ html.dark .link-admin {
     height: var(--slider-track-height);
     border-radius: 999px;
     background: linear-gradient(
-            90deg,
-            #4f46e5 0%,
-            #2563eb 25%,
-            #0284c7 45%,
-            #059669 75%,
-            #10b981 100%
-        )
-        left / var(--progress) 100% no-repeat,
+                90deg,
+                #4f46e5 0%,
+                #2563eb 25%,
+                #0284c7 45%,
+                #059669 75%,
+                #10b981 100%
+            )
+            left / var(--progress) 100% no-repeat,
         linear-gradient(
             to right,
             rgba(255, 255, 255, 0.18),
