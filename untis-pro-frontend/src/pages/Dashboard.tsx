@@ -60,13 +60,8 @@ export default function Dashboard({
                 el?.focus();
             }, 30);
             return () => clearTimeout(t);
-        } else {
-            // Clear search results when mobile search closes
-            if (results.length > 0) {
-                setResults([]);
-            }
         }
-    }, [mobileSearchOpen, results.length]);
+    }, [mobileSearchOpen]);
     const [lessonColors, setLessonColors] = useState<LessonColors>({});
     const [defaultLessonColors, setDefaultLessonColors] =
         useState<LessonColors>({});
@@ -726,7 +721,11 @@ export default function Dashboard({
                             </div>
                             <button
                                 className="rounded-xl px-4 py-3 bg-slate-200/90 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-medium shadow-sm"
-                                onClick={() => setMobileSearchOpen(false)}
+                                onClick={() => {
+                                    setMobileSearchOpen(false);
+                                    setQueryText(''); // Clear search when closing
+                                    setResults([]); // Clear results when closing
+                                }}
                                 aria-label="Close search"
                             >
                                 Close
@@ -796,10 +795,8 @@ export default function Dashboard({
                                             className="w-full rounded-xl p-4 text-left bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/50 dark:hover:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 hover:border-slate-300 dark:hover:border-slate-600 transition-all duration-200 shadow-sm hover:shadow-md group"
                                             onClick={() => {
                                                 setSelectedUser(r);
-                                                setQueryText(
-                                                    r.displayName || r.username
-                                                );
-                                                // Don't clear results immediately - let the modal close effect handle it
+                                                setQueryText(''); // Clear query to prevent search trigger
+                                                setResults([]); // Clear results immediately
                                                 setMobileSearchOpen(false);
                                                 if (r.id !== user.id)
                                                     loadUser(r.id);
