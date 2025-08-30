@@ -60,8 +60,13 @@ export default function Dashboard({
                 el?.focus();
             }, 30);
             return () => clearTimeout(t);
+        } else {
+            // Clear search results when mobile search closes
+            if (results.length > 0) {
+                setResults([]);
+            }
         }
-    }, [mobileSearchOpen]);
+    }, [mobileSearchOpen, results.length]);
     const [lessonColors, setLessonColors] = useState<LessonColors>({});
     const [defaultLessonColors, setDefaultLessonColors] =
         useState<LessonColors>({});
@@ -336,9 +341,12 @@ export default function Dashboard({
         return () => clearTimeout(h);
     }, [queryText, token]);
 
-    // Close the search dropdown on outside click or Escape
+    // Close the search dropdown on outside click or Escape (desktop only)
     useEffect(() => {
         const handlePointer = (e: MouseEvent | TouchEvent) => {
+            // Skip if mobile search is open to avoid interference
+            if (mobileSearchOpen) return;
+            
             const node = searchBoxRef.current;
             if (!node) return;
             if (!node.contains(e.target as Node)) {
@@ -356,7 +364,7 @@ export default function Dashboard({
             document.removeEventListener('touchstart', handlePointer);
             document.removeEventListener('keydown', handleKey);
         };
-    }, [results.length]);
+    }, [results.length, mobileSearchOpen]);
 
     return (
         <div className={'min-h-screen'}>
@@ -681,80 +689,159 @@ export default function Dashboard({
 
             {/* Mobile full-screen search overlay */}
             {mobileSearchOpen && (
-                <div className="sm:hidden fixed inset-0 z-50 bg-white dark:bg-slate-900 p-4 flex flex-col">
-                    <div className="flex items-center gap-2 mb-3">
-                        <input
-                            id="mobile-search-input"
-                            className="input flex-1 text-sm"
-                            placeholder="Search student…"
-                            value={queryText}
-                            onChange={(e) => setQueryText(e.target.value)}
-                        />
-                        {queryText && (
+                <div className="sm:hidden fixed inset-0 z-50 bg-white dark:bg-slate-900 flex flex-col">
+                    {/* Header with gradient blur effect */}
+                    <div className="header-blur p-4 border-b border-slate-200/60 dark:border-slate-700/60">
+                        <div className="flex items-center gap-3">
+                            <div className="flex-1 relative">
+                                <input
+                                    id="mobile-search-input"
+                                    className="w-full rounded-xl border border-slate-300 dark:border-slate-600 bg-white/95 dark:bg-slate-800/95 px-4 py-3 text-slate-900 dark:text-slate-100 placeholder:text-slate-500 dark:placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500 text-base shadow-sm"
+                                    placeholder="Search for a student..."
+                                    value={queryText}
+                                    onChange={(e) => setQueryText(e.target.value)}
+                                />
+                                {queryText && (
+                                    <button
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400"
+                                        onClick={() => setQueryText('')}
+                                        aria-label="Clear search"
+                                        title="Clear search"
+                                    >
+                                        <svg
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            viewBox="0 0 24 24"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            strokeWidth="2"
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            className="h-5 w-5"
+                                        >
+                                            <path d="M18 6 6 18" />
+                                            <path d="M6 6l12 12" />
+                                        </svg>
+                                    </button>
+                                )}
+                            </div>
                             <button
-                                className="rounded-md p-2 bg-slate-200 hover:bg-slate-300 text-slate-700 dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-slate-200"
-                                onClick={() => setQueryText('')}
-                                aria-label="Clear search"
-                                title="Clear search"
+                                className="rounded-xl px-4 py-3 bg-slate-200/90 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-medium shadow-sm"
+                                onClick={() => setMobileSearchOpen(false)}
+                                aria-label="Close search"
                             >
-                                <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth="2"
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    className="h-5 w-5"
-                                >
-                                    <path d="M18 6 6 18" />
-                                    <path d="M6 6l12 12" />
-                                </svg>
+                                Close
                             </button>
-                        )}
-                        <button
-                            className="rounded-md px-3 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 dark:bg-slate-700 dark:hover:bg-slate-600 dark:text-slate-200"
-                            onClick={() => setMobileSearchOpen(false)}
-                            aria-label="Close search"
-                        >
-                            Close
-                        </button>
+                        </div>
                     </div>
-                    <div className="flex-1 overflow-auto -mx-2 px-2">
+                    
+                    {/* Results area with improved styling */}
+                    <div className="flex-1 overflow-auto p-4">
                         {results.length === 0 && queryText ? (
-                            <div className="text-sm text-slate-500 dark:text-slate-400">
-                                No results
+                            <div className="flex flex-col items-center justify-center py-12 text-center">
+                                <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-4">
+                                    <svg
+                                        className="w-8 h-8 text-slate-400 dark:text-slate-500"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth="1.5"
+                                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                                        />
+                                    </svg>
+                                </div>
+                                <p className="text-slate-500 dark:text-slate-400 text-lg font-medium mb-2">
+                                    No results found
+                                </p>
+                                <p className="text-slate-400 dark:text-slate-500 text-sm">
+                                    Try a different search term
+                                </p>
+                            </div>
+                        ) : results.length === 0 && !queryText ? (
+                            <div className="flex flex-col items-center justify-center py-12 text-center">
+                                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-sky-100 to-indigo-100 dark:from-sky-900/30 dark:to-indigo-900/30 flex items-center justify-center mb-4">
+                                    <svg
+                                        className="w-8 h-8 text-sky-600 dark:text-sky-400"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth="1.5"
+                                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                                        />
+                                    </svg>
+                                </div>
+                                <p className="text-slate-600 dark:text-slate-300 text-lg font-medium mb-2">
+                                    Search for students
+                                </p>
+                                <p className="text-slate-500 dark:text-slate-400 text-sm">
+                                    Start typing to find students and view their timetables
+                                </p>
                             </div>
                         ) : (
-                            <ul className="space-y-1">
-                                {results.map((r) => (
-                                    <li key={r.id}>
+                            <div className="space-y-2">
+                                {results.map((r, index) => (
+                                    <div
+                                        key={r.id}
+                                        className="animate-fade-in"
+                                        style={{ animationDelay: `${index * 50}ms` }}
+                                    >
                                         <button
-                                            className="w-full rounded-md px-3 py-2 text-left bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-sm"
+                                            className="w-full rounded-xl p-4 text-left bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/50 dark:hover:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 hover:border-slate-300 dark:hover:border-slate-600 transition-all duration-200 shadow-sm hover:shadow-md group"
                                             onClick={() => {
                                                 setSelectedUser(r);
                                                 setQueryText(
                                                     r.displayName || r.username
                                                 );
-                                                setResults([]);
+                                                // Don't clear results immediately - let the modal close effect handle it
                                                 setMobileSearchOpen(false);
                                                 if (r.id !== user.id)
                                                     loadUser(r.id);
                                                 else loadMine();
                                             }}
                                         >
-                                            <div className="font-medium">
-                                                {r.displayName || r.username}
-                                            </div>
-                                            {r.displayName && (
-                                                <div className="text-xs text-slate-500 dark:text-slate-400">
-                                                    {r.username}
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center text-white font-semibold text-sm shadow-md">
+                                                    {(r.displayName || r.username)
+                                                        .charAt(0)
+                                                        .toUpperCase()}
                                                 </div>
-                                            )}
+                                                <div className="flex-1">
+                                                    <div className="font-semibold text-slate-900 dark:text-slate-100 group-hover:text-sky-700 dark:group-hover:text-sky-300 transition-colors">
+                                                        {r.displayName || r.username}
+                                                    </div>
+                                                    {r.displayName && (
+                                                        <div className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+                                                            @{r.username}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <div className="text-slate-400 dark:text-slate-500 group-hover:text-sky-500 dark:group-hover:text-sky-400 transition-colors">
+                                                    <svg
+                                                        className="w-5 h-5"
+                                                        fill="none"
+                                                        stroke="currentColor"
+                                                        viewBox="0 0 24 24"
+                                                    >
+                                                        <path
+                                                            strokeLinecap="round"
+                                                            strokeLinejoin="round"
+                                                            strokeWidth="2"
+                                                            d="M9 5l7 7-7 7"
+                                                        />
+                                                    </svg>
+                                                </div>
+                                            </div>
                                         </button>
-                                    </li>
+                                    </div>
                                 ))}
-                            </ul>
+                            </div>
                         )}
                     </div>
                 </div>
