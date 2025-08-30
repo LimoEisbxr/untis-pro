@@ -43,7 +43,7 @@ router.post('/login', untisUserLimiter, async (req, res) => {
             },
         });
     }
-    
+
     // Try to find existing user first
     const existingUser = await findUserByCredentials({ ...parsed.data });
     if (existingUser) {
@@ -58,7 +58,7 @@ router.post('/login', untisUserLimiter, async (req, res) => {
             },
         });
     }
-    
+
     // User not found in database - verify with Untis and auto-register
     try {
         await verifyUntisCredentials(
@@ -72,7 +72,7 @@ router.post('/login', untisUserLimiter, async (req, res) => {
             code: e?.code,
         });
     }
-    
+
     // Create user with Untis credentials
     const user = await createUserIfNotExists({ ...parsed.data });
     const token = signToken({ userId: user.id });

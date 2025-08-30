@@ -3,11 +3,12 @@ services:
         image: postgres:16-alpine
         restart: unless-stopped
         environment:
-            POSTGRES_USER: postgres
-            POSTGRES_PASSWORD: postgres
+            # Pulled from .env (POSTGRES_USER / POSTGRES_PASSWORD); defaults keep dev simple
+            POSTGRES_USER: ${POSTGRES_USER:-postgres}
+            POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
             POSTGRES_DB: untis_pro
         ports:
-            - '5432:5432'
+            - '6666:5432'
         volumes:
             - pgdata:/var/lib/postgresql/data
         healthcheck:
@@ -26,10 +27,11 @@ services:
         env_file:
             - .env
         environment:
-            # Ensure DATABASE_URL points to the Postgres service inside the Compose network
-            DATABASE_URL: postgresql://postgres:postgres@db:5432/untis_pro?schema=public
+            # Use dynamic credentials so changing them in .env propagates
+            DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/untis_pro?schema=public
             JWT_SECRET: ${JWT_SECRET}
             PORT: ${PORT}
+            UNTIS_MASTER_KEY: ${UNTIS_MASTER_KEY}
             # Do not override CORS_ORIGIN so env file or runtime env controls it; if unset, backend reflects Origin
             CORS_ORIGIN: ${CORS_ORIGIN}
         ports:

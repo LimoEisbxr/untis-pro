@@ -1,5 +1,6 @@
 import { WebUntis } from 'webuntis';
 import { prisma } from '../store/prisma.js';
+import { decryptSecret } from '../server/crypto.js';
 import { UNTIS_DEFAULT_SCHOOL, UNTIS_HOST } from '../server/config.js';
 import { AppError } from '../server/errors.js';
 
@@ -24,8 +25,15 @@ export async function getOrFetchTimetableRange(args: {
         start: args.start,
         end: args.end,
     });
-    const target = await prisma.user.findUnique({
+    const target: any = await (prisma as any).user.findUnique({
         where: { id: args.targetUserId },
+        select: {
+            id: true,
+            username: true,
+            untisSecretCiphertext: true,
+            untisSecretNonce: true,
+            untisSecretKeyVersion: true,
+        },
     });
     if (!target) throw new Error('Target user not found');
 
@@ -37,10 +45,32 @@ export async function getOrFetchTimetableRange(args: {
         host,
         username: target.username,
     });
+    if (!target.untisSecretCiphertext || !target.untisSecretNonce) {
+        throw new AppError(
+            'User missing encrypted Untis credential',
+            400,
+            'MISSING_UNTIS_SECRET'
+        );
+    }
+    let untisPassword: string;
+    try {
+        untisPassword = decryptSecret({
+            ciphertext: target.untisSecretCiphertext as any,
+            nonce: target.untisSecretNonce as any,
+            keyVersion: target.untisSecretKeyVersion || 1,
+        });
+    } catch (e) {
+        console.error('[timetable] decrypt secret failed', e);
+        throw new AppError(
+            'Credential decryption failed',
+            500,
+            'DECRYPT_FAILED'
+        );
+    }
     const untis = new WebUntis(
         school,
         target.username,
-        target.password,
+        untisPassword,
         host
     ) as any;
     try {
