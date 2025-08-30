@@ -223,7 +223,8 @@ export default function Timetable({
     serverLessonOffsets = {},
     token,
     viewingUserId,
-    onWeekNavigate,
+    transitionDirection,
+    transitioningData,
 }: {
     data: TimetableResponse | null;
     weekStart: Date;
@@ -239,6 +240,8 @@ export default function Timetable({
     token?: string;
     viewingUserId?: string; // if admin is viewing a student
     onWeekNavigate?: (direction: 'prev' | 'next') => void; // optional external navigation handler
+    transitionDirection?: 'left' | 'right' | null; // animation direction
+    transitioningData?: TimetableResponse | null; // old data during transition
     // Extended: allow passing current offset when color set
     // (so initial color creation can persist chosen offset)
     // Keeping backwards compatibility (third param optional)
@@ -396,63 +399,6 @@ export default function Timetable({
         [monday]
     );
 
-    // Swipe gestures (mobile) to navigate weeks
-    const touchStartX = useRef<number | null>(null);
-    const touchStartY = useRef<number | null>(null);
-    const SWIPE_THRESHOLD = 60; // px
-    const SWIPE_MAX_OFF_AXIS = 80; // allow some vertical movement
-    const containerRef = useRef<HTMLDivElement | null>(null);
-    useEffect(() => {
-        const el = containerRef.current;
-        if (!el) return;
-        let skipSwipe = false;
-        const INTERACTIVE_SELECTOR =
-            'input,textarea,select,button,[contenteditable="true"],[role="textbox"]';
-        const handleTouchStart = (e: TouchEvent) => {
-            if (e.touches.length !== 1) return;
-            const target = e.target as HTMLElement | null;
-            // Ignore swipe if user starts on an interactive control to allow focusing
-            if (
-                target &&
-                (target.closest(INTERACTIVE_SELECTOR) ||
-                    target.tagName === 'INPUT')
-            ) {
-                skipSwipe = true;
-                touchStartX.current = null;
-                touchStartY.current = null;
-                return; // let the browser handle focus normally
-            }
-            skipSwipe = false;
-            touchStartX.current = e.touches[0].clientX;
-            touchStartY.current = e.touches[0].clientY;
-        };
-        const handleTouchEnd = (e: TouchEvent) => {
-            if (skipSwipe) {
-                skipSwipe = false;
-                return;
-            }
-            if (touchStartX.current == null || touchStartY.current == null)
-                return;
-            const dx = e.changedTouches[0].clientX - touchStartX.current;
-            const dy = e.changedTouches[0].clientY - touchStartY.current;
-            if (
-                Math.abs(dx) > SWIPE_THRESHOLD &&
-                Math.abs(dy) < SWIPE_MAX_OFF_AXIS
-            ) {
-                if (dx < 0) onWeekNavigate?.('next');
-                else onWeekNavigate?.('prev');
-            }
-            touchStartX.current = null;
-            touchStartY.current = null;
-        };
-        el.addEventListener('touchstart', handleTouchStart, { passive: true });
-        el.addEventListener('touchend', handleTouchEnd);
-        return () => {
-            el.removeEventListener('touchstart', handleTouchStart);
-            el.removeEventListener('touchend', handleTouchEnd);
-        };
-    }, [onWeekNavigate]);
-
     // Track current time and compute line position
     const [now, setNow] = useState<Date>(() => new Date());
     useEffect(() => {
@@ -494,6 +440,28 @@ export default function Timetable({
         return byDay;
     }, [data?.payload, days]);
 
+    // Compute lessons for transitioning data during animation
+    const transitioningLessonsByDay = useMemo(() => {
+        if (!transitioningData) return {};
+        const byDay: Record<string, Lesson[]> = {};
+        for (const d of days) byDay[fmtLocal(d)] = [];
+        const lessons = Array.isArray(transitioningData?.payload)
+            ? (transitioningData?.payload as Lesson[])
+            : [];
+        for (const l of lessons) {
+            const dStr = yyyymmddToISO(l.date);
+            if (byDay[dStr]) byDay[dStr].push(l);
+        }
+        for (const k of Object.keys(byDay)) {
+            byDay[k].sort(
+                (a, b) => a.startTime - b.startTime || a.endTime - b.endTime
+            );
+            // Apply lesson merging after sorting
+            byDay[k] = mergeLessons(byDay[k]);
+        }
+        return byDay;
+    }, [transitioningData, days]);
+
     const hasLessons = useMemo(
         () => Object.values(lessonsByDay).some((arr) => arr.length > 0),
         [lessonsByDay]
@@ -512,10 +480,7 @@ export default function Timetable({
         );
 
     return (
-        <div
-            ref={containerRef}
-            className="w-full overflow-x-hidden pt-[env(safe-area-inset-top)]"
-        >
+        <div className="w-full overflow-x-hidden pt-[env(safe-area-inset-top)]">
             {isDeveloperModeEnabled && (
                 <div className="mb-4 flex justify-end px-2">
                     <button
@@ -649,28 +614,68 @@ export default function Timetable({
                         BOTTOM_PAD_PX={BOTTOM_PAD_PX}
                         internalHeaderPx={internalHeaderPx}
                     />
+                    
+                    {/* Day columns with content transition support */}
                     {days.map((d) => {
                         const key = fmtLocal(d);
                         const items = lessonsByDay[key] || [];
+                        const transitioningItems = transitioningLessonsByDay[key] || [];
                         const isToday = key === todayISO;
+                        
                         return (
-                            <DayColumn
-                                key={key}
-                                day={d}
-                                keyStr={key}
-                                items={items}
-                                START_MIN={START_MIN}
-                                END_MIN={END_MIN}
-                                SCALE={SCALE}
-                                DAY_HEADER_PX={DAY_HEADER_PX}
-                                BOTTOM_PAD_PX={BOTTOM_PAD_PX}
-                                lessonColors={lessonColors}
-                                defaultLessonColors={defaultLessonColors}
-                                onLessonClick={handleLessonClick}
-                                isToday={isToday}
-                                gradientOffsets={gradientOffsets}
-                                hideHeader
-                            />
+                            <div key={key} className="relative">
+                                {/* Transitioning content (old data sliding out) */}
+                                {transitionDirection && transitioningData && (
+                                    <div className={`absolute inset-0 content-slide-container ${
+                                        transitionDirection === 'left' 
+                                            ? 'animate-slide-content-out-left' 
+                                            : 'animate-slide-content-out-right'
+                                    }`}>
+                                        <DayColumn
+                                            day={d}
+                                            keyStr={key}
+                                            items={transitioningItems}
+                                            START_MIN={START_MIN}
+                                            END_MIN={END_MIN}
+                                            SCALE={SCALE}
+                                            DAY_HEADER_PX={DAY_HEADER_PX}
+                                            BOTTOM_PAD_PX={BOTTOM_PAD_PX}
+                                            lessonColors={lessonColors}
+                                            defaultLessonColors={defaultLessonColors}
+                                            onLessonClick={handleLessonClick}
+                                            isToday={isToday}
+                                            gradientOffsets={gradientOffsets}
+                                            hideHeader
+                                        />
+                                    </div>
+                                )}
+                                
+                                {/* Current content (new data sliding in) */}
+                                <div className={`content-slide-container ${
+                                    transitionDirection 
+                                        ? (transitionDirection === 'left' 
+                                            ? 'animate-slide-content-in-right' 
+                                            : 'animate-slide-content-in-left')
+                                        : ''
+                                }`}>
+                                    <DayColumn
+                                        day={d}
+                                        keyStr={key}
+                                        items={items}
+                                        START_MIN={START_MIN}
+                                        END_MIN={END_MIN}
+                                        SCALE={SCALE}
+                                        DAY_HEADER_PX={DAY_HEADER_PX}
+                                        BOTTOM_PAD_PX={BOTTOM_PAD_PX}
+                                        lessonColors={lessonColors}
+                                        defaultLessonColors={defaultLessonColors}
+                                        onLessonClick={handleLessonClick}
+                                        isToday={isToday}
+                                        gradientOffsets={gradientOffsets}
+                                        hideHeader
+                                    />
+                                </div>
+                            </div>
                         );
                     })}
                 </div>

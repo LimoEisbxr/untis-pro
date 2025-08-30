@@ -70,6 +70,16 @@ export default function Dashboard({
     const [retrySeconds, setRetrySeconds] = useState<number | null>(null);
     // Settings modal state
     const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+    // Animation state for smooth week transitions - content only
+    const [weekTransitionDirection, setWeekTransitionDirection] = useState<'left' | 'right' | null>(null);
+    const [transitioningData, setTransitioningData] = useState<TimetableResponse | null>(null);
+
+    // Swipe gesture handling (moved to Dashboard level to work even when no timetable)
+    const mainContentRef = useRef<HTMLDivElement | null>(null);
+    const touchStartX = useRef<number | null>(null);
+    const touchStartY = useRef<number | null>(null);
+    const SWIPE_THRESHOLD = 60; // px
+    const SWIPE_MAX_OFF_AXIS = 80; // allow some vertical movement
 
     // Derive a friendly info message for admin users when their own timetable isn't available
     const adminInfoMessage = useMemo(() => {
@@ -358,6 +368,79 @@ export default function Dashboard({
         };
     }, [results.length]);
 
+    // Dashboard-level swipe handling for week navigation (works even when no timetable)
+    useEffect(() => {
+        const el = mainContentRef.current;
+        if (!el) return;
+        let skipSwipe = false;
+        const INTERACTIVE_SELECTOR =
+            'input,textarea,select,button,[contenteditable="true"],[role="textbox"]';
+        const handleTouchStart = (e: TouchEvent) => {
+            if (e.touches.length !== 1) return;
+            const target = e.target as HTMLElement | null;
+            // Ignore swipe if user starts on an interactive control to allow focusing
+            if (
+                target &&
+                (target.closest(INTERACTIVE_SELECTOR) ||
+                    target.tagName === 'INPUT')
+            ) {
+                skipSwipe = true;
+                touchStartX.current = null;
+                touchStartY.current = null;
+                return; // let the browser handle focus normally
+            }
+            skipSwipe = false;
+            touchStartX.current = e.touches[0].clientX;
+            touchStartY.current = e.touches[0].clientY;
+        };
+        const handleTouchEnd = (e: TouchEvent) => {
+            if (skipSwipe) {
+                skipSwipe = false;
+                return;
+            }
+            if (touchStartX.current == null || touchStartY.current == null)
+                return;
+            const dx = e.changedTouches[0].clientX - touchStartX.current;
+            const dy = e.changedTouches[0].clientY - touchStartY.current;
+            if (
+                Math.abs(dx) > SWIPE_THRESHOLD &&
+                Math.abs(dy) < SWIPE_MAX_OFF_AXIS
+            ) {
+                if (dx > 0) {
+                    // Swipe right = previous week (content moves right, new comes from left)
+                    const newData = { ...mine! }; // Current data becomes "old"
+                    setTransitioningData(newData);
+                    setWeekTransitionDirection('right');
+                    const ns = fmtLocal(addDays(new Date(start), -7));
+                    setStart(ns);
+                    setTimeout(() => {
+                        setWeekTransitionDirection(null);
+                        setTransitioningData(null);
+                    }, 400);
+                } else {
+                    // Swipe left = next week (content moves left, new comes from right)
+                    const newData = { ...mine! }; // Current data becomes "old"
+                    setTransitioningData(newData);
+                    setWeekTransitionDirection('left');
+                    const ns = fmtLocal(addDays(new Date(start), 7));
+                    setStart(ns);
+                    setTimeout(() => {
+                        setWeekTransitionDirection(null);
+                        setTransitioningData(null);
+                    }, 400);
+                }
+            }
+            touchStartX.current = null;
+            touchStartY.current = null;
+        };
+        el.addEventListener('touchstart', handleTouchStart, { passive: true });
+        el.addEventListener('touchend', handleTouchEnd);
+        return () => {
+            el.removeEventListener('touchstart', handleTouchStart);
+            el.removeEventListener('touchend', handleTouchEnd);
+        };
+    }, [start, mine]);
+
     return (
         <div className={'min-h-screen'}>
             <header className="header-blur">
@@ -433,18 +516,25 @@ export default function Dashboard({
                     </div>
                 </div>
             </header>
-            <main className="mx-auto max-w-screen-2xl p-4">
+            <main ref={mainContentRef} className="mx-auto max-w-screen-2xl p-4">
                 <section className="card p-4">
                     <div className="space-y-2 sm:space-y-4">
-                        {/* Row 1: navigation buttons (enlarged slightly on mobile) */}
-                        <div className="grid grid-cols-3 gap-2 sm:flex sm:w-full sm:items-center sm:gap-3">
+                        {/* Row 1: navigation buttons (desktop only - hidden on mobile for swipe-only navigation) */}
+                        <div className="hidden sm:flex sm:w-full sm:items-center sm:gap-3">
                             <button
                                 className="btn-secondary px-3 py-1.5 text-sm sm:text-sm flex items-center justify-center"
                                 onClick={() => {
+                                    const newData = { ...mine! };
+                                    setTransitioningData(newData);
+                                    setWeekTransitionDirection('right');
                                     const ns = fmtLocal(
                                         addDays(new Date(start), -7)
                                     );
                                     setStart(ns);
+                                    setTimeout(() => {
+                                        setWeekTransitionDirection(null);
+                                        setTransitioningData(null);
+                                    }, 400);
                                 }}
                                 aria-label="Previous week"
                             >
@@ -454,32 +544,43 @@ export default function Dashboard({
                                 <span className="hidden sm:inline">
                                     Prev Week
                                 </span>
-                                <span className="sm:hidden">Prev</span>
                             </button>
                             <button
                                 className="btn-secondary px-3 py-1.5 text-sm sm:text-sm flex items-center justify-center"
-                                onClick={() => setStart(fmtLocal(new Date()))}
+                                onClick={() => {
+                                    setWeekTransitionDirection('left');
+                                    setStart(fmtLocal(new Date()));
+                                    setTimeout(() => {
+                                        setWeekTransitionDirection(null);
+                                        setTransitioningData(null);
+                                    }, 400);
+                                }}
                                 aria-label="This week"
                             >
                                 <span className="hidden sm:inline">
                                     This Week
                                 </span>
-                                <span className="sm:hidden">This</span>
                             </button>
                             <button
                                 className="btn-secondary px-3 py-1.5 text-sm sm:text-sm flex items-center justify-center"
                                 onClick={() => {
+                                    const newData = { ...mine! };
+                                    setTransitioningData(newData);
+                                    setWeekTransitionDirection('left');
                                     const ns = fmtLocal(
                                         addDays(new Date(start), 7)
                                     );
                                     setStart(ns);
+                                    setTimeout(() => {
+                                        setWeekTransitionDirection(null);
+                                        setTransitioningData(null);
+                                    }, 400);
                                 }}
                                 aria-label="Next week"
                             >
                                 <span className="hidden sm:inline mr-1">
                                     Next Week
                                 </span>
-                                <span className="sm:hidden">Next</span>
                                 <span aria-hidden className="ml-1">
                                     →
                                 </span>
@@ -541,11 +642,12 @@ export default function Dashboard({
                                 <div className="hidden sm:flex pb-[2px]">
                                     <button
                                         className="rounded-full p-2 hover:bg-slate-200 dark:hover:bg-slate-700"
-                                        title="My timetable"
-                                        aria-label="Load my timetable"
+                                        title="My timetable (current week)"
+                                        aria-label="Load my timetable for current week"
                                         onClick={() => {
                                             setSelectedUser(null);
                                             setQueryText('');
+                                            setStart(fmtLocal(new Date())); // Reset to current week
                                             loadMine();
                                         }}
                                     >
@@ -589,13 +691,14 @@ export default function Dashboard({
 
                                 <button
                                     className="rounded-full p-2 hover:bg-slate-200 dark:hover:bg-slate-700"
-                                    title="My timetable"
+                                    title="My timetable (current week)"
                                     onClick={() => {
                                         setSelectedUser(null);
                                         setQueryText('');
+                                        setStart(fmtLocal(new Date())); // Reset to current week
                                         loadMine();
                                     }}
-                                    aria-label="Load my timetable"
+                                    aria-label="Load my timetable for current week"
                                 >
                                     <svg
                                         xmlns="http://www.w3.org/2000/svg"
@@ -651,30 +754,46 @@ export default function Dashboard({
                                 })()}
                             </div>
                         ) : null}
-                        <Timetable
-                            data={mine}
-                            weekStart={weekStartDate}
-                            lessonColors={lessonColors}
-                            defaultLessonColors={defaultLessonColors}
-                            isAdmin={!!user.isAdmin}
-                            onColorChange={handleColorChange}
-                            serverLessonOffsets={lessonOffsets}
-                            token={token}
-                            viewingUserId={selectedUser?.id}
-                            onWeekNavigate={(dir) => {
-                                if (dir === 'prev') {
-                                    const ns = fmtLocal(
-                                        addDays(new Date(start), -7)
-                                    );
-                                    setStart(ns);
-                                } else {
-                                    const ns = fmtLocal(
-                                        addDays(new Date(start), 7)
-                                    );
-                                    setStart(ns);
-                                }
-                            }}
-                        />
+                        <div className="content-transition-wrapper">
+                            <Timetable
+                                data={mine}
+                                weekStart={weekStartDate}
+                                lessonColors={lessonColors}
+                                defaultLessonColors={defaultLessonColors}
+                                isAdmin={!!user.isAdmin}
+                                onColorChange={handleColorChange}
+                                serverLessonOffsets={lessonOffsets}
+                                token={token}
+                                viewingUserId={selectedUser?.id}
+                                onWeekNavigate={(dir) => {
+                                    const newData = { ...mine! };
+                                    setTransitioningData(newData);
+                                    
+                                    // Trigger animation based on direction
+                                    setWeekTransitionDirection(dir === 'prev' ? 'right' : 'left');
+                                    
+                                    if (dir === 'prev') {
+                                        const ns = fmtLocal(
+                                            addDays(new Date(start), -7)
+                                        );
+                                        setStart(ns);
+                                    } else {
+                                        const ns = fmtLocal(
+                                            addDays(new Date(start), 7)
+                                        );
+                                        setStart(ns);
+                                    }
+                                    
+                                    // Reset animation state after animation completes
+                                    setTimeout(() => {
+                                        setWeekTransitionDirection(null);
+                                        setTransitioningData(null);
+                                    }, 400);
+                                }}
+                                transitionDirection={weekTransitionDirection}
+                                transitioningData={transitioningData}
+                            />
+                        </div>
                     </div>
                 </section>
             </main>
