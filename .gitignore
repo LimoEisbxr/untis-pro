@@ -6,3 +6,4 @@ example_untis_package_usage.ts
 /untis-pro-backend/prisma/migrations
 .env
 untis-pro-frontend/.env.example
+.env.save
