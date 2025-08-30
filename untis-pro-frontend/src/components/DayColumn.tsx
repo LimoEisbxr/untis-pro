@@ -249,61 +249,65 @@ const DayColumn: FC<DayColumnProps> = ({
                         leftPct = 0;
                     }
 
-                    // Pixel-snapped positioning with enforced 2px vertical gap
-                    const PAD_TOP = 4;
-                    const PAD_BOTTOM = 4;
+                    // Pixel-snapped positioning
+                    // Mobile: tighter outer padding but slightly larger minimum block height
+                    const PAD_TOP = isMobile ? 2 : 4;
+                    const PAD_BOTTOM = isMobile ? 2 : 4;
                     const startPxRaw =
                         (b.startMin - START_MIN) * SCALE + DAY_HEADER_PX;
                     const endPxRaw =
                         (b.endMin - START_MIN) * SCALE + DAY_HEADER_PX;
                     let topPx = Math.round(startPxRaw) + PAD_TOP;
                     const endPx = Math.round(endPxRaw) - PAD_BOTTOM;
-                    let heightPx = Math.max(12, endPx - topPx - 2); // 2px gap budget
+                    // Gap budget (space we leave for enforced separation after adjustments)
+                    const GAP_BUDGET = isMobile ? 1 : 2;
+                    // Minimum visual height per lesson
+                    const MIN_EVENT_HEIGHT = isMobile ? 24 : 12;
+                    let heightPx = Math.max(
+                        MIN_EVENT_HEIGHT,
+                        endPx - topPx - GAP_BUDGET
+                    );
 
                     // Enforce per-column cumulative bottom to avoid tiny overlaps from rounding
                     const colKey = `${b.colIndex}/${b.colCount}`;
                     const lastBottom = lastBottomByCol[colKey] ?? -Infinity;
-                    const desiredTop = lastBottom + 2; // 2px minimum gap
+                    const desiredTop = lastBottom + (isMobile ? 1 : 2); // reduced gap on mobile
                     if (topPx < desiredTop) {
                         const delta = desiredTop - topPx;
                         topPx += delta;
-                        heightPx = Math.max(12, heightPx - delta);
+                        heightPx = Math.max(MIN_EVENT_HEIGHT, heightPx - delta);
                     }
                     lastBottomByCol[colKey] = topPx + heightPx;
 
                     // Reserve space for bottom labels and pad right for indicators
                     const labelReservePx = cancelled || irregular ? 22 : 0;
-                    const MIN_BOTTOM_RESERVE = 6; // always keep a little breathing room
+                    const MIN_BOTTOM_RESERVE = isMobile ? 4 : 6; // slightly tighter on mobile
                     const reservedBottomPx = Math.max(
                         labelReservePx,
                         MIN_BOTTOM_RESERVE
                     );
-                    const indicatorCount =
-                        (l.homework && l.homework.length > 0 ? 1 : 0) +
-                        (l.info ? 1 : 0) +
-                        (l.lstext ? 1 : 0) +
-                        (l.exams && l.exams.length > 0 ? 1 : 0);
-                    // icon (12px) + gap (4px) each, plus 8px extra margin
-                    const indicatorsPadRightPx =
-                        indicatorCount > 0
-                            ? indicatorCount * 12 + (indicatorCount - 1) * 4 + 8
-                            : 0;
                     // Extra right padding for room label shown under icons on desktop
                     const roomPadRightPx = !isMobile && room ? 88 : 0;
-                    const MIN_PREVIEW_HEIGHT = 56;
+                    // Allow a more compact mobile layout: lower height threshold for previews
+                    const MIN_PREVIEW_HEIGHT = isMobile ? 44 : 56;
                     const canShowPreview =
                         heightPx - reservedBottomPx >= MIN_PREVIEW_HEIGHT;
 
                     // Compute content padding so mobile remains centered when icons exist
+                    // Desktop readability fix:
+                    // Previously we subtracted the full indicator stack width from the content area (indicatorsPadRightPx),
+                    // which caused FitText to aggressively down‑scale subject/time/teacher text even though the icons
+                    // only occupy a small corner on the right. We now only reserve space for the optional room label plus
+                    // a small constant (8px) and let the text flow underneath the vertical icon column if needed.
                     const contentPadRight = isMobile
-                        ? 0 // no overlay on mobile; icons will be in their own centered row
-                        : indicatorsPadRightPx + roomPadRightPx;
+                        ? 0 // mobile keeps centered layout
+                        : roomPadRightPx + 8; // exclude indicator width for better available text width
                     const contentPadLeft = 0;
 
                     return (
                         <div
                             key={l.id}
-                            className={`absolute rounded-md p-2 sm:p-2 text-[12px] sm:text-xs ring-1 ring-slate-900/15 dark:ring-white/20 overflow-hidden cursor-pointer transform-gpu transition duration-150 hover:shadow-lg hover:brightness-115 hover:saturate-150 hover:contrast-110 text-white ${
+                            className={`absolute rounded-md p-2 sm:p-2 text-[11px] sm:text-xs ring-1 ring-slate-900/15 dark:ring-white/20 overflow-hidden cursor-pointer transform duration-150 hover:shadow-lg hover:brightness-115 hover:saturate-150 hover:contrast-110 text-white ${
                                 cancelled
                                     ? 'bg-rose-500/90'
                                     : irregular
@@ -333,29 +337,57 @@ const DayColumn: FC<DayColumnProps> = ({
                                 <div className="flex gap-1">
                                     {l.homework && l.homework.length > 0 && (
                                         <div className="w-3 h-3 bg-amber-400 dark:bg-amber-500 rounded-full flex items-center justify-center shadow-sm">
-                                            <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                                <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
+                                            <svg
+                                                className="w-2 h-2 text-white"
+                                                fill="currentColor"
+                                                viewBox="0 0 20 20"
+                                            >
+                                                <path
+                                                    fillRule="evenodd"
+                                                    d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z"
+                                                    clipRule="evenodd"
+                                                />
                                             </svg>
                                         </div>
                                     )}
                                     {l.info && (
                                         <div className="w-3 h-3 bg-blue-400 dark:bg-blue-500 rounded-full flex items-center justify-center shadow-sm">
-                                            <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                                            <svg
+                                                className="w-2 h-2 text-white"
+                                                fill="currentColor"
+                                                viewBox="0 0 20 20"
+                                            >
+                                                <path
+                                                    fillRule="evenodd"
+                                                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                                                    clipRule="evenodd"
+                                                />
                                             </svg>
                                         </div>
                                     )}
                                     {l.lstext && (
                                         <div className="w-3 h-3 bg-indigo-400 dark:bg-indigo-500 rounded-full flex items-center justify-center shadow-sm">
-                                            <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                            <svg
+                                                className="w-2 h-2 text-white"
+                                                fill="currentColor"
+                                                viewBox="0 0 20 20"
+                                            >
                                                 <path d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h8.5a2 2 0 001.414-.586l2.5-2.5A2 2 0 0017 12.5V5a2 2 0 00-2-2H4zm9 10h1.586L13 14.586V13z" />
                                             </svg>
                                         </div>
                                     )}
                                     {l.exams && l.exams.length > 0 && (
                                         <div className="w-3 h-3 bg-red-400 dark:bg-red-500 rounded-full flex items-center justify-center shadow-sm">
-                                            <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                                <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
+                                            <svg
+                                                className="w-2 h-2 text-white"
+                                                fill="currentColor"
+                                                viewBox="0 0 20 20"
+                                            >
+                                                <path
+                                                    fillRule="evenodd"
+                                                    d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z"
+                                                    clipRule="evenodd"
+                                                />
                                             </svg>
                                         </div>
                                     )}
@@ -368,44 +400,87 @@ const DayColumn: FC<DayColumnProps> = ({
                             </div>
 
                             {/* Content */}
-                            <div className="flex h-full min-w-0 flex-col" style={{ paddingBottom: reservedBottomPx, paddingRight: contentPadRight, paddingLeft: contentPadLeft }}>
-                                {/* Mobile-only centered indicators (restore icons, improve contrast) */}
-                                <div className="flex sm:hidden justify-center gap-1 -mt-0.5 mb-0.5">
+                            <div
+                                className="flex h-full min-w-0 flex-col"
+                                style={{
+                                    paddingBottom: reservedBottomPx,
+                                    paddingRight: contentPadRight,
+                                    paddingLeft: contentPadLeft,
+                                }}
+                            >
+                                {/* Mobile: absolute icons overlay (no layout impact) */}
+                                <div className="sm:hidden absolute top-1.5 right-1.5 flex flex-col gap-1 items-end pointer-events-none">
                                     {l.homework && l.homework.length > 0 && (
-                                        <div className="w-4 h-4 bg-amber-500 dark:bg-amber-500 rounded-full flex items-center justify-center ring-1 ring-black/10 dark:ring-white/15 shadow">
-                                            <svg className="w-2.5 h-2.5 text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.35)]" fill="currentColor" viewBox="0 0 20 20">
-                                                <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
+                                        <div className="w-3.5 h-3.5 bg-amber-500/90 dark:bg-amber-500/90 rounded-full flex items-center justify-center ring-1 ring-black/15 dark:ring-white/20 shadow-md backdrop-blur-sm">
+                                            <svg
+                                                className="w-2 h-2 text-white"
+                                                fill="currentColor"
+                                                viewBox="0 0 20 20"
+                                            >
+                                                <path
+                                                    fillRule="evenodd"
+                                                    d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z"
+                                                    clipRule="evenodd"
+                                                />
                                             </svg>
                                         </div>
                                     )}
                                     {l.info && (
-                                        <div className="w-4 h-4 bg-blue-500 dark:bg-blue-500 rounded-full flex items-center justify-center ring-1 ring-black/10 dark:ring-white/15 shadow">
-                                            <svg className="w-2.5 h-2.5 text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.35)]" fill="currentColor" viewBox="0 0 20 20">
-                                                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                                        <div className="w-3.5 h-3.5 bg-blue-500/90 dark:bg-blue-500/90 rounded-full flex items-center justify-center ring-1 ring-black/15 dark:ring-white/20 shadow-md backdrop-blur-sm">
+                                            <svg
+                                                className="w-2 h-2 text-white"
+                                                fill="currentColor"
+                                                viewBox="0 0 20 20"
+                                            >
+                                                <path
+                                                    fillRule="evenodd"
+                                                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                                                    clipRule="evenodd"
+                                                />
                                             </svg>
                                         </div>
                                     )}
                                     {l.lstext && (
-                                        <div className="w-4 h-4 bg-violet-500 dark:bg-violet-400 rounded-full flex items-center justify-center ring-1 ring-black/10 dark:ring-white/15 shadow">
-                                            <svg className="w-2.5 h-2.5 text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.35)]" fill="currentColor" viewBox="0 0 20 20">
+                                        <div className="w-3.5 h-3.5 bg-violet-500/90 dark:bg-violet-400/90 rounded-full flex items-center justify-center ring-1 ring-black/15 dark:ring-white/20 shadow-md backdrop-blur-sm">
+                                            <svg
+                                                className="w-2 h-2 text-white"
+                                                fill="currentColor"
+                                                viewBox="0 0 20 20"
+                                            >
                                                 <path d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h8.5a2 2 0 001.414-.586l2.5-2.5A2 2 0 0017 12.5V5a2 2 0 00-2-2H4zm9 10h1.586L13 14.586V13z" />
                                             </svg>
                                         </div>
                                     )}
                                     {l.exams && l.exams.length > 0 && (
-                                        <div className="w-4 h-4 bg-red-500 dark:bg-red-500 rounded-full flex items-center justify-center ring-1 ring-black/10 dark:ring-white/15 shadow">
-                                            <svg className="w-2.5 h-2.5 text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.35)]" fill="currentColor" viewBox="0 0 20 20">
-                                                <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
+                                        <div className="w-3.5 h-3.5 bg-red-500/90 dark:bg-red-500/90 rounded-full flex items-center justify-center ring-1 ring-black/15 dark:ring-white/20 shadow-md backdrop-blur-sm">
+                                            <svg
+                                                className="w-2 h-2 text-white"
+                                                fill="currentColor"
+                                                viewBox="0 0 20 20"
+                                            >
+                                                <path
+                                                    fillRule="evenodd"
+                                                    d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z"
+                                                    clipRule="evenodd"
+                                                />
                                             </svg>
                                         </div>
                                     )}
                                 </div>
 
                                 {/* Mobile centered layout */}
-                                <div className="flex flex-col items-center justify-center text-center gap-1 h-full sm:hidden px-0.5">
+                                <div className="flex flex-col items-center justify-center text-center gap-0.5 h-full sm:hidden px-0.5">
+                                    {l.info && canShowPreview && (
+                                        <div className="w-full text-[11px] font-medium leading-snug px-1.5 py-0.5 rounded-md bg-white/25 dark:bg-white/15 backdrop-blur-sm shadow-sm text-white/95 max-h-[40px] overflow-hidden">
+                                            {l.info}
+                                        </div>
+                                    )}
                                     <div
                                         className="font-semibold leading-snug w-full whitespace-nowrap truncate"
-                                        style={{ fontSize: 'clamp(11px, 3.4vw, 14px)' }}
+                                        style={{
+                                            fontSize:
+                                                'clamp(11.5px, 3.4vw, 14px)',
+                                        }}
                                     >
                                         {displaySubject}
                                     </div>
@@ -419,32 +494,28 @@ const DayColumn: FC<DayColumnProps> = ({
                                             {roomMobile}
                                         </div>
                                     )}
-                                    {l.info && canShowPreview && (
-                                        <div className="text-[11px] opacity-90 leading-tight break-words whitespace-pre-wrap">
-                                            {l.info}
-                                        </div>
-                                    )}
                                     {/* Removed lstext preview in timetable (mobile) */}
                                 </div>
                                 {/* Original flexible desktop layout */}
                                 <div className="hidden sm:flex flex-col sm:flex-row items-stretch justify-between gap-1.5 sm:gap-2 min-w-0 h-full">
                                     <FitText
                                         mode="both"
-                                        maxScale={1.8}
+                                        maxScale={1.6}
+                                        minScale={0.9} // prevent overly tiny scaling that reduced readability
                                         reserveBottom={reservedBottomPx}
                                         className="min-w-0 self-stretch"
                                     >
-                                        <div className="font-semibold">
+                                        <div className="font-semibold leading-tight text-[13px]">
                                             {displaySubject}
                                         </div>
-                                        <div className="opacity-90 sm:mt-0">
+                                        <div className="opacity-90 sm:mt-0 leading-tight text-[12px]">
                                             <span className="whitespace-nowrap">
                                                 {fmtHM(b.startMin)}–
                                                 {fmtHM(b.endMin)}
                                             </span>
                                         </div>
                                         {teacher && (
-                                            <div className="opacity-90">
+                                            <div className="opacity-90 leading-tight text-[12px]">
                                                 {teacher}
                                             </div>
                                         )}

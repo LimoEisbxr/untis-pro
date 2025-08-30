@@ -351,20 +351,43 @@ export default function Dashboard({
                     <div className="logo-text text-xl sm:text-2xl">
                         Untis Pro
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center">
+                        <div className="text-sm text-slate-600 dark:text-slate-300 mr-4">
+                            {user.displayName || user.username}
+                        </div>
                         <button
                             className="rounded-full p-2 hover:bg-slate-200 dark:hover:bg-slate-700"
                             title="Settings"
                             onClick={() => setIsSettingsModalOpen(true)}
                             aria-label="Settings"
                         >
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="text-slate-600 dark:text-slate-300">
-                                <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                            <svg
+                                width="20"
+                                height="20"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                className="text-slate-600 dark:text-slate-300"
+                            >
+                                <path
+                                    d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                />
+                                <circle
+                                    cx="12"
+                                    cy="12"
+                                    r="3"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                />
                             </svg>
                         </button>
                         <button
-                            className="rounded-full p-2 hover:bg-slate-200 dark:hover:bg-slate-700"
+                            className="rounded-full p-2 hover:bg-slate-200 dark:hover:bg-slate-700 ml-1"
                             title="Toggle dark mode"
                             onClick={() => setDark(!dark)}
                             aria-label="Toggle dark mode"
@@ -387,10 +410,10 @@ export default function Dashboard({
                                 <MoonIcon />
                             )}
                         </button>
-                        <div className="text-sm text-slate-600 dark:text-slate-300">
-                            {user.displayName || user.username}
-                        </div>
-                        <button className="btn-secondary" onClick={onLogout}>
+                        <button
+                            className="btn-secondary ml-2 sm:ml-3"
+                            onClick={onLogout}
+                        >
                             Logout
                         </button>
                     </div>
@@ -398,77 +421,68 @@ export default function Dashboard({
             </header>
             <main className="mx-auto max-w-screen-2xl p-4">
                 <section className="card p-4">
-                    <div className="flex flex-wrap gap-3 items-end">
-                        <div className="flex w-full items-stretch gap-2 sm:w-auto sm:items-center">
+                    <div className="space-y-2 sm:space-y-4">
+                        {/* Row 1: navigation buttons (enlarged slightly on mobile) */}
+                        <div className="grid grid-cols-3 gap-2 sm:flex sm:w-full sm:items-center sm:gap-3">
                             <button
-                                className="btn-secondary flex flex-1 flex-col items-center justify-center leading-tight text-center sm:inline-flex sm:flex-none sm:flex-row sm:leading-normal"
+                                className="btn-secondary px-3 py-1.5 text-sm sm:text-sm flex items-center justify-center"
                                 onClick={() => {
                                     const ns = fmtLocal(
                                         addDays(new Date(start), -7)
                                     );
                                     setStart(ns);
                                 }}
+                                aria-label="Previous week"
                             >
-                                <span
-                                    aria-hidden="true"
-                                    className="hidden sm:inline mr-1"
-                                >
+                                <span aria-hidden className="mr-1 sm:mr-1">
                                     ←
                                 </span>
-                                <span className="mb-0.5 sm:mb-0">
-                                    Prev week
+                                <span className="hidden sm:inline">
+                                    Prev Week
                                 </span>
-                                <span aria-hidden="true" className="sm:hidden">
-                                    ←
-                                </span>
+                                <span className="sm:hidden">Prev</span>
                             </button>
                             <button
-                                className="btn-secondary flex flex-1 flex-col items-center justify-center leading-tight text-center sm:inline-flex sm:flex-none sm:flex-row sm:leading-normal"
-                                onClick={() => {
-                                    setStart(fmtLocal(new Date()));
-                                }}
+                                className="btn-secondary px-3 py-1.5 text-sm sm:text-sm flex items-center justify-center"
+                                onClick={() => setStart(fmtLocal(new Date()))}
+                                aria-label="This week"
                             >
-                                <span className="mb-0.5 sm:mb-0">
-                                    This week
+                                <span className="hidden sm:inline">
+                                    This Week
                                 </span>
-                                {/* Placeholder arrow for equal height on mobile */}
-                                <span
-                                    aria-hidden="true"
-                                    className="sm:hidden opacity-0 select-none"
-                                >
-                                    →
-                                </span>
+                                <span className="sm:hidden">This</span>
                             </button>
                             <button
-                                className="btn-secondary flex flex-1 flex-col items-center justify-center leading-tight text-center sm:inline-flex sm:flex-none sm:flex-row sm:leading-normal"
+                                className="btn-secondary px-3 py-1.5 text-sm sm:text-sm flex items-center justify-center"
                                 onClick={() => {
                                     const ns = fmtLocal(
                                         addDays(new Date(start), 7)
                                     );
                                     setStart(ns);
                                 }}
+                                aria-label="Next week"
                             >
-                                <span className="mb-0.5 sm:mb-0">
-                                    Next week
+                                <span className="hidden sm:inline mr-1">
+                                    Next Week
                                 </span>
-                                <span aria-hidden="true" className="sm:hidden">
-                                    →
-                                </span>
-                                <span
-                                    aria-hidden="true"
-                                    className="hidden sm:inline ml-1"
-                                >
+                                <span className="sm:hidden">Next</span>
+                                <span aria-hidden className="ml-1">
                                     →
                                 </span>
                             </button>
                         </div>
-                        <div className="flex items-end gap-2">
-                            <div>
-                                <label className="label">Find student</label>
+
+                        {/* Row 2: search, week selector, home icon (single row on mobile) */}
+                        <div className="grid grid-cols-12 gap-2 items-end sm:flex sm:flex-wrap sm:items-end sm:gap-3">
+                            {/* Search (col-span-7) */}
+                            <div className="col-span-7 sm:col-auto">
+                                <label className="label sm:text-sm text-[11px]">
+                                    Search
+                                </label>
                                 <div className="relative" ref={searchBoxRef}>
                                     <input
-                                        className="input pr-9"
-                                        placeholder="Search name or username"
+                                        className="input text-sm"
+                                        placeholder="Student…"
                                         value={queryText}
                                         onChange={(e) =>
                                             setQueryText(e.target.value)
@@ -517,8 +531,8 @@ export default function Dashboard({
                                     )}
                                 </div>
                             </div>
-                            <div className="pb-0.5">
-                                <label className="label invisible">Home</label>
+                            {/* Home icon (col-span-1) */}
+                            <div className="col-span-1 flex items-end justify-center sm:items-center">
                                 <button
                                     className="rounded-full p-2 hover:bg-slate-200 dark:hover:bg-slate-700"
                                     title="My timetable"
@@ -543,19 +557,22 @@ export default function Dashboard({
                                     </svg>
                                 </button>
                             </div>
-                        </div>
-                        <div>
-                            <label className="label">Week</label>
-                            <input
-                                type="date"
-                                className="input"
-                                value={start}
-                                onChange={(e) => setStart(e.target.value)}
-                            />
-                        </div>
-                        {/* Reload button removed per request */}
-                        <div className="ml-auto text-sm text-slate-600 dark:text-slate-300">
-                            Week: {weekStartStr} → {weekEndStr}
+                            {/* Week picker (col-span-4) */}
+                            <div className="col-span-4 sm:col-auto mr-5 sm:mr-0">
+                                <label className="label sm:text-sm text-[11px]">
+                                    Week
+                                </label>
+                                <input
+                                    type="date"
+                                    className="input text-sm"
+                                    value={start}
+                                    onChange={(e) => setStart(e.target.value)}
+                                />
+                            </div>
+                            {/* Desktop week range */}
+                            <div className="hidden sm:block text-sm text-slate-600 dark:text-slate-300 ml-auto pb-2">
+                                {weekStartStr} → {weekEndStr}
+                            </div>
                         </div>
                     </div>
                     <div className="mt-4">
@@ -593,7 +610,7 @@ export default function Dashboard({
                     </div>
                 </section>
             </main>
-            
+
             <SettingsModal
                 token={token}
                 user={user}
