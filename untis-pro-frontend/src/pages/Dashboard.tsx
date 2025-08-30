@@ -486,6 +486,7 @@ export default function Dashboard({
                             </button>
                         </div>
 
+
                         {/* Row 2: search (desktop), mobile icons (search+home), week picker */}
                         <div className="flex flex-wrap items-end gap-3">
                             {/* Desktop search */}
@@ -499,6 +500,7 @@ export default function Dashboard({
                                 <div className="relative">
                                     <input
                                         className="input text-sm pr-8"
+
                                         placeholder="Student…"
                                         value={queryText}
                                         onChange={(e) =>
@@ -580,6 +582,7 @@ export default function Dashboard({
                                         <path d="m21 21-4.35-4.35" />
                                     </svg>
                                 </button>
+
                                 <button
                                     className="rounded-full p-2 hover:bg-slate-200 dark:hover:bg-slate-700"
                                     title="My timetable"
@@ -671,6 +674,7 @@ export default function Dashboard({
                     </div>
                 </section>
             </main>
+
 
             {/* Mobile full-screen search overlay */}
             {mobileSearchOpen && (

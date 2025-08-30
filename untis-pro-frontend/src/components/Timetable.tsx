@@ -382,6 +382,7 @@ export default function Timetable({
                 setAxisWidth(56);
                 setDAY_HEADER_PX(32);
                 setBOTTOM_PAD_PX(14);
+
             }
         }
         computeScale();

@@ -269,6 +269,7 @@ const DayColumn: FC<DayColumnProps> = ({
                     // Gap budget (space we leave for enforced separation after adjustments)
                     const GAP_BUDGET = isMobile ? 1 : 2;
                     // Minimum visual height per lesson
+
                     const MIN_EVENT_HEIGHT = isMobile ? 30 : 14; // slightly larger baseline on mobile for tap comfort
                     let heightPx = Math.max(
                         MIN_EVENT_HEIGHT,
@@ -326,7 +327,9 @@ const DayColumn: FC<DayColumnProps> = ({
                     return (
                         <div
                             key={l.id}
+
                             className={`absolute rounded-md p-2 sm:p-2 text-[11px] sm:text-xs ring-1 ring-slate-900/10 dark:ring-white/15 overflow-hidden cursor-pointer transform duration-150 hover:shadow-lg hover:brightness-110 hover:saturate-140 hover:contrast-110 backdrop-blur-[1px] ${textColorClass} ${
+
                                 cancelled
                                     ? 'bg-rose-500/90'
                                     : irregular
@@ -504,6 +507,7 @@ const DayColumn: FC<DayColumnProps> = ({
                                         style={{
                                             fontSize:
                                                 'clamp(12px, 3.5vw, 15px)',
+
                                         }}
                                     >
                                         {displaySubject}
