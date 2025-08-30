@@ -24,6 +24,7 @@ export type Lesson = {
     code?: string; // e.g. 'cancelled'
     activityType?: string;
     info?: string; // Additional lesson information
+    lstext?: string; // Additional lesson text (notes)
     homework?: Homework[]; // Associated homework
     exams?: Exam[]; // Associated exams
 };

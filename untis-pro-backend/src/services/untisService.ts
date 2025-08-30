@@ -59,11 +59,11 @@ export async function getOrFetchTimetableRange(args: {
     }
 
     let lessonsData: any;
-    let homeworkData: any = [];
+    let homeworkData: any[] = [];
     let examData: any = [];
     const sd = args.start ? new Date(args.start) : undefined;
     const ed = args.end ? new Date(args.end) : undefined;
-    
+
     try {
         // Fetch all lessons using getOwnTimetableForRange
         if (typeof untis.getOwnTimetableForRange === 'function' && sd && ed) {
@@ -73,13 +73,17 @@ export async function getOrFetchTimetableRange(args: {
             });
             lessonsData = await untis.getOwnTimetableForRange(sd, ed);
         } else if (typeof untis.getOwnTimetableForToday === 'function') {
-            console.debug('[timetable] falling back to getOwnTimetableForToday');
+            console.debug(
+                '[timetable] falling back to getOwnTimetableForToday'
+            );
             lessonsData = await untis.getOwnTimetableForToday();
         } else {
-            console.debug('[timetable] calling getTimetableForToday (fallback)');
+            console.debug(
+                '[timetable] calling getTimetableForToday (fallback)'
+            );
             lessonsData = await untis.getTimetableForToday?.();
         }
-        
+
         // Fetch homework separately using getHomeWorksFor
         if (sd && ed && typeof untis.getHomeWorksFor === 'function') {
             console.debug('[timetable] calling getHomeWorksFor', {
@@ -87,13 +91,54 @@ export async function getOrFetchTimetableRange(args: {
                 end: ed,
             });
             try {
-                homeworkData = await untis.getHomeWorksFor(sd, ed);
+                const hwResp = await untis.getHomeWorksFor(sd, ed);
+                // Extract array of homework items from response shape
+                homeworkData = Array.isArray(hwResp)
+                    ? hwResp
+                    : Array.isArray(hwResp?.homeworks)
+                    ? hwResp.homeworks
+                    : [];
+                // Build a map of lessonId -> subject string if available
+                const lessonSubjectByLessonId: Map<number, string> = new Map();
+                const lessonsArr: any[] = Array.isArray(hwResp?.lessons)
+                    ? hwResp.lessons
+                    : [];
+                for (const l of lessonsArr) {
+                    if (
+                        typeof l?.id === 'number' &&
+                        typeof l?.subject === 'string'
+                    ) {
+                        lessonSubjectByLessonId.set(l.id, l.subject);
+                    }
+                }
+                console.debug(
+                    '[timetable] fetched homework count',
+                    homeworkData.length
+                );
+                // Persist with subject enrichment and due dates
+                if (homeworkData.length > 0) {
+                    try {
+                        await storeHomeworkData(
+                            target.id,
+                            homeworkData,
+                            lessonSubjectByLessonId
+                        );
+                    } catch (e: any) {
+                        console.warn(
+                            '[timetable] failed to store homework data',
+                            e?.message
+                        );
+                    }
+                }
             } catch (e: any) {
-                console.warn('[timetable] getHomeWorksFor failed, continuing without homework', e?.message);
+                console.warn(
+                    '[timetable] getHomeWorksFor failed, continuing without homework',
+                    e?.message
+                );
                 homeworkData = [];
             }
         }
-        
+
         // Fetch exams for the range if available
         if (sd && ed && typeof untis.getExamsForRange === 'function') {
             console.debug('[timetable] calling getExamsForRange', {
@@ -103,11 +148,13 @@ export async function getOrFetchTimetableRange(args: {
             try {
                 examData = await untis.getExamsForRange(sd, ed);
             } catch (e: any) {
-                console.warn('[timetable] getExamsForRange failed, continuing without exams', e?.message);
+                console.warn(
+                    '[timetable] getExamsForRange failed, continuing without exams',
+                    e?.message
+                );
                 examData = [];
             }
         }
-        
     } catch (e: any) {
         const msg = String(e?.message || '').toLowerCase();
         // Treat "no result" from Untis as an empty timetable instead of erroring
@@ -126,14 +173,14 @@ export async function getOrFetchTimetableRange(args: {
     }
 
     // Store homework and exam data in database
-    if (homeworkData && Array.isArray(homeworkData) && homeworkData.length > 0) {
-        try {
-            await storeHomeworkData(target.id, homeworkData);
-        } catch (e: any) {
-            console.warn('[timetable] failed to store homework data', e?.message);
-        }
+    if (
+        homeworkData &&
+        Array.isArray(homeworkData) &&
+        homeworkData.length > 0
+    ) {
+        // Already stored above when getHomeWorksFor succeeded. Keep block in case of future sources.
     }
-    
+
     if (examData && Array.isArray(examData) && examData.length > 0) {
         try {
             await storeExamData(target.id, examData);
@@ -163,7 +210,7 @@ export async function getOrFetchTimetableRange(args: {
         hasPayload: !!payload,
         type: typeof payload,
         lessonsCount: Array.isArray(lessonsData) ? lessonsData.length : 0,
-        homeworkCount: Array.isArray(homeworkData) ? homeworkData.length : 0,
+        homeworkCount: homeworkData.length,
         examsCount: Array.isArray(examData) ? examData.length : 0,
         sample: (() => {
             try {
@@ -211,16 +258,29 @@ export async function verifyUntisCredentials(
     }
 }
 
-async function storeHomeworkData(userId: string, homeworkData: any[]) {
+async function storeHomeworkData(
+    userId: string,
+    homeworkData: any[],
+    lessonSubjectByLessonId?: Map<number, string>
+) {
     for (const hw of homeworkData) {
         try {
+            // Determine subject string via mapping (fallback to hw.subject?.name)
+            const subjectStr =
+                (typeof hw.lessonId === 'number' &&
+                    lessonSubjectByLessonId?.get(hw.lessonId)) ||
+                hw.subject?.name ||
+                '';
             await (prisma as any).homework.upsert({
                 where: { untisId: hw.id },
                 update: {
                     lessonId: hw.lessonId,
-                    date: hw.date,
-                    subjectId: hw.subject?.id,
-                    subject: hw.subject?.name || '',
+                    // Store due date; Untis returns both date (assigned) and dueDate
+                    date: hw.dueDate ?? hw.date,
+                    subjectId: Number.isInteger(hw.subject?.id)
+                        ? hw.subject?.id
+                        : 0,
+                    subject: subjectStr,
                     text: hw.text || '',
                     remark: hw.remark,
                     completed: hw.completed || false,
@@ -230,16 +290,22 @@ async function storeHomeworkData(userId: string, homeworkData: any[]) {
                     untisId: hw.id,
                     userId,
                     lessonId: hw.lessonId,
-                    date: hw.date,
-                    subjectId: hw.subject?.id,
-                    subject: hw.subject?.name || '',
+                    // Store due date; Untis returns both date (assigned) and dueDate
+                    date: hw.dueDate ?? hw.date,
+                    subjectId: Number.isInteger(hw.subject?.id)
+                        ? hw.subject?.id
+                        : 0,
+                    subject: subjectStr,
                     text: hw.text || '',
                     remark: hw.remark,
                     completed: hw.completed || false,
                 },
             });
         } catch (e: any) {
-            console.warn(`[homework] failed to store homework ${hw.id}:`, e?.message);
+            console.warn(
+                `[homework] failed to store homework ${hw?.id}:`,
+                e?.message
+            );
         }
     }
 }
@@ -291,11 +357,15 @@ async function enrichLessonsWithHomeworkAndExams(
 ): Promise<any[]> {
     if (!Array.isArray(lessons)) return lessons;
 
-    // Get homework and exams for the date range
+    // Get homework and exams for the date range (due date for homework)
     const whereClause: any = { userId };
     if (startDate && endDate) {
-        const startDateInt = parseInt(startDate.toISOString().slice(0, 10).replace(/-/g, ''));
-        const endDateInt = parseInt(endDate.toISOString().slice(0, 10).replace(/-/g, ''));
+        const startDateInt = parseInt(
+            startDate.toISOString().slice(0, 10).replace(/-/g, '')
+        );
+        const endDateInt = parseInt(
+            endDate.toISOString().slice(0, 10).replace(/-/g, '')
+        );
         whereClause.date = {
             gte: startDateInt,
             lte: endDateInt,
@@ -307,35 +377,57 @@ async function enrichLessonsWithHomeworkAndExams(
         (prisma as any).exam.findMany({ where: whereClause }),
     ]);
 
+    const lessonMatchesHw = (hw: any, lesson: any) => {
+        const idsToCheck = [
+            lesson?.id,
+            lesson?.lsnumber,
+            lesson?.lsNumber,
+            lesson?.ls,
+            lesson?.lessonId,
+        ].filter((v) => typeof v === 'number');
+        return idsToCheck.some((v) => v === hw.lessonId);
+    };
+
     // Enrich lessons with homework and exam data
     return lessons.map((lesson) => {
-        const lessonHomework = homework.filter((hw: any) => 
-            hw.lessonId === lesson.id || 
-            (hw.date === lesson.date && hw.subject === lesson.su?.[0]?.name)
-        ).map((hw: any) => ({
-            id: hw.untisId,
-            lessonId: hw.lessonId,
-            date: hw.date,
-            subject: { id: hw.subjectId, name: hw.subject },
-            text: hw.text,
-            remark: hw.remark,
-            completed: hw.completed,
-        }));
+        const subjectName = lesson.su?.[0]?.name;
+        const lessonHomework = homework
+            .filter(
+                (hw: any) =>
+                    lessonMatchesHw(hw, lesson) ||
+                    (hw.date === lesson.date &&
+                        hw.subject &&
+                        subjectName &&
+                        hw.subject === subjectName)
+            )
+            .map((hw: any) => ({
+                id: hw.untisId,
+                lessonId: hw.lessonId,
+                date: hw.date,
+                subject: { id: hw.subjectId, name: hw.subject },
+                text: hw.text,
+                remark: hw.remark,
+                completed: hw.completed,
+            }));
 
-        const lessonExams = exams.filter((exam: any) =>
-            exam.date === lesson.date && exam.subject === lesson.su?.[0]?.name
-        ).map((exam: any) => ({
-            id: exam.untisId,
-            date: exam.date,
-            startTime: exam.startTime,
-            endTime: exam.endTime,
-            subject: { id: exam.subjectId, name: exam.subject },
-            // Values are already JSON in DB
-            teachers: exam.teachers ?? undefined,
-            rooms: exam.rooms ?? undefined,
-            name: exam.name,
-            text: exam.text,
-        }));
+        const lessonExams = exams
+            .filter(
+                (exam: any) =>
+                    exam.date === lesson.date &&
+                    exam.subject === lesson.su?.[0]?.name
+            )
+            .map((exam: any) => ({
+                id: exam.untisId,
+                date: exam.date,
+                startTime: exam.startTime,
+                endTime: exam.endTime,
+                subject: { id: exam.subjectId, name: exam.subject },
+                // Values are already JSON in DB
+                teachers: exam.teachers ?? undefined,
+                rooms: exam.rooms ?? undefined,
+                name: exam.name,
+                text: exam.text,
+            }));
 
         return {
             ...lesson,
@@ -344,5 +436,3 @@ async function enrichLessonsWithHomeworkAndExams(
         };
     });
 }
-
-
