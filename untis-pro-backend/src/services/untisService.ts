@@ -65,18 +65,12 @@ export async function getOrFetchTimetableRange(args: {
     const ed = args.end ? new Date(args.end) : undefined;
     
     try {
-        // Fetch lessons with homework using getHomeWorkAndLessons
-        if (sd && ed && typeof untis.getHomeWorkAndLessons === 'function') {
-            console.debug('[timetable] calling getHomeWorkAndLessons', {
+        // Fetch all lessons using getOwnTimetableForRange
+        if (typeof untis.getOwnTimetableForRange === 'function' && sd && ed) {
+            console.debug('[timetable] calling getOwnTimetableForRange', {
                 start: sd,
                 end: ed,
             });
-            const homeworkAndLessons = await untis.getHomeWorkAndLessons(sd, ed);
-            lessonsData = normalizeLessonsData(homeworkAndLessons.lessons || []);
-            homeworkData = homeworkAndLessons.homework || [];
-        } else if (typeof untis.getOwnTimetableForRange === 'function' && sd && ed) {
-            // Fallback to regular timetable
-            console.debug('[timetable] falling back to getOwnTimetableForRange');
             lessonsData = await untis.getOwnTimetableForRange(sd, ed);
         } else if (typeof untis.getOwnTimetableForToday === 'function') {
             console.debug('[timetable] falling back to getOwnTimetableForToday');
@@ -84,6 +78,20 @@ export async function getOrFetchTimetableRange(args: {
         } else {
             console.debug('[timetable] calling getTimetableForToday (fallback)');
             lessonsData = await untis.getTimetableForToday?.();
+        }
+        
+        // Fetch homework separately using getHomeWorksFor
+        if (sd && ed && typeof untis.getHomeWorksFor === 'function') {
+            console.debug('[timetable] calling getHomeWorksFor', {
+                start: sd,
+                end: ed,
+            });
+            try {
+                homeworkData = await untis.getHomeWorksFor(sd, ed);
+            } catch (e: any) {
+                console.warn('[timetable] getHomeWorksFor failed, continuing without homework', e?.message);
+                homeworkData = [];
+            }
         }
         
         // Fetch exams for the range if available
@@ -249,9 +257,9 @@ async function storeExamData(userId: string, examData: any[]) {
                     subject: exam.subject?.name || '',
                     name: exam.name || '',
                     text: exam.text,
-                    // Store as JSON or set DB NULL when absent
-                    teachers: exam.teachers ?? Prisma.DbNull,
-                    rooms: exam.rooms ?? Prisma.DbNull,
+                    // Store as JSON or set null when absent
+                    teachers: exam.teachers ?? null,
+                    rooms: exam.rooms ?? null,
                     fetchedAt: new Date(),
                 },
                 create: {
@@ -264,9 +272,9 @@ async function storeExamData(userId: string, examData: any[]) {
                     subject: exam.subject?.name || '',
                     name: exam.name || '',
                     text: exam.text,
-                    // Store as JSON or set DB NULL when absent
-                    teachers: exam.teachers ?? Prisma.DbNull,
-                    rooms: exam.rooms ?? Prisma.DbNull,
+                    // Store as JSON or set null when absent
+                    teachers: exam.teachers ?? null,
+                    rooms: exam.rooms ?? null,
                 },
             });
         } catch (e: any) {
@@ -337,60 +345,4 @@ async function enrichLessonsWithHomeworkAndExams(
     });
 }
 
-// Normalize lessons data from getHomeWorkAndLessons to match standard timetable format
-function normalizeLessonsData(lessons: any[]): any[] {
-    if (!Array.isArray(lessons)) return [];
-    
-    return lessons.map((lesson: any) => {
-        // Debug log to understand the lesson structure
-        console.debug('[normalize] processing lesson:', {
-            keys: Object.keys(lesson),
-            sample: JSON.stringify(lesson).slice(0, 200)
-        });
-        
-        // If lesson already has the standard format, return as-is
-        if (lesson.date && lesson.startTime && lesson.endTime) {
-            return lesson;
-        }
-        
-        // Transform getHomeWorkAndLessons format to standard format
-        const normalized: any = {
-            id: lesson.id,
-            date: lesson.date || lesson.lessonDate || 0,
-            startTime: lesson.startTime || lesson.start || lesson.beginTime || 0,
-            endTime: lesson.endTime || lesson.end || lesson.endTime || 0,
-            code: lesson.code,
-            activityType: lesson.activityType || lesson.lessonType,
-            info: lesson.info || lesson.lessonText,
-        };
-        
-        // Handle subject transformation
-        if (lesson.subject) {
-            if (typeof lesson.subject === 'string') {
-                // Convert string subject to array format
-                normalized.su = [{ id: 0, name: lesson.subject, longname: lesson.subject }];
-            } else if (Array.isArray(lesson.subject)) {
-                normalized.su = lesson.subject;
-            } else if (typeof lesson.subject === 'object' && lesson.subject.name) {
-                normalized.su = [lesson.subject];
-            }
-        }
-        
-        // Handle teachers
-        if (lesson.teachers || lesson.te) {
-            normalized.te = lesson.teachers || lesson.te;
-        }
-        
-        // Handle rooms
-        if (lesson.rooms || lesson.ro) {
-            normalized.ro = lesson.rooms || lesson.ro;
-        }
-        
-        console.debug('[normalize] normalized lesson:', {
-            original: { id: lesson.id, subject: lesson.subject, lessonType: lesson.lessonType },
-            normalized: { id: normalized.id, date: normalized.date, startTime: normalized.startTime, endTime: normalized.endTime, su: normalized.su }
-        });
-        
-        return normalized;
-    });
-}
+
