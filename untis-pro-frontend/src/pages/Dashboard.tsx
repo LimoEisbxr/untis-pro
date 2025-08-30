@@ -70,6 +70,8 @@ export default function Dashboard({
     const [retrySeconds, setRetrySeconds] = useState<number | null>(null);
     // Settings modal state
     const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+    // Animation state for smooth week transitions
+    const [weekTransitionDirection, setWeekTransitionDirection] = useState<'left' | 'right' | null>(null);
 
     // Derive a friendly info message for admin users when their own timetable isn't available
     const adminInfoMessage = useMemo(() => {
@@ -436,15 +438,17 @@ export default function Dashboard({
             <main className="mx-auto max-w-screen-2xl p-4">
                 <section className="card p-4">
                     <div className="space-y-2 sm:space-y-4">
-                        {/* Row 1: navigation buttons (enlarged slightly on mobile) */}
-                        <div className="grid grid-cols-3 gap-2 sm:flex sm:w-full sm:items-center sm:gap-3">
+                        {/* Row 1: navigation buttons (desktop only - hidden on mobile for swipe-only navigation) */}
+                        <div className="hidden sm:flex sm:w-full sm:items-center sm:gap-3">
                             <button
                                 className="btn-secondary px-3 py-1.5 text-sm sm:text-sm flex items-center justify-center"
                                 onClick={() => {
+                                    setWeekTransitionDirection('right');
                                     const ns = fmtLocal(
                                         addDays(new Date(start), -7)
                                     );
                                     setStart(ns);
+                                    setTimeout(() => setWeekTransitionDirection(null), 300);
                                 }}
                                 aria-label="Previous week"
                             >
@@ -454,32 +458,35 @@ export default function Dashboard({
                                 <span className="hidden sm:inline">
                                     Prev Week
                                 </span>
-                                <span className="sm:hidden">Prev</span>
                             </button>
                             <button
                                 className="btn-secondary px-3 py-1.5 text-sm sm:text-sm flex items-center justify-center"
-                                onClick={() => setStart(fmtLocal(new Date()))}
+                                onClick={() => {
+                                    setWeekTransitionDirection('left');
+                                    setStart(fmtLocal(new Date()));
+                                    setTimeout(() => setWeekTransitionDirection(null), 300);
+                                }}
                                 aria-label="This week"
                             >
                                 <span className="hidden sm:inline">
                                     This Week
                                 </span>
-                                <span className="sm:hidden">This</span>
                             </button>
                             <button
                                 className="btn-secondary px-3 py-1.5 text-sm sm:text-sm flex items-center justify-center"
                                 onClick={() => {
+                                    setWeekTransitionDirection('left');
                                     const ns = fmtLocal(
                                         addDays(new Date(start), 7)
                                     );
                                     setStart(ns);
+                                    setTimeout(() => setWeekTransitionDirection(null), 300);
                                 }}
                                 aria-label="Next week"
                             >
                                 <span className="hidden sm:inline mr-1">
                                     Next Week
                                 </span>
-                                <span className="sm:hidden">Next</span>
                                 <span aria-hidden className="ml-1">
                                     →
                                 </span>
@@ -541,11 +548,12 @@ export default function Dashboard({
                                 <div className="hidden sm:flex pb-[2px]">
                                     <button
                                         className="rounded-full p-2 hover:bg-slate-200 dark:hover:bg-slate-700"
-                                        title="My timetable"
-                                        aria-label="Load my timetable"
+                                        title="My timetable (current week)"
+                                        aria-label="Load my timetable for current week"
                                         onClick={() => {
                                             setSelectedUser(null);
                                             setQueryText('');
+                                            setStart(fmtLocal(new Date())); // Reset to current week
                                             loadMine();
                                         }}
                                     >
@@ -589,13 +597,14 @@ export default function Dashboard({
 
                                 <button
                                     className="rounded-full p-2 hover:bg-slate-200 dark:hover:bg-slate-700"
-                                    title="My timetable"
+                                    title="My timetable (current week)"
                                     onClick={() => {
                                         setSelectedUser(null);
                                         setQueryText('');
+                                        setStart(fmtLocal(new Date())); // Reset to current week
                                         loadMine();
                                     }}
-                                    aria-label="Load my timetable"
+                                    aria-label="Load my timetable for current week"
                                 >
                                     <svg
                                         xmlns="http://www.w3.org/2000/svg"
@@ -651,30 +660,38 @@ export default function Dashboard({
                                 })()}
                             </div>
                         ) : null}
-                        <Timetable
-                            data={mine}
-                            weekStart={weekStartDate}
-                            lessonColors={lessonColors}
-                            defaultLessonColors={defaultLessonColors}
-                            isAdmin={!!user.isAdmin}
-                            onColorChange={handleColorChange}
-                            serverLessonOffsets={lessonOffsets}
-                            token={token}
-                            viewingUserId={selectedUser?.id}
-                            onWeekNavigate={(dir) => {
-                                if (dir === 'prev') {
-                                    const ns = fmtLocal(
-                                        addDays(new Date(start), -7)
-                                    );
-                                    setStart(ns);
-                                } else {
-                                    const ns = fmtLocal(
-                                        addDays(new Date(start), 7)
-                                    );
-                                    setStart(ns);
-                                }
-                            }}
-                        />
+                        <div className={`week-transition ${weekTransitionDirection === 'left' ? 'animate-slide-in-left' : weekTransitionDirection === 'right' ? 'animate-slide-in-right' : ''}`}>
+                            <Timetable
+                                data={mine}
+                                weekStart={weekStartDate}
+                                lessonColors={lessonColors}
+                                defaultLessonColors={defaultLessonColors}
+                                isAdmin={!!user.isAdmin}
+                                onColorChange={handleColorChange}
+                                serverLessonOffsets={lessonOffsets}
+                                token={token}
+                                viewingUserId={selectedUser?.id}
+                                onWeekNavigate={(dir) => {
+                                    // Trigger animation based on direction
+                                    setWeekTransitionDirection(dir === 'prev' ? 'right' : 'left');
+                                    
+                                    if (dir === 'prev') {
+                                        const ns = fmtLocal(
+                                            addDays(new Date(start), -7)
+                                        );
+                                        setStart(ns);
+                                    } else {
+                                        const ns = fmtLocal(
+                                            addDays(new Date(start), 7)
+                                        );
+                                        setStart(ns);
+                                    }
+                                    
+                                    // Reset animation state after animation completes
+                                    setTimeout(() => setWeekTransitionDirection(null), 300);
+                                }}
+                            />
+                        </div>
                     </div>
                 </section>
             </main>
