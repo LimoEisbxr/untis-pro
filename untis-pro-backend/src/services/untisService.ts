@@ -266,13 +266,34 @@ async function fetchAndStoreUntis(args: {
                 end: ed,
             });
             try {
+                // Try without klasseId first (for student accounts)
                 examData = await untis.getExamsForRange(sd, ed);
+                console.debug('[timetable] fetched exam data', {
+                    count: Array.isArray(examData) ? examData.length : 0,
+                    sample: Array.isArray(examData) && examData.length > 0 ? examData[0] : null,
+                });
             } catch (e: any) {
                 console.warn(
-                    '[timetable] getExamsForRange failed, continuing without exams',
+                    '[timetable] getExamsForRange failed, trying getHomeWorkAndLessons fallback',
                     e?.message
                 );
-                examData = [];
+                // Try alternative method that might include exams
+                if (typeof untis.getHomeWorkAndLessons === 'function') {
+                    try {
+                        console.debug('[timetable] trying getHomeWorkAndLessons fallback');
+                        const hwAndLessons = await untis.getHomeWorkAndLessons(sd, ed);
+                        // Extract exams if available in the response
+                        examData = hwAndLessons?.exams || [];
+                        console.debug('[timetable] fallback exam data', {
+                            count: Array.isArray(examData) ? examData.length : 0,
+                        });
+                    } catch (fallbackError: any) {
+                        console.warn('[timetable] getHomeWorkAndLessons fallback also failed', fallbackError?.message);
+                        examData = [];
+                    }
+                } else {
+                    examData = [];
+                }
             }
         }
     } catch (e: any) {
@@ -582,34 +603,44 @@ async function storeHomeworkData(
 async function storeExamData(userId: string, examData: any[]) {
     for (const exam of examData) {
         try {
+            // Handle the correct WebUntis API response format
+            // examDate vs date, subject string vs object, etc.
+            const examDate = exam.examDate || exam.date;
+            const subjectName = typeof exam.subject === 'string' 
+                ? exam.subject 
+                : exam.subject?.name || '';
+            const subjectId = typeof exam.subject === 'object' 
+                ? exam.subject?.id 
+                : null;
+            
             await (prisma as any).exam.upsert({
                 where: { untisId: exam.id },
                 update: {
-                    date: exam.date,
+                    date: examDate,
                     startTime: exam.startTime,
                     endTime: exam.endTime,
-                    subjectId: exam.subject?.id,
-                    subject: exam.subject?.name || '',
+                    subjectId: subjectId,
+                    subject: subjectName,
                     name: exam.name || '',
-                    text: exam.text,
-                    // Store as JSON or set null when absent
-                    teachers: exam.teachers ?? null,
-                    rooms: exam.rooms ?? null,
+                    text: exam.text || null,
+                    // Handle teachers and rooms arrays
+                    teachers: Array.isArray(exam.teachers) ? exam.teachers : null,
+                    rooms: Array.isArray(exam.rooms) ? exam.rooms : null,
                     fetchedAt: new Date(),
                 },
                 create: {
                     untisId: exam.id,
                     userId,
-                    date: exam.date,
+                    date: examDate,
                     startTime: exam.startTime,
                     endTime: exam.endTime,
-                    subjectId: exam.subject?.id,
-                    subject: exam.subject?.name || '',
+                    subjectId: subjectId,
+                    subject: subjectName,
                     name: exam.name || '',
-                    text: exam.text,
-                    // Store as JSON or set null when absent
-                    teachers: exam.teachers ?? null,
-                    rooms: exam.rooms ?? null,
+                    text: exam.text || null,
+                    // Handle teachers and rooms arrays
+                    teachers: Array.isArray(exam.teachers) ? exam.teachers : null,
+                    rooms: Array.isArray(exam.rooms) ? exam.rooms : null,
                 },
             });
         } catch (e: any) {
@@ -646,6 +677,17 @@ async function enrichLessonsWithHomeworkAndExams(
         (prisma as any).exam.findMany({ where: whereClause }),
     ]);
 
+    console.debug('[enrichLessonsWithHomeworkAndExams]', {
+        lessonsCount: lessons.length,
+        homeworkCount: homework.length,
+        examsCount: exams.length,
+        exampleExam: exams.length > 0 ? exams[0] : null,
+        exampleLesson: lessons.length > 0 ? {
+            date: lessons[0].date,
+            subject: lessons[0].su?.[0]?.name,
+        } : null,
+    });
+
     const lessonMatchesHw = (hw: any, lesson: any) => {
         const idsToCheck = [
             lesson?.id,
@@ -660,6 +702,19 @@ async function enrichLessonsWithHomeworkAndExams(
     // Enrich lessons with homework and exam data
     return lessons.map((lesson) => {
         const subjectName = lesson.su?.[0]?.name;
+        
+        // Debug lesson data to see what fields are available
+        console.debug('[enrichLessonsWithHomeworkAndExams] lesson sample', {
+            lessonId: lesson.id,
+            lessonDate: lesson.date,
+            lessonSubject: subjectName,
+            hasInfo: !!lesson.info,
+            infoValue: lesson.info,
+            hasLstext: !!lesson.lstext,
+            lstextValue: lesson.lstext,
+            allLessonKeys: Object.keys(lesson),
+        });
+        
         const lessonHomework = homework
             .filter(
                 (hw: any) =>
@@ -681,9 +736,29 @@ async function enrichLessonsWithHomeworkAndExams(
 
         const lessonExams = exams
             .filter(
-                (exam: any) =>
-                    exam.date === lesson.date &&
-                    exam.subject === lesson.su?.[0]?.name
+                (exam: any) => {
+                    // Match by date first
+                    if (exam.date !== lesson.date) return false;
+                    
+                    // Try to match by subject name - be more flexible with matching
+                    const lessonSubject = lesson.su?.[0]?.name;
+                    if (!lessonSubject || !exam.subject) return false;
+                    
+                    // Direct match or case-insensitive match
+                    const matches = exam.subject === lessonSubject || 
+                           exam.subject.toLowerCase() === lessonSubject.toLowerCase();
+                           
+                    console.debug('[enrichLessonsWithHomeworkAndExams] exam matching', {
+                        examId: exam.untisId,
+                        examDate: exam.date,
+                        examSubject: exam.subject,
+                        lessonDate: lesson.date,
+                        lessonSubject: lessonSubject,
+                        matches: matches,
+                    });
+                    
+                    return matches;
+                }
             )
             .map((exam: any) => ({
                 id: exam.untisId,
@@ -691,9 +766,13 @@ async function enrichLessonsWithHomeworkAndExams(
                 startTime: exam.startTime,
                 endTime: exam.endTime,
                 subject: { id: exam.subjectId, name: exam.subject },
-                // Values are already JSON in DB
-                teachers: exam.teachers ?? undefined,
-                rooms: exam.rooms ?? undefined,
+                // Handle teachers and rooms - they might be arrays of strings or objects
+                teachers: Array.isArray(exam.teachers) 
+                    ? exam.teachers.map((t: any) => typeof t === 'string' ? { name: t } : t)
+                    : undefined,
+                rooms: Array.isArray(exam.rooms)
+                    ? exam.rooms.map((r: any) => typeof r === 'string' ? { name: r } : r) 
+                    : undefined,
                 name: exam.name,
                 text: exam.text,
             }));
