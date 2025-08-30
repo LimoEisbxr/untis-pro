@@ -8,8 +8,11 @@ import {
     ADMIN_USERNAME,
     ADMIN_PASSWORD,
     UNTIS_DEFAULT_SCHOOL,
+    WHITELIST_ENABLED,
+    WHITELIST_USERNAMES,
+    WHITELIST_CLASSES,
 } from '../server/config.js';
-import { verifyUntisCredentials } from '../services/untisService.js';
+import { verifyUntisCredentials, getUserClassInfo } from '../services/untisService.js';
 import { signToken, authMiddleware } from '../server/authMiddleware.js';
 import { untisUserLimiter } from '../server/untisRateLimiter.js';
 
@@ -71,6 +74,39 @@ router.post('/login', untisUserLimiter, async (req, res) => {
             error: e?.message || 'Invalid credentials',
             code: e?.code,
         });
+    }
+
+    // Check whitelist if enabled (only for new users, not existing ones)
+    if (WHITELIST_ENABLED) {
+        const username = parsed.data.username;
+        let isWhitelisted = false;
+
+        // Check if username is directly whitelisted
+        if (WHITELIST_USERNAMES.includes(username)) {
+            isWhitelisted = true;
+        } else if (WHITELIST_CLASSES.length > 0) {
+            // Check if user's class is whitelisted
+            try {
+                const userClasses = await getUserClassInfo(
+                    parsed.data.username,
+                    parsed.data.password
+                );
+                isWhitelisted = userClasses.some(userClass => 
+                    WHITELIST_CLASSES.includes(userClass)
+                );
+            } catch (e: any) {
+                console.warn('[whitelist] failed to get user class info for whitelist check', e?.message);
+                // If we can't get class info, fall back to username whitelist only
+                isWhitelisted = false;
+            }
+        }
+
+        if (!isWhitelisted) {
+            return res.status(403).json({
+                error: 'Access denied. Your account is not authorized for this beta.',
+                code: 'NOT_WHITELISTED',
+            });
+        }
     }
 
     // Create user with Untis credentials
