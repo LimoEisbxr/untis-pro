@@ -288,4 +288,41 @@ export async function deleteWhitelistRule(
     });
 }
 
+// Access request API functions
+export type AccessRequest = { id: string; username: string; message?: string; createdAt: string };
+
+export async function createAccessRequest(
+    username: string,
+    message?: string
+): Promise<{ request: AccessRequest; success: boolean }> {
+    return api<{ request: AccessRequest; success: boolean }>('/api/access-request', {
+        method: 'POST',
+        body: JSON.stringify({ username, message }),
+    });
+}
+
+export async function listAccessRequests(token: string): Promise<{ requests: AccessRequest[] }> {
+    return api<{ requests: AccessRequest[] }>('/api/admin/access-requests', { token });
+}
+
+export async function acceptAccessRequest(
+    token: string,
+    id: string
+): Promise<{ success: boolean; message?: string }> {
+    return api<{ success: boolean; message?: string }>(`/api/admin/access-requests/${id}/accept`, {
+        method: 'POST',
+        token,
+    });
+}
+
+export async function declineAccessRequest(
+    token: string,
+    id: string
+): Promise<{ success: boolean }> {
+    return api<{ success: boolean }>(`/api/admin/access-requests/${id}`, {
+        method: 'DELETE',
+        token,
+    });
+}
+
 export { API_BASE };

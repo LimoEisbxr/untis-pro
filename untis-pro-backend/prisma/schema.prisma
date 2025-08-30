@@ -168,3 +168,11 @@ model WhitelistRule {
     createdAt DateTime @default(now())
     value     String   @unique
 }
+
+// Access requests for whitelist mode
+model AccessRequest {
+    id        String   @id @default(uuid())
+    createdAt DateTime @default(now())
+    username  String   @unique
+    message   String?  // Optional message from user explaining why they need access
+}

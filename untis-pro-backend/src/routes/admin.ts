@@ -110,4 +110,74 @@ router.delete('/whitelist/:id', adminOnly, async (req, res) => {
     }
 });
 
+// Access request management (admin only)
+
+// List all pending access requests
+router.get('/access-requests', adminOnly, async (_req, res) => {
+    const requests = await (prisma as any).accessRequest.findMany({
+        orderBy: [{ createdAt: 'desc' }],
+        select: { id: true, username: true, message: true, createdAt: true },
+    });
+    res.json({ requests });
+});
+
+// Accept an access request (add to whitelist and delete request)
+router.post('/access-requests/:id/accept', adminOnly, async (req, res) => {
+    const id = req.params.id;
+    if (!id) return res.status(400).json({ error: 'Missing id' });
+
+    try {
+        // Find the access request
+        const request = await (prisma as any).accessRequest.findUnique({
+            where: { id },
+            select: { id: true, username: true },
+        });
+
+        if (!request) {
+            return res.status(404).json({ error: 'Access request not found' });
+        }
+
+        // Check if already whitelisted
+        const existingRule = await (prisma as any).whitelistRule.findFirst({
+            where: { value: request.username },
+        });
+
+        if (existingRule) {
+            // Delete the request since user is already whitelisted
+            await (prisma as any).accessRequest.deleteMany({ where: { id } });
+            return res.json({ success: true, message: 'User was already whitelisted' });
+        }
+
+        // Add to whitelist and delete request in a transaction
+        await (prisma as any).$transaction(async (tx: any) => {
+            await tx.whitelistRule.create({
+                data: { value: request.username },
+            });
+            await tx.accessRequest.deleteMany({ where: { id } });
+        });
+
+        res.json({ success: true });
+    } catch (e: any) {
+        const msg = e?.message || 'Failed to accept access request';
+        res.status(400).json({ error: msg });
+    }
+});
+
+// Decline an access request (delete request)
+router.delete('/access-requests/:id', adminOnly, async (req, res) => {
+    const id = req.params.id;
+    if (!id) return res.status(400).json({ error: 'Missing id' });
+
+    try {
+        const result = await (prisma as any).accessRequest.deleteMany({ where: { id } });
+        if (result.count === 0) {
+            return res.status(404).json({ error: 'Access request not found' });
+        }
+        res.json({ success: true });
+    } catch (e: any) {
+        const msg = e?.message || 'Failed to decline access request';
+        res.status(400).json({ error: msg });
+    }
+});
+
 export default router;

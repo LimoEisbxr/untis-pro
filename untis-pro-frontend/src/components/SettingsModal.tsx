@@ -15,6 +15,10 @@ import {
     addWhitelistRule,
     deleteWhitelistRule,
     type WhitelistRule,
+    listAccessRequests,
+    acceptAccessRequest,
+    declineAccessRequest,
+    type AccessRequest,
 } from '../api';
 
 export default function SettingsModal({
@@ -93,6 +97,11 @@ export default function SettingsModal({
     const [wlValue, setWlValue] = useState('');
     const [wlLoading, setWlLoading] = useState(false);
     const [wlError, setWlError] = useState<string | null>(null);
+
+    // Access requests (admin) state
+    const [accessRequests, setAccessRequests] = useState<AccessRequest[]>([]);
+    const [arLoading, setArLoading] = useState(false);
+    const [arError, setArError] = useState<string | null>(null);
 
     const loadUsers = useCallback(async () => {
         setUserManagementLoading(true);
@@ -231,6 +240,21 @@ export default function SettingsModal({
         }
     }, [token]);
 
+    const loadAccessRequests = useCallback(async () => {
+        setArLoading(true);
+        setArError(null);
+        try {
+            const res = await listAccessRequests(token);
+            setAccessRequests(res.requests);
+        } catch (e) {
+            setArError(
+                e instanceof Error ? e.message : 'Failed to load access requests'
+            );
+        } finally {
+            setArLoading(false);
+        }
+    }, [token]);
+
     const handleToggleSharing = async (enabled: boolean) => {
         if (!settings) return;
         try {
@@ -348,6 +372,44 @@ export default function SettingsModal({
         [token]
     );
 
+    const handleAcceptAccessRequest = useCallback(
+        async (id: string) => {
+            setArLoading(true);
+            setArError(null);
+            try {
+                await acceptAccessRequest(token, id);
+                setAccessRequests((prev) => prev.filter((r) => r.id !== id));
+                // Reload whitelist to show the newly added user
+                await loadWhitelistRules();
+            } catch (e) {
+                setArError(
+                    e instanceof Error ? e.message : 'Failed to accept request'
+                );
+            } finally {
+                setArLoading(false);
+            }
+        },
+        [token, loadWhitelistRules]
+    );
+
+    const handleDeclineAccessRequest = useCallback(
+        async (id: string) => {
+            setArLoading(true);
+            setArError(null);
+            try {
+                await declineAccessRequest(token, id);
+                setAccessRequests((prev) => prev.filter((r) => r.id !== id));
+            } catch (e) {
+                setArError(
+                    e instanceof Error ? e.message : 'Failed to decline request'
+                );
+            } finally {
+                setArLoading(false);
+            }
+        },
+        [token]
+    );
+
     // Load settings when modal opens (with stable callbacks)
     useEffect(() => {
         if (isOpen) {
@@ -362,13 +424,14 @@ export default function SettingsModal({
         }
     }, [isOpen, user.isAdmin, user.displayName, loadSettings, loadUsers]);
 
-    // Load whitelist only when enabled in settings
+    // Load whitelist and access requests only when enabled in settings
     useEffect(() => {
         if (!isOpen || !user.isAdmin) return;
         if (settings?.whitelistEnabled) {
             loadWhitelistRules();
+            loadAccessRequests();
         }
-    }, [isOpen, user.isAdmin, settings?.whitelistEnabled, loadWhitelistRules]);
+    }, [isOpen, user.isAdmin, settings?.whitelistEnabled, loadWhitelistRules, loadAccessRequests]);
 
     if (!showModal) return null;
 
@@ -574,6 +637,117 @@ export default function SettingsModal({
                                                                 >
                                                                     No usernames
                                                                     whitelisted
+                                                                </td>
+                                                            </tr>
+                                                        )}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    ) : null}
+
+                                    {/* Pending Access Requests (admin only, when whitelist enabled) */}
+                                    {settings?.whitelistEnabled ? (
+                                        <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700">
+                                            <div className="flex items-center justify-between mb-3">
+                                                <h4 className="font-medium text-blue-800 dark:text-blue-200">
+                                                    Pending Access Requests
+                                                </h4>
+                                                <button
+                                                    className="btn-secondary text-xs"
+                                                    onClick={loadAccessRequests}
+                                                    disabled={arLoading}
+                                                >
+                                                    {arLoading ? 'Loading...' : 'Refresh'}
+                                                </button>
+                                            </div>
+                                            {arError && (
+                                                <div className="mb-3 text-sm text-red-600 dark:text-red-400">
+                                                    {arError}
+                                                </div>
+                                            )}
+                                            <div className="overflow-x-auto">
+                                                <table className="min-w-full text-sm">
+                                                    <thead className="text-left text-blue-700 dark:text-blue-200">
+                                                        <tr>
+                                                            <th className="py-2 pr-4">
+                                                                Username
+                                                            </th>
+                                                            <th className="py-2 pr-4">
+                                                                Message
+                                                            </th>
+                                                            <th className="py-2 pr-4">
+                                                                Requested
+                                                            </th>
+                                                            <th className="py-2 pr-4">
+                                                                Actions
+                                                            </th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {accessRequests.map((request) => (
+                                                            <tr
+                                                                key={request.id}
+                                                                className="border-t border-blue-200/70 dark:border-blue-700/70"
+                                                            >
+                                                                <td className="py-2 pr-4 text-slate-900 dark:text-slate-100 font-medium">
+                                                                    {request.username}
+                                                                </td>
+                                                                <td className="py-2 pr-4 text-slate-700 dark:text-slate-300 max-w-xs">
+                                                                    {request.message ? (
+                                                                        <div className="truncate" title={request.message}>
+                                                                            {request.message}
+                                                                        </div>
+                                                                    ) : (
+                                                                        <span className="text-slate-500 italic">
+                                                                            No message
+                                                                        </span>
+                                                                    )}
+                                                                </td>
+                                                                <td className="py-2 pr-4 text-slate-600 dark:text-slate-400 text-xs">
+                                                                    {new Date(request.createdAt).toLocaleDateString()}
+                                                                </td>
+                                                                <td className="py-2 pr-4">
+                                                                    <div className="flex gap-2">
+                                                                        <button
+                                                                            className="btn-primary text-xs px-2 py-1"
+                                                                            disabled={arLoading}
+                                                                            onClick={() =>
+                                                                                handleAcceptAccessRequest(request.id)
+                                                                            }
+                                                                        >
+                                                                            Accept
+                                                                        </button>
+                                                                        <button
+                                                                            className="btn-secondary text-xs px-2 py-1"
+                                                                            disabled={arLoading}
+                                                                            onClick={() =>
+                                                                                handleDeclineAccessRequest(request.id)
+                                                                            }
+                                                                        >
+                                                                            Decline
+                                                                        </button>
+                                                                    </div>
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+                                                        {accessRequests.length === 0 && !arLoading && (
+                                                            <tr>
+                                                                <td
+                                                                    colSpan={4}
+                                                                    className="py-3 text-center text-slate-500 dark:text-slate-400"
+                                                                >
+                                                                    No pending access requests
+                                                                </td>
+                                                            </tr>
+                                                        )}
+                                                        {arLoading && (
+                                                            <tr>
+                                                                <td
+                                                                    colSpan={4}
+                                                                    className="py-3 text-center text-slate-500 dark:text-slate-400"
+                                                                >
+                                                                    Loading access requests...
                                                                 </td>
                                                             </tr>
                                                         )}
