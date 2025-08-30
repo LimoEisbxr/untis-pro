@@ -396,63 +396,6 @@ export default function Timetable({
         [monday]
     );
 
-    // Swipe gestures (mobile) to navigate weeks
-    const touchStartX = useRef<number | null>(null);
-    const touchStartY = useRef<number | null>(null);
-    const SWIPE_THRESHOLD = 60; // px
-    const SWIPE_MAX_OFF_AXIS = 80; // allow some vertical movement
-    const containerRef = useRef<HTMLDivElement | null>(null);
-    useEffect(() => {
-        const el = containerRef.current;
-        if (!el) return;
-        let skipSwipe = false;
-        const INTERACTIVE_SELECTOR =
-            'input,textarea,select,button,[contenteditable="true"],[role="textbox"]';
-        const handleTouchStart = (e: TouchEvent) => {
-            if (e.touches.length !== 1) return;
-            const target = e.target as HTMLElement | null;
-            // Ignore swipe if user starts on an interactive control to allow focusing
-            if (
-                target &&
-                (target.closest(INTERACTIVE_SELECTOR) ||
-                    target.tagName === 'INPUT')
-            ) {
-                skipSwipe = true;
-                touchStartX.current = null;
-                touchStartY.current = null;
-                return; // let the browser handle focus normally
-            }
-            skipSwipe = false;
-            touchStartX.current = e.touches[0].clientX;
-            touchStartY.current = e.touches[0].clientY;
-        };
-        const handleTouchEnd = (e: TouchEvent) => {
-            if (skipSwipe) {
-                skipSwipe = false;
-                return;
-            }
-            if (touchStartX.current == null || touchStartY.current == null)
-                return;
-            const dx = e.changedTouches[0].clientX - touchStartX.current;
-            const dy = e.changedTouches[0].clientY - touchStartY.current;
-            if (
-                Math.abs(dx) > SWIPE_THRESHOLD &&
-                Math.abs(dy) < SWIPE_MAX_OFF_AXIS
-            ) {
-                if (dx < 0) onWeekNavigate?.('next');
-                else onWeekNavigate?.('prev');
-            }
-            touchStartX.current = null;
-            touchStartY.current = null;
-        };
-        el.addEventListener('touchstart', handleTouchStart, { passive: true });
-        el.addEventListener('touchend', handleTouchEnd);
-        return () => {
-            el.removeEventListener('touchstart', handleTouchStart);
-            el.removeEventListener('touchend', handleTouchEnd);
-        };
-    }, [onWeekNavigate]);
-
     // Track current time and compute line position
     const [now, setNow] = useState<Date>(() => new Date());
     useEffect(() => {
@@ -512,10 +455,7 @@ export default function Timetable({
         );
 
     return (
-        <div
-            ref={containerRef}
-            className="w-full overflow-x-hidden pt-[env(safe-area-inset-top)]"
-        >
+        <div className="w-full overflow-x-hidden pt-[env(safe-area-inset-top)]">
             {isDeveloperModeEnabled && (
                 <div className="mb-4 flex justify-end px-2">
                     <button

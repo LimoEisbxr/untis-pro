@@ -73,6 +73,13 @@ export default function Dashboard({
     // Animation state for smooth week transitions
     const [weekTransitionDirection, setWeekTransitionDirection] = useState<'left' | 'right' | null>(null);
 
+    // Swipe gesture handling (moved to Dashboard level to work even when no timetable)
+    const mainContentRef = useRef<HTMLDivElement | null>(null);
+    const touchStartX = useRef<number | null>(null);
+    const touchStartY = useRef<number | null>(null);
+    const SWIPE_THRESHOLD = 60; // px
+    const SWIPE_MAX_OFF_AXIS = 80; // allow some vertical movement
+
     // Derive a friendly info message for admin users when their own timetable isn't available
     const adminInfoMessage = useMemo(() => {
         if (!loadError || !user?.isAdmin) return null;
@@ -360,6 +367,69 @@ export default function Dashboard({
         };
     }, [results.length]);
 
+    // Dashboard-level swipe handling for week navigation (works even when no timetable)
+    useEffect(() => {
+        const el = mainContentRef.current;
+        if (!el) return;
+        let skipSwipe = false;
+        const INTERACTIVE_SELECTOR =
+            'input,textarea,select,button,[contenteditable="true"],[role="textbox"]';
+        const handleTouchStart = (e: TouchEvent) => {
+            if (e.touches.length !== 1) return;
+            const target = e.target as HTMLElement | null;
+            // Ignore swipe if user starts on an interactive control to allow focusing
+            if (
+                target &&
+                (target.closest(INTERACTIVE_SELECTOR) ||
+                    target.tagName === 'INPUT')
+            ) {
+                skipSwipe = true;
+                touchStartX.current = null;
+                touchStartY.current = null;
+                return; // let the browser handle focus normally
+            }
+            skipSwipe = false;
+            touchStartX.current = e.touches[0].clientX;
+            touchStartY.current = e.touches[0].clientY;
+        };
+        const handleTouchEnd = (e: TouchEvent) => {
+            if (skipSwipe) {
+                skipSwipe = false;
+                return;
+            }
+            if (touchStartX.current == null || touchStartY.current == null)
+                return;
+            const dx = e.changedTouches[0].clientX - touchStartX.current;
+            const dy = e.changedTouches[0].clientY - touchStartY.current;
+            if (
+                Math.abs(dx) > SWIPE_THRESHOLD &&
+                Math.abs(dy) < SWIPE_MAX_OFF_AXIS
+            ) {
+                if (dx < 0) {
+                    // Swipe left = next week
+                    setWeekTransitionDirection('left');
+                    const ns = fmtLocal(addDays(new Date(start), 7));
+                    setStart(ns);
+                    setTimeout(() => setWeekTransitionDirection(null), 400);
+                } else {
+                    // Swipe right = previous week
+                    setWeekTransitionDirection('right');
+                    const ns = fmtLocal(addDays(new Date(start), -7));
+                    setStart(ns);
+                    setTimeout(() => setWeekTransitionDirection(null), 400);
+                }
+            }
+            touchStartX.current = null;
+            touchStartY.current = null;
+        };
+        el.addEventListener('touchstart', handleTouchStart, { passive: true });
+        el.addEventListener('touchend', handleTouchEnd);
+        return () => {
+            el.removeEventListener('touchstart', handleTouchStart);
+            el.removeEventListener('touchend', handleTouchEnd);
+        };
+    }, [start]);
+
     return (
         <div className={'min-h-screen'}>
             <header className="header-blur">
@@ -435,7 +505,7 @@ export default function Dashboard({
                     </div>
                 </div>
             </header>
-            <main className="mx-auto max-w-screen-2xl p-4">
+            <main ref={mainContentRef} className="mx-auto max-w-screen-2xl p-4">
                 <section className="card p-4">
                     <div className="space-y-2 sm:space-y-4">
                         {/* Row 1: navigation buttons (desktop only - hidden on mobile for swipe-only navigation) */}
@@ -448,7 +518,7 @@ export default function Dashboard({
                                         addDays(new Date(start), -7)
                                     );
                                     setStart(ns);
-                                    setTimeout(() => setWeekTransitionDirection(null), 300);
+                                    setTimeout(() => setWeekTransitionDirection(null), 400);
                                 }}
                                 aria-label="Previous week"
                             >
@@ -464,7 +534,7 @@ export default function Dashboard({
                                 onClick={() => {
                                     setWeekTransitionDirection('left');
                                     setStart(fmtLocal(new Date()));
-                                    setTimeout(() => setWeekTransitionDirection(null), 300);
+                                    setTimeout(() => setWeekTransitionDirection(null), 400);
                                 }}
                                 aria-label="This week"
                             >
@@ -480,7 +550,7 @@ export default function Dashboard({
                                         addDays(new Date(start), 7)
                                     );
                                     setStart(ns);
-                                    setTimeout(() => setWeekTransitionDirection(null), 300);
+                                    setTimeout(() => setWeekTransitionDirection(null), 400);
                                 }}
                                 aria-label="Next week"
                             >
@@ -688,7 +758,7 @@ export default function Dashboard({
                                     }
                                     
                                     // Reset animation state after animation completes
-                                    setTimeout(() => setWeekTransitionDirection(null), 300);
+                                    setTimeout(() => setWeekTransitionDirection(null), 400);
                                 }}
                             />
                         </div>
