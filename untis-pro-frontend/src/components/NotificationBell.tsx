@@ -25,21 +25,21 @@ export default function NotificationBell({ notifications, onClick, className = '
     return (
         <button
             onClick={onClick}
-            className={`relative p-2 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 transition-colors ${className}`}
+            className={`relative rounded-full p-2 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors ${className}`}
+            title={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ''}`}
             aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ''}`}
         >
             <svg 
-                className={`w-6 h-6 transition-transform ${animate ? 'animate-pulse' : ''}`} 
+                className={`w-5 h-5 text-slate-600 dark:text-slate-300 transition-transform ${animate ? 'animate-pulse' : ''}`} 
                 fill="none" 
                 stroke="currentColor" 
                 viewBox="0 0 24 24"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
             >
-                <path 
-                    strokeLinecap="round" 
-                    strokeLinejoin="round" 
-                    strokeWidth={2} 
-                    d="M15 17h5l-5 5v-5zM11 3a8 8 0 016 8v3l2 2H5l2-2V11a8 8 0 016-8z" 
-                />
+                <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+                <path d="m13.73 21a2 2 0 0 1-3.46 0" />
             </svg>
             
             {/* Notification badge */}
