@@ -361,6 +361,11 @@ const DayColumn: FC<DayColumnProps> = ({
                         >
                             {/* Indicators + room label (desktop) */}
                             <div className="absolute top-1 right-1 hidden sm:flex flex-col items-end gap-1">
+                                {room && (
+                                    <div className="hidden sm:block text-[11px] leading-tight whitespace-nowrap text-white/95 drop-shadow-sm">
+                                        {room}
+                                    </div>
+                                )}
                                 <div className="flex gap-1">
                                     {l.homework && l.homework.length > 0 && (
                                         <div className="w-3 h-3 bg-amber-400 dark:bg-amber-500 rounded-full flex items-center justify-center shadow-sm">
@@ -419,11 +424,6 @@ const DayColumn: FC<DayColumnProps> = ({
                                         </div>
                                     )}
                                 </div>
-                                {room && (
-                                    <div className="hidden sm:block text-[11px] leading-tight whitespace-nowrap text-white/95 drop-shadow-sm">
-                                        {room}
-                                    </div>
-                                )}
                             </div>
 
                             {/* Content */}
