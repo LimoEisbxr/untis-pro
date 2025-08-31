@@ -1,6 +1,5 @@
-// Minimal service worker for PWA installability & basic offline shell.
-// You can extend this later with smarter caching strategies.
-const CACHE_NAME = 'untis-pro-shell-v1';
+// Enhanced service worker for PWA with notification support
+const CACHE_NAME = 'untis-pro-shell-v2';
 const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest'];
 
 self.addEventListener('install', (event) => {
@@ -25,6 +24,88 @@ self.addEventListener('activate', (event) => {
             )
             .then(() => self.clients.claim())
     );
+});
+
+// Handle push notifications
+self.addEventListener('push', (event) => {
+    console.log('Push notification received:', event);
+    
+    let notificationData = {
+        title: 'Untis Pro',
+        body: 'You have a new notification',
+        icon: '/icon-192.png',
+        badge: '/icon-192.png',
+        tag: 'untis-pro-notification',
+        requireInteraction: false,
+    };
+
+    if (event.data) {
+        try {
+            const data = event.data.json();
+            notificationData = {
+                ...notificationData,
+                ...data,
+            };
+        } catch (e) {
+            console.error('Failed to parse push notification data:', e);
+        }
+    }
+
+    event.waitUntil(
+        self.registration.showNotification(notificationData.title, {
+            body: notificationData.body,
+            icon: notificationData.icon,
+            badge: notificationData.badge,
+            tag: notificationData.tag,
+            requireInteraction: notificationData.requireInteraction,
+            data: notificationData.data,
+            actions: [
+                {
+                    action: 'view',
+                    title: 'View',
+                    icon: '/icon-192.png'
+                },
+                {
+                    action: 'dismiss',
+                    title: 'Dismiss'
+                }
+            ]
+        })
+    );
+});
+
+// Handle notification clicks
+self.addEventListener('notificationclick', (event) => {
+    console.log('Notification clicked:', event);
+    
+    event.notification.close();
+
+    if (event.action === 'dismiss') {
+        return;
+    }
+
+    // Open or focus the app when notification is clicked
+    event.waitUntil(
+        clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+            // Try to focus existing tab
+            for (const client of clientList) {
+                if (client.url.includes(self.location.origin) && 'focus' in client) {
+                    return client.focus();
+                }
+            }
+            
+            // Open new tab if no existing tab found
+            if (clients.openWindow) {
+                return clients.openWindow('/');
+            }
+        })
+    );
+});
+
+// Handle notification close
+self.addEventListener('notificationclose', (event) => {
+    console.log('Notification closed:', event);
+    // Could send analytics or cleanup here
 });
 
 self.addEventListener('fetch', (event) => {
