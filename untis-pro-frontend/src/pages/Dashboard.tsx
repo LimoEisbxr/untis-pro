@@ -507,7 +507,7 @@ export default function Dashboard({
             </header>
             
             {/* Main layout with sidebar for desktop */}
-            <div className="flex h-[calc(100vh-80px)]">
+            <div className="flex min-h-[calc(100vh-80px)]">
                 {/* Desktop sidebar navigation */}
                 <DesktopTabNavigation 
                     activeTab={activeTab} 
