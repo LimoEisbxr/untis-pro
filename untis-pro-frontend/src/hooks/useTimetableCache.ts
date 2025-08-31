@@ -202,7 +202,8 @@ export function useTimetableCache() {
         return {
             size: cache.size,
             inFlight: inFlightRequests.current.size,
-            prefetchQueue: prefetchQueue.size
+            prefetchQueue: prefetchQueue.size,
+            entries: Array.from(cache.keys())
         };
     }, []);
 
