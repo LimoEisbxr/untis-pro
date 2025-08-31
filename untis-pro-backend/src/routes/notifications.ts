@@ -288,4 +288,13 @@ router.delete('/subscribe/:endpoint', authMiddleware, async (req, res) => {
     }
 });
 
+// Get VAPID public key for push subscription
+router.get('/vapid-public-key', (req, res) => {
+    const publicKey = process.env.VAPID_PUBLIC_KEY;
+    if (!publicKey) {
+        return res.status(503).json({ error: 'Push notifications not configured' });
+    }
+    res.json({ publicKey });
+});
+
 export default router;

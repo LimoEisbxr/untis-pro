@@ -45,6 +45,54 @@ Navigate to Settings → Notification Preferences:
 - **Timetable Changes**: General timetable updates
 - **Access Requests**: For user managers only
 
+## Setup & Configuration
+
+### Initial Setup
+
+1. **Generate VAPID Keys** (Required for push notifications):
+   ```bash
+   node generate-vapid-keys.js
+   ```
+
+2. **Configure Environment Variables**:
+   Add the generated VAPID keys to your `.env` file:
+   ```env
+   VAPID_PUBLIC_KEY=your_generated_public_key
+   VAPID_PRIVATE_KEY=your_generated_private_key
+   VAPID_SUBJECT=mailto:admin@yourdomain.com
+   ```
+
+3. **Install Dependencies**:
+   ```bash
+   # Backend
+   cd untis-pro-backend
+   npm install
+   
+   # Frontend
+   cd untis-pro-frontend
+   npm install
+   ```
+
+### PWA Push Notifications
+
+The system supports full PWA push notifications with proper iOS support:
+
+#### Prerequisites
+- **VAPID Keys**: Required for Web Push API
+- **HTTPS**: Push notifications only work over HTTPS (or localhost for testing)
+- **Service Worker**: Automatically registered for PWA functionality
+
+#### iOS Support
+- **iOS 16.4+**: Full Web Push support in PWA mode
+- **Add to Home Screen**: Required for iOS push notifications
+- **Standalone Mode**: App must be installed as PWA on iOS devices
+
+#### Testing Push Notifications
+1. Install the app as PWA (Add to Home Screen on mobile)
+2. Grant notification permission when prompted
+3. Enable "Push Notifications (PWA)" in settings
+4. Test with admin notification tools
+
 ## Admin Configuration
 
 ### System Settings
@@ -130,7 +178,16 @@ User managers automatically receive:
 1. **Notifications not appearing**: Check browser permissions in site settings
 2. **Permission denied**: Guide user to browser settings to manually enable
 3. **Notifications not updating**: Check if background service is running
-4. **Push notifications not working**: Verify service worker registration
+4. **Push notifications not working**: 
+   - Verify VAPID keys are configured correctly
+   - Ensure service worker is active in DevTools
+   - Check that app is installed as PWA on iOS devices
+   - Verify HTTPS is being used (required for push notifications)
+5. **iOS push notifications not working**:
+   - Ensure iOS 16.4+ is being used
+   - App must be added to Home Screen (installed as PWA)
+   - Grant notification permission when prompted
+   - Check that app is running in standalone mode
 
 ### Debug Information
 - Check browser console for notification service logs
@@ -140,7 +197,7 @@ User managers automatically receive:
 ## Future Enhancements
 
 ### Planned Features
-- Push notification server (VAPID keys)
+- ~~Push notification server (VAPID keys)~~ ✅ **Implemented**
 - Email notification fallback
 - Notification scheduling
 - Rich notification content with images

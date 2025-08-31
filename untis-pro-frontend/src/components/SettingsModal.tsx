@@ -36,7 +36,7 @@ import {
     getAdminNotificationSettings,
     updateAdminNotificationSettings,
 } from '../api';
-import { subscribeToPushNotifications as apiSubscribeToPush, unsubscribeFromPushNotifications as apiUnsubscribeFromPush } from '../api';
+import { subscribeToPushNotifications as apiSubscribeToPush, unsubscribeFromPushNotifications as apiUnsubscribeFromPush, getVapidPublicKey } from '../api';
 import {
     requestNotificationPermission,
     getNotificationPermission,
@@ -44,6 +44,7 @@ import {
     isStandalonePWA,
     isIOS,
     getiOSVersion,
+    subscribeToPushNotifications as utilsSubscribeToPush,
 } from '../utils/notifications';
 
 export default function SettingsModal({
@@ -832,7 +833,12 @@ export default function SettingsModal({
         let sub = await reg.pushManager.getSubscription();
         if (!sub) {
             try {
-                sub = await reg.pushManager.subscribe({ userVisibleOnly: true });
+                // Get VAPID public key from backend
+                const { publicKey } = await getVapidPublicKey();
+                sub = await utilsSubscribeToPush(publicKey);
+                if (!sub) {
+                    throw new Error('Failed to create push subscription');
+                }
             } catch (e) {
                 console.warn('Push subscribe failed', e);
                 throw e;

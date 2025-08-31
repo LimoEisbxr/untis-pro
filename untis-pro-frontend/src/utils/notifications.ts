@@ -19,6 +19,22 @@ export interface NotificationAction {
     icon?: string;
 }
 
+// Convert VAPID public key from base64 to Uint8Array
+function urlBase64ToUint8Array(base64String: string): Uint8Array {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding)
+        .replace(/-/g, '+')
+        .replace(/_/g, '/');
+
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+
+    for (let i = 0; i < rawData.length; ++i) {
+        outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+}
+
 // Check if browser supports notifications
 export function isNotificationSupported(): boolean {
     return 'Notification' in window;
@@ -116,7 +132,7 @@ export function getDeviceType(): 'mobile' | 'desktop' | 'tablet' {
 }
 
 // Subscribe to push notifications via service worker
-export async function subscribeToPushNotifications(): Promise<PushSubscription | null> {
+export async function subscribeToPushNotifications(vapidPublicKey?: string): Promise<PushSubscription | null> {
     if (!isServiceWorkerSupported()) {
         throw new Error('Service workers not supported');
     }
@@ -129,17 +145,22 @@ export async function subscribeToPushNotifications(): Promise<PushSubscription |
         return existingSubscription;
     }
 
-    // VAPID key would need to be configured for real push notifications
-    // For now, we'll simulate the subscription
+    if (!vapidPublicKey) {
+        throw new Error('VAPID public key is required for push notifications');
+    }
+
     try {
+        // Convert VAPID key to Uint8Array
+        const applicationServerKey = urlBase64ToUint8Array(vapidPublicKey);
+        
         const subscription = await registration.pushManager.subscribe({
             userVisibleOnly: true,
-            // applicationServerKey: 'your-vapid-public-key' // Would be needed for real implementation
+            applicationServerKey: applicationServerKey as BufferSource,
         });
         return subscription;
     } catch (error) {
-        console.warn('Push subscription failed, falling back to browser notifications:', error);
-        return null;
+        console.warn('Push subscription failed:', error);
+        throw error;
     }
 }
 

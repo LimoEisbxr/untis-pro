@@ -499,6 +499,11 @@ export async function unsubscribeFromPushNotifications(
     });
 }
 
+// Get VAPID public key for push notifications
+export async function getVapidPublicKey(): Promise<{ publicKey: string }> {
+    return api<{ publicKey: string }>('/api/notifications/vapid-public-key');
+}
+
 // Admin notification settings
 export async function getAdminNotificationSettings(token: string): Promise<{ settings: AdminNotificationSettings }> {
     return api<{ settings: AdminNotificationSettings }>('/api/admin/notification-settings', { token });

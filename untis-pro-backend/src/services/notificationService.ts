@@ -1,4 +1,17 @@
 import { prisma } from '../store/prisma.js';
+import webpush from 'web-push';
+
+// Initialize web-push with VAPID keys
+const vapidPublicKey = process.env.VAPID_PUBLIC_KEY;
+const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY;
+const vapidSubject = process.env.VAPID_SUBJECT || 'mailto:admin@untis-pro.com';
+
+if (vapidPublicKey && vapidPrivateKey) {
+    webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
+    console.log('Web Push configured with VAPID keys');
+} else {
+    console.warn('VAPID keys not configured - push notifications will not work');
+}
 
 export interface NotificationData {
     type: string;
@@ -70,8 +83,65 @@ export class NotificationService {
                 return;
             }
 
-            // In a real implementation, you would use web-push library here
-            // For now, just mark notifications as sent
+            // Only send push notifications if VAPID keys are configured
+            if (!vapidPublicKey || !vapidPrivateKey) {
+                console.warn('VAPID keys not configured - skipping push notification');
+                return;
+            }
+
+            const payload = JSON.stringify({
+                title: data.title,
+                body: data.message,
+                icon: '/icon-192.png',
+                badge: '/icon-192.png',
+                tag: `untis-pro-${data.type}`,
+                data: {
+                    type: data.type,
+                    ...data.data,
+                },
+                actions: [
+                    {
+                        action: 'view',
+                        title: 'View',
+                        icon: '/icon-192.png'
+                    },
+                    {
+                        action: 'dismiss',
+                        title: 'Dismiss'
+                    }
+                ]
+            });
+
+            // Send push notification to all user's devices
+            const pushPromises = subscriptions.map(async (sub: any) => {
+                try {
+                    const pushSubscription = {
+                        endpoint: sub.endpoint,
+                        keys: {
+                            p256dh: sub.p256dh,
+                            auth: sub.auth,
+                        },
+                    };
+
+                    await webpush.sendNotification(pushSubscription, payload);
+                    console.log(`Push notification sent to device: ${sub.endpoint.substring(0, 50)}...`);
+                } catch (error: any) {
+                    console.error('Failed to send push to device:', error);
+                    
+                    // If subscription is invalid, mark it as inactive
+                    if (error.statusCode === 410 || error.statusCode === 413) {
+                        await (prisma as any).notificationSubscription.update({
+                            where: { id: sub.id },
+                            data: { active: false },
+                        });
+                        console.log(`Marked subscription as inactive: ${sub.endpoint.substring(0, 50)}...`);
+                    }
+                }
+            });
+
+            await Promise.allSettled(pushPromises);
+
+            // Mark notification as sent
             await (prisma as any).notification.updateMany({
                 where: {
                     userId: data.userId,
