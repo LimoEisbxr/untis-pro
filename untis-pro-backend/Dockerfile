@@ -2,12 +2,6 @@
 FROM node:20-bookworm-slim AS build
 WORKDIR /app
 
-ARG DATABASE_URL
-ARG JWT_SECRET
-
-ENV DATABASE_URL=${DATABASE_URL}
-ENV JWT_SECRET=${JWT_SECRET}
-
 # Install OS deps
 RUN apt-get update \
     && apt-get install -y --no-install-recommends python3 make g++ openssl ca-certificates \
@@ -21,12 +15,18 @@ RUN if [ -f package-lock.json ]; then (npm ci || (echo '[Dockerfile] npm ci fail
     elif [ -f yarn.lock ]; then npm i -g yarn && yarn install --frozen-lockfile; \
     else npm i; fi
 
-# Copy source
+# Copy source (everything below invalidates cache only when sources change)
 COPY tsconfig.json ./tsconfig.json
 COPY prisma ./prisma
 COPY src ./src
 
-# Generate Prisma Client and build
+# Declare build args AFTER dependency install so changing secrets / URLs doesn't force reinstall
+ARG DATABASE_URL
+ARG JWT_SECRET
+ENV DATABASE_URL=${DATABASE_URL}
+ENV JWT_SECRET=${JWT_SECRET}
+
+# Generate Prisma Client and build (needs DATABASE_URL for some generators)
 RUN npx prisma generate && npm run build
 
 # Runtime stage
