@@ -25,7 +25,7 @@ export default function NotificationBell({ notifications, onClick, className = '
     return (
         <button
             onClick={onClick}
-            className={`relative rounded-full p-2 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors ${className}`}
+            className={`relative rounded-full p-3 sm:p-2 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 ${className}`}
             title={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ''}`}
             aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ''}`}
         >
@@ -44,7 +44,7 @@ export default function NotificationBell({ notifications, onClick, className = '
             
             {/* Notification badge */}
             {unreadCount > 0 && (
-                <span className={`absolute -top-1 -right-1 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold leading-none text-white transform transition-transform ${
+                <span className={`absolute -top-1 -right-1 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold leading-none text-white transform transition-transform pointer-events-none ${
                     animate ? 'scale-110' : 'scale-100'
                 } ${
                     unreadCount > 99 ? 'bg-red-500 rounded-md min-w-[1.5rem]' : 'bg-red-500 rounded-full min-w-[1.25rem] h-5'
@@ -55,7 +55,7 @@ export default function NotificationBell({ notifications, onClick, className = '
             
             {/* Pulse ring for new notifications */}
             {hasNew && animate && (
-                <span className="absolute -top-1 -right-1 inline-flex h-6 w-6">
+                <span className="absolute -top-1 -right-1 inline-flex h-6 w-6 pointer-events-none">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
                 </span>
             )}
