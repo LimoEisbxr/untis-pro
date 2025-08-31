@@ -249,12 +249,57 @@ export default function Timetable({
     const [SCALE, setSCALE] = useState<number>(1);
     const [axisWidth, setAxisWidth] = useState<number>(56); // dynamic; shrinks on mobile
 
-    const isDeveloperModeEnabled =
+    // Developer mode visibility (controlled by env, query param, or persisted localStorage flag)
+    const envDevFlag =
         String(import.meta.env.VITE_ENABLE_DEVELOPER_MODE ?? '')
             .trim()
             .toLowerCase() === 'true';
+    const queryDevFlag =
+        typeof window !== 'undefined'
+            ? (() => {
+                  try {
+                      const v = new URLSearchParams(window.location.search).get(
+                          'dev'
+                      );
+                      return (
+                          !!v &&
+                          ['1', 'true', 'yes', 'on'].includes(v.toLowerCase())
+                      );
+                  } catch {
+                      return false;
+                  }
+              })()
+            : false;
+    // Only allow toggle if env flag OR query param present right now (no localStorage persistence of visibility)
+    const isDeveloperModeEnabled = envDevFlag || queryDevFlag;
 
-    const [isDeveloperMode, setIsDeveloperMode] = useState(false);
+    const [isDeveloperMode, setIsDeveloperMode] = useState<boolean>(() => {
+        if (typeof window === 'undefined') return false;
+        try {
+            return localStorage.getItem('untisProDevActive') === '1';
+        } catch {
+            return false;
+        }
+    });
+
+    // Persist active developer mode toggle state
+    useEffect(() => {
+        try {
+            localStorage.setItem(
+                'untisProDevActive',
+                isDeveloperMode ? '1' : '0'
+            );
+        } catch {
+            /* ignore */
+        }
+    }, [isDeveloperMode]);
+
+    // If toggle becomes unavailable (env off & no query), ensure dev mode not active to avoid confusing hidden state
+    useEffect(() => {
+        if (!isDeveloperModeEnabled && isDeveloperMode) {
+            setIsDeveloperMode(false);
+        }
+    }, [isDeveloperModeEnabled, isDeveloperMode]);
     const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     // For privacy: non-admins always use their own (viewer) bucket, never the timetable owner's ID.
@@ -382,7 +427,6 @@ export default function Timetable({
                 setAxisWidth(56);
                 setDAY_HEADER_PX(32);
                 setBOTTOM_PAD_PX(14);
-
             }
         }
         computeScale();
