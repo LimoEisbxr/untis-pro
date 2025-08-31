@@ -5,7 +5,6 @@ import SettingsModal from '../components/SettingsModal';
 import NotificationBell from '../components/NotificationBell';
 import NotificationPanel from '../components/NotificationPanel';
 import {
-    api,
     API_BASE,
     getLessonColors,
     setLessonColor,
@@ -14,6 +13,7 @@ import {
     getNotifications,
 } from '../api';
 import { addDays, fmtLocal, startOfWeek } from '../utils/dates';
+import { useTimetableCache } from '../hooks/useTimetableCache';
 import type {
     TimetableResponse,
     User,
@@ -77,6 +77,9 @@ export default function Dashboard({
     const [defaultLessonColors, setDefaultLessonColors] =
         useState<LessonColors>({});
     const [lessonOffsets, setLessonOffsets] = useState<LessonOffsets>({});
+
+    // Initialize timetable cache hook
+    const { getTimetableData } = useTimetableCache();
     // Short auto-retry countdown for rate limit (429)
     const [retrySeconds, setRetrySeconds] = useState<number | null>(null);
     // Settings modal state
@@ -116,20 +119,15 @@ export default function Dashboard({
         [weekStartDate]
     );
 
-    const query = useMemo(() => {
-        const p = new URLSearchParams();
-        if (weekStartStr) p.set('start', weekStartStr);
-        if (weekEndStr) p.set('end', weekEndStr);
-        const q = p.toString();
-        return q ? `?${q}` : '';
-    }, [weekStartStr, weekEndStr]);
-
     const loadMine = useCallback(async () => {
         setLoadError(null);
         try {
-            const res = await api<TimetableResponse>(
-                `/api/timetable/me${query}`,
-                { token }
+            const res = await getTimetableData(
+                user.id,
+                user.id,
+                weekStartDate,
+                token,
+                true
             );
             setMine(res);
         } catch (e) {
@@ -165,16 +163,19 @@ export default function Dashboard({
         } finally {
             /* no loading flag */
         }
-    }, [query, token, user.id, weekStartStr, weekEndStr]);
+    }, [getTimetableData, user.id, weekStartDate, token, weekStartStr, weekEndStr]);
 
     const loadUser = useCallback(
         async (userId: string) => {
             /* no loading flag */
             setLoadError(null);
             try {
-                const res = await api<TimetableResponse>(
-                    `/api/timetable/user/${userId}${query}`,
-                    { token }
+                const res = await getTimetableData(
+                    user.id,
+                    userId,
+                    weekStartDate,
+                    token,
+                    false
                 );
                 setMine(res);
             } catch (e) {
@@ -209,7 +210,7 @@ export default function Dashboard({
                 /* no loading flag */
             }
         },
-        [query, token, weekStartStr, weekEndStr]
+        [getTimetableData, user.id, weekStartDate, token, weekStartStr, weekEndStr]
     );
 
     useEffect(() => {
