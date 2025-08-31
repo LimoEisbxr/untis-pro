@@ -29,6 +29,41 @@ export function isServiceWorkerSupported(): boolean {
     return 'serviceWorker' in navigator;
 }
 
+// Detect if running as an installed (standalone) PWA
+export function isStandalonePWA(): boolean {
+    try {
+        const legacyStandalone = (navigator as unknown as { standalone?: boolean }).standalone;
+        return (
+            window.matchMedia('(display-mode: standalone)').matches ||
+            legacyStandalone === true
+        );
+    } catch {
+        return false;
+    }
+}
+
+// Basic iOS device detection (phone/tablet)
+export function isIOS(): boolean {
+    return /iphone|ipad|ipod/i.test(window.navigator.userAgent);
+}
+
+// Extract major iOS version (returns null if not iOS or unknown)
+export function getiOSVersion(): number | null {
+    if (!isIOS()) return null;
+    const match = window.navigator.userAgent.match(/OS (\d+)_/i);
+    if (match && match[1]) {
+        const v = parseInt(match[1], 10);
+        return Number.isFinite(v) ? v : null;
+    }
+    return null;
+}
+
+// Determine whether push-capable Web Push prerequisites are satisfied on iOS
+export function isIOSPushCapable(): boolean {
+    const v = getiOSVersion();
+    return isIOS() && isStandalonePWA() && !!v && v >= 16; // 16.4+ originally; use 16 baseline
+}
+
 // Get current notification permission status
 export function getNotificationPermission(): NotificationPermissionState {
     if (!isNotificationSupported()) {

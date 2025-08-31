@@ -81,10 +81,11 @@ export default function Dashboard({
     const [retrySeconds, setRetrySeconds] = useState<number | null>(null);
     // Settings modal state
     const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
-    
+
     // Notification state
     const [notifications, setNotifications] = useState<Notification[]>([]);
-    const [isNotificationPanelOpen, setIsNotificationPanelOpen] = useState(false);
+    const [isNotificationPanelOpen, setIsNotificationPanelOpen] =
+        useState(false);
 
     // Derive a friendly info message for admin users when their own timetable isn't available
     const adminInfoMessage = useMemo(() => {
@@ -327,7 +328,7 @@ export default function Dashboard({
     // Load notifications on component mount and periodically
     useEffect(() => {
         loadNotifications();
-        
+
         // Reload notifications every 30 seconds
         const interval = setInterval(loadNotifications, 30000);
         return () => clearInterval(interval);
@@ -353,8 +354,12 @@ export default function Dashboard({
             const ac = new AbortController();
             abortRef.current = ac;
             try {
-                const base = API_BASE ? String(API_BASE).replace(/\/$/, '') : '';
-                const url = `${base}/api/users/search?q=${encodeURIComponent(currentQuery)}`;
+                const base = API_BASE
+                    ? String(API_BASE).replace(/\/$/, '')
+                    : '';
+                const url = `${base}/api/users/search?q=${encodeURIComponent(
+                    currentQuery
+                )}`;
                 const res = await fetch(url, {
                     headers: { Authorization: `Bearer ${token}` },
                     signal: ac.signal,
@@ -394,7 +399,7 @@ export default function Dashboard({
         const handlePointer = (e: MouseEvent | TouchEvent) => {
             // Skip if mobile search is open to avoid interference
             if (mobileSearchOpen) return;
-            
+
             const node = searchBoxRef.current;
             if (!node) return;
             if (!node.contains(e.target as Node)) {
@@ -429,6 +434,7 @@ export default function Dashboard({
                             notifications={notifications}
                             onClick={() => setIsNotificationPanelOpen(true)}
                             className="mr-1"
+                            isOpen={isNotificationPanelOpen}
                         />
                         <button
                             className="rounded-full p-2 hover:bg-slate-200 dark:hover:bg-slate-700"
@@ -550,9 +556,14 @@ export default function Dashboard({
                         {/* Row 2: search (desktop), mobile icons (search+home), week picker */}
                         <div className="flex flex-wrap items-end gap-3">
                             {/* Desktop search */}
-                            <div className="hidden sm:flex items-end gap-3 flex-1 max-w-2xl" ref={searchBoxRef}>
+                            <div
+                                className="hidden sm:flex items-end gap-3 flex-1 max-w-2xl"
+                                ref={searchBoxRef}
+                            >
                                 <div className="flex-1">
-                                    <label className="label sm:text-sm text-[11px]">Search</label>
+                                    <label className="label sm:text-sm text-[11px]">
+                                        Search
+                                    </label>
                                     <div className="relative">
                                         <input
                                             className="input text-sm pr-8"
@@ -562,14 +573,33 @@ export default function Dashboard({
                                                 setQueryText(e.target.value)
                                             }
                                         />
-                                        {searchLoading && queryText.trim().length >= 2 && (
-                                            <div className="absolute right-7 top-1/2 -translate-y-1/2 animate-spin text-slate-400" aria-label="Loading" role="status">
-                                                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
-                                                    <circle cx="12" cy="12" r="9" className="opacity-25" />
-                                                    <path d="M21 12a9 9 0 0 0-9-9" className="opacity-75" />
-                                                </svg>
-                                            </div>
-                                        )}
+                                        {searchLoading &&
+                                            queryText.trim().length >= 2 && (
+                                                <div
+                                                    className="absolute right-7 top-1/2 -translate-y-1/2 animate-spin text-slate-400"
+                                                    aria-label="Loading"
+                                                    role="status"
+                                                >
+                                                    <svg
+                                                        viewBox="0 0 24 24"
+                                                        className="h-4 w-4"
+                                                        fill="none"
+                                                        stroke="currentColor"
+                                                        strokeWidth="2"
+                                                    >
+                                                        <circle
+                                                            cx="12"
+                                                            cy="12"
+                                                            r="9"
+                                                            className="opacity-25"
+                                                        />
+                                                        <path
+                                                            d="M21 12a9 9 0 0 0-9-9"
+                                                            className="opacity-75"
+                                                        />
+                                                    </svg>
+                                                </div>
+                                            )}
                                         {queryText && (
                                             <button
                                                 type="button"
@@ -588,16 +618,37 @@ export default function Dashboard({
                                                             <button
                                                                 className="w-full px-3 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-700"
                                                                 onClick={() => {
-                                                                    setSelectedUser(r);
-                                                                    setQueryText(r.displayName || r.username);
-                                                                    setResults([]);
-                                                                    if (r.id !== user.id) loadUser(r.id);
-                                                                    else loadMine();
+                                                                    setSelectedUser(
+                                                                        r
+                                                                    );
+                                                                    setQueryText(
+                                                                        r.displayName ||
+                                                                            r.username
+                                                                    );
+                                                                    setResults(
+                                                                        []
+                                                                    );
+                                                                    if (
+                                                                        r.id !==
+                                                                        user.id
+                                                                    )
+                                                                        loadUser(
+                                                                            r.id
+                                                                        );
+                                                                    else
+                                                                        loadMine();
                                                                 }}
                                                             >
-                                                                <div className="font-medium">{r.displayName || r.username}</div>
+                                                                <div className="font-medium">
+                                                                    {r.displayName ||
+                                                                        r.username}
+                                                                </div>
                                                                 {r.displayName && (
-                                                                    <div className="text-xs text-slate-500">{r.username}</div>
+                                                                    <div className="text-xs text-slate-500">
+                                                                        {
+                                                                            r.username
+                                                                        }
+                                                                    </div>
                                                                 )}
                                                             </button>
                                                         </li>
@@ -605,11 +656,12 @@ export default function Dashboard({
                                                 </ul>
                                             </div>
                                         )}
-                                        {searchError && queryText.trim().length >= 2 && (
-                                            <div className="absolute z-40 mt-1 w-full rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-600 dark:bg-amber-900/40 dark:text-amber-200">
-                                                {searchError}
-                                            </div>
-                                        )}
+                                        {searchError &&
+                                            queryText.trim().length >= 2 && (
+                                                <div className="absolute z-40 mt-1 w-full rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-600 dark:bg-amber-900/40 dark:text-amber-200">
+                                                    {searchError}
+                                                </div>
+                                            )}
                                         {queryText.trim().length === 1 && (
                                             <div className="absolute z-40 mt-1 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-[11px] text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
                                                 Type at least 2 characters…
@@ -770,7 +822,9 @@ export default function Dashboard({
                                     className="w-full rounded-xl border border-slate-300 dark:border-slate-600 bg-white/95 dark:bg-slate-800/95 px-4 py-3 text-slate-900 dark:text-slate-100 placeholder:text-slate-500 dark:placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500 text-base shadow-sm"
                                     placeholder="Search for a student..."
                                     value={queryText}
-                                    onChange={(e) => setQueryText(e.target.value)}
+                                    onChange={(e) =>
+                                        setQueryText(e.target.value)
+                                    }
                                 />
                                 {queryText && (
                                     <button
@@ -794,19 +848,39 @@ export default function Dashboard({
                                         </svg>
                                     </button>
                                 )}
-                                {searchLoading && queryText.trim().length >= 2 && (
-                                    <div className="absolute right-10 top-1/2 -translate-y-1/2 animate-spin text-slate-400" aria-label="Loading" role="status">
-                                        <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
-                                            <circle cx="12" cy="12" r="9" className="opacity-25" />
-                                            <path d="M21 12a9 9 0 0 0-9-9" className="opacity-75" />
-                                        </svg>
-                                    </div>
-                                )}
-                                {searchError && queryText.trim().length >= 2 && (
-                                    <div className="absolute left-0 right-0 top-full mt-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-600 dark:bg-amber-900/40 dark:text-amber-200 shadow">
-                                        {searchError}
-                                    </div>
-                                )}
+                                {searchLoading &&
+                                    queryText.trim().length >= 2 && (
+                                        <div
+                                            className="absolute right-10 top-1/2 -translate-y-1/2 animate-spin text-slate-400"
+                                            aria-label="Loading"
+                                            role="status"
+                                        >
+                                            <svg
+                                                viewBox="0 0 24 24"
+                                                className="h-5 w-5"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                strokeWidth="2"
+                                            >
+                                                <circle
+                                                    cx="12"
+                                                    cy="12"
+                                                    r="9"
+                                                    className="opacity-25"
+                                                />
+                                                <path
+                                                    d="M21 12a9 9 0 0 0-9-9"
+                                                    className="opacity-75"
+                                                />
+                                            </svg>
+                                        </div>
+                                    )}
+                                {searchError &&
+                                    queryText.trim().length >= 2 && (
+                                        <div className="absolute left-0 right-0 top-full mt-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-600 dark:bg-amber-900/40 dark:text-amber-200 shadow">
+                                            {searchError}
+                                        </div>
+                                    )}
                                 {queryText.trim().length === 1 && (
                                     <div className="absolute left-0 right-0 top-full mt-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 shadow">
                                         Type at least 2 characters…
@@ -826,7 +900,7 @@ export default function Dashboard({
                             </button>
                         </div>
                     </div>
-                    
+
                     {/* Results area with improved styling */}
                     <div className="flex-1 overflow-auto p-4">
                         {(() => {
@@ -835,12 +909,27 @@ export default function Dashboard({
                                 return (
                                     <div className="flex flex-col items-center justify-center py-12 text-center">
                                         <div className="w-16 h-16 rounded-full bg-gradient-to-br from-sky-100 to-indigo-100 dark:from-sky-900/30 dark:to-indigo-900/30 flex items-center justify-center mb-4">
-                                            <svg className="w-8 h-8 text-sky-600 dark:text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                            <svg
+                                                className="w-8 h-8 text-sky-600 dark:text-sky-400"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                viewBox="0 0 24 24"
+                                            >
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    strokeWidth="1.5"
+                                                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                                                />
                                             </svg>
                                         </div>
-                                        <p className="text-slate-600 dark:text-slate-300 text-lg font-medium mb-2">Search for students</p>
-                                        <p className="text-slate-500 dark:text-slate-400 text-sm">Start typing to find students and view their timetables</p>
+                                        <p className="text-slate-600 dark:text-slate-300 text-lg font-medium mb-2">
+                                            Search for students
+                                        </p>
+                                        <p className="text-slate-500 dark:text-slate-400 text-sm">
+                                            Start typing to find students and
+                                            view their timetables
+                                        </p>
                                     </div>
                                 );
                             }
@@ -848,12 +937,26 @@ export default function Dashboard({
                                 return (
                                     <div className="flex flex-col items-center justify-center py-12 text-center">
                                         <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-4">
-                                            <svg className="w-8 h-8 text-slate-400 dark:text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                            <svg
+                                                className="w-8 h-8 text-slate-400 dark:text-slate-500"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                viewBox="0 0 24 24"
+                                            >
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    strokeWidth="1.5"
+                                                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                                                />
                                             </svg>
                                         </div>
-                                        <p className="text-slate-500 dark:text-slate-400 text-lg font-medium mb-2">Keep typing…</p>
-                                        <p className="text-slate-400 dark:text-slate-500 text-sm">Type at least 2 characters to search</p>
+                                        <p className="text-slate-500 dark:text-slate-400 text-lg font-medium mb-2">
+                                            Keep typing…
+                                        </p>
+                                        <p className="text-slate-400 dark:text-slate-500 text-sm">
+                                            Type at least 2 characters to search
+                                        </p>
                                     </div>
                                 );
                             }
@@ -861,12 +964,28 @@ export default function Dashboard({
                                 return (
                                     <div className="flex flex-col items-center justify-center py-12 text-center">
                                         <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-4 animate-spin text-slate-400 dark:text-slate-500">
-                                            <svg viewBox="0 0 24 24" className="w-8 h-8" fill="none" stroke="currentColor" strokeWidth="2">
-                                                <circle cx="12" cy="12" r="9" className="opacity-25" />
-                                                <path d="M21 12a9 9 0 0 0-9-9" className="opacity-75" />
+                                            <svg
+                                                viewBox="0 0 24 24"
+                                                className="w-8 h-8"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                strokeWidth="2"
+                                            >
+                                                <circle
+                                                    cx="12"
+                                                    cy="12"
+                                                    r="9"
+                                                    className="opacity-25"
+                                                />
+                                                <path
+                                                    d="M21 12a9 9 0 0 0-9-9"
+                                                    className="opacity-75"
+                                                />
                                             </svg>
                                         </div>
-                                        <p className="text-slate-500 dark:text-slate-400 text-sm">Searching…</p>
+                                        <p className="text-slate-500 dark:text-slate-400 text-sm">
+                                            Searching…
+                                        </p>
                                     </div>
                                 );
                             }
@@ -874,12 +993,26 @@ export default function Dashboard({
                                 return (
                                     <div className="flex flex-col items-center justify-center py-12 text-center">
                                         <div className="w-16 h-16 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center mb-4">
-                                            <svg className="w-8 h-8 text-amber-600 dark:text-amber-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 9v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                            <svg
+                                                className="w-8 h-8 text-amber-600 dark:text-amber-300"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                viewBox="0 0 24 24"
+                                            >
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    strokeWidth="1.5"
+                                                    d="M12 9v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                                />
                                             </svg>
                                         </div>
-                                        <p className="text-amber-700 dark:text-amber-300 text-sm mb-1">{searchError}</p>
-                                        <p className="text-slate-400 dark:text-slate-500 text-xs">Adjust your search and try again</p>
+                                        <p className="text-amber-700 dark:text-amber-300 text-sm mb-1">
+                                            {searchError}
+                                        </p>
+                                        <p className="text-slate-400 dark:text-slate-500 text-xs">
+                                            Adjust your search and try again
+                                        </p>
                                     </div>
                                 );
                             }
@@ -887,12 +1020,26 @@ export default function Dashboard({
                                 return (
                                     <div className="flex flex-col items-center justify-center py-12 text-center">
                                         <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-4">
-                                            <svg className="w-8 h-8 text-slate-400 dark:text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                            <svg
+                                                className="w-8 h-8 text-slate-400 dark:text-slate-500"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                viewBox="0 0 24 24"
+                                            >
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    strokeWidth="1.5"
+                                                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                                                />
                                             </svg>
                                         </div>
-                                        <p className="text-slate-500 dark:text-slate-400 text-lg font-medium mb-2">No results found</p>
-                                        <p className="text-slate-400 dark:text-slate-500 text-sm">Try a different search term</p>
+                                        <p className="text-slate-500 dark:text-slate-400 text-lg font-medium mb-2">
+                                            No results found
+                                        </p>
+                                        <p className="text-slate-400 dark:text-slate-500 text-sm">
+                                            Try a different search term
+                                        </p>
                                     </div>
                                 );
                             }
@@ -902,7 +1049,11 @@ export default function Dashboard({
                                         <div
                                             key={r.id}
                                             className="animate-fade-in"
-                                            style={{ animationDelay: `${index * 50}ms` }}
+                                            style={{
+                                                animationDelay: `${
+                                                    index * 50
+                                                }ms`,
+                                            }}
                                         >
                                             <button
                                                 className="w-full rounded-xl p-4 text-left bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/50 dark:hover:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 hover:border-slate-300 dark:hover:border-slate-600 transition-all duration-200 shadow-sm hover:shadow-md group"
@@ -911,17 +1062,24 @@ export default function Dashboard({
                                                     setQueryText('');
                                                     setResults([]);
                                                     setMobileSearchOpen(false);
-                                                    if (r.id !== user.id) loadUser(r.id);
+                                                    if (r.id !== user.id)
+                                                        loadUser(r.id);
                                                     else loadMine();
                                                 }}
                                             >
                                                 <div className="flex items-center gap-3">
                                                     <div className="w-10 h-10 rounded-full bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center text-white font-semibold text-sm shadow-md">
-                                                        {(r.displayName || r.username).charAt(0).toUpperCase()}
+                                                        {(
+                                                            r.displayName ||
+                                                            r.username
+                                                        )
+                                                            .charAt(0)
+                                                            .toUpperCase()}
                                                     </div>
                                                     <div className="flex-1">
                                                         <div className="font-semibold text-slate-900 dark:text-slate-100 group-hover:text-sky-700 dark:group-hover:text-sky-300 transition-colors">
-                                                            {r.displayName || r.username}
+                                                            {r.displayName ||
+                                                                r.username}
                                                         </div>
                                                         {r.displayName && (
                                                             <div className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
@@ -930,8 +1088,18 @@ export default function Dashboard({
                                                         )}
                                                     </div>
                                                     <div className="text-slate-400 dark:text-slate-500 group-hover:text-sky-500 dark:group-hover:text-sky-400 transition-colors">
-                                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                                                        <svg
+                                                            className="w-5 h-5"
+                                                            fill="none"
+                                                            stroke="currentColor"
+                                                            viewBox="0 0 24 24"
+                                                        >
+                                                            <path
+                                                                strokeLinecap="round"
+                                                                strokeLinejoin="round"
+                                                                strokeWidth="2"
+                                                                d="M9 5l7 7-7 7"
+                                                            />
                                                         </svg>
                                                     </div>
                                                 </div>
@@ -952,7 +1120,7 @@ export default function Dashboard({
                 onClose={() => setIsSettingsModalOpen(false)}
                 onUserUpdate={onUserUpdate}
             />
-            
+
             <NotificationPanel
                 notifications={notifications}
                 token={token}

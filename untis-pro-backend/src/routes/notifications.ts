@@ -136,7 +136,8 @@ router.get('/settings', authMiddleware, async (req, res) => {
             settings = await (prisma as any).notificationSettings.create({
                 data: {
                     userId: req.user.id,
-                    browserNotificationsEnabled: true,
+                    // Start disabled until user explicitly grants permission
+                    browserNotificationsEnabled: false,
                     pushNotificationsEnabled: false,
                     timetableChangesEnabled: true,
                     accessRequestsEnabled: (req.user as any).isUserManager || false,
