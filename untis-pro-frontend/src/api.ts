@@ -524,4 +524,13 @@ export async function updateAdminNotificationSettings(
     });
 }
 
+// Sdui API functions
+export async function getSduiNews(token: string, page: number = 1): Promise<import('./types').SduiNewsResponse> {
+    return api<import('./types').SduiNewsResponse>(`/api/sdui/news?page=${page}`, { token });
+}
+
+export async function getSduiNewsById(token: string, newsId: number): Promise<{ data: import('./types').SduiNews; status: string; meta: Record<string, unknown> }> {
+    return api<{ data: import('./types').SduiNews; status: string; meta: Record<string, unknown> }>(`/api/sdui/news/${newsId}`, { token });
+}
+
 export { API_BASE };

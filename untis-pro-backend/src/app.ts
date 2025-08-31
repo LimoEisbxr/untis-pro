@@ -12,6 +12,7 @@ import lessonColorsRoutes from './routes/lessonColors.js';
 import sharingRoutes from './routes/sharing.js';
 import accessRequestRoutes from './routes/accessRequest.js';
 import notificationRoutes from './routes/notifications.js';
+import sduiRoutes from './routes/sdui.js';
 
 dotenv.config();
 
@@ -75,5 +76,6 @@ app.use('/api/lesson-colors', lessonColorsRoutes);
 app.use('/api/sharing', sharingRoutes);
 app.use('/api/access-request', accessRequestRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/sdui', sduiRoutes);
 
 export default app;
