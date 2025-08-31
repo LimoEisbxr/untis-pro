@@ -10,68 +10,59 @@ if [ -z "${DATABASE_URL:-}" ]; then
   exit 1
 fi
 
-echo "[entrypoint] Waiting for database to accept connections..."
-max_tries=10
-i=1
-while [ "$i" -le "$max_tries" ]; do
-  if printf 'SELECT 1;' | npx prisma db execute --stdin >/dev/null 2>&1; then
-    echo "[entrypoint] Database is ready."
-    break
-  fi
-  echo "[entrypoint] DB not ready yet, retry $i/$max_tries..."
-  i=$((i+1))
-  sleep 3
-done
+# We already depend_on a healthy DB via docker-compose healthcheck, so no extra long poll.
+# Perform a fast sanity check (single attempt) so we fail fast if networking is misconfigured.
+if ! printf 'SELECT 1;' | npx prisma db execute --stdin >/dev/null 2>&1; then
+  echo "[entrypoint] WARNING: Initial DB probe failed; proceeding (compose healthcheck should have ensured readiness)." >&2
+fi
 
-echo "[entrypoint] Generating Prisma client..."
-npx prisma generate
+# Skip runtime generate if PRISMA_SKIP_RUNTIME_GENERATE=1 (image build already generated client)
+if [ "${PRISMA_SKIP_RUNTIME_GENERATE:-0}" != "1" ]; then
+  echo "[entrypoint] Generating Prisma client (override by setting PRISMA_SKIP_RUNTIME_GENERATE=1)..."
+  npx prisma generate || {
+    echo "[entrypoint] ERROR: prisma generate failed" >&2
+    exit 1
+  }
+else
+  echo "[entrypoint] Skipping prisma generate (PRISMA_SKIP_RUNTIME_GENERATE=1)."
+fi
 
 echo "[entrypoint] Applying migrations (prisma migrate deploy)..."
-migrate_output=$(npx prisma migrate deploy 2>&1) || migrate_failed=true
+set +e
+migrate_output=$(npx prisma migrate deploy 2>&1)
+migrate_rc=$?
+set -e
 
-if [ "${migrate_failed:-false}" = "true" ]; then
-  echo "[entrypoint] No migrations found or migrate deploy failed. This is normal for fresh installations."
-  echo "[entrypoint] Migration output: $migrate_output"
-  echo "[entrypoint] Using 'prisma db push' to initialize database schema..."
-  if ! npx prisma db push --accept-data-loss; then
-    echo "[entrypoint] ERROR: prisma db push failed" >&2
-    npx prisma migrate status || true
+if [ $migrate_rc -ne 0 ]; then
+  echo "[entrypoint] Migration deploy failed (exit $migrate_rc)."
+  # Detect failed migration scenario (P3009) and abort with guidance instead of masking.
+  if printf '%s' "$migrate_output" | grep -q 'P3009'; then
+    echo "[entrypoint] ERROR: Detected failed migration (P3009). A previous migration is marked failed in the target DB."
+    echo "[entrypoint] ----- migrate output begin -----"
+    printf '%s\n' "$migrate_output"
+    echo "[entrypoint] ----- migrate output end -----"
+    echo "[entrypoint] ACTION REQUIRED: Fix by either (a) resetting dev DB: 'docker compose down -v' then 'docker compose up', or (b) marking the failed migration resolved after ensuring schema objects exist: 'docker compose exec backend npx prisma migrate resolve --applied <migration_name>' then rerun. Exiting to avoid hidden drift." >&2
     exit 1
   fi
-  echo "[entrypoint] Database schema initialized successfully."
+  # If no migrations found (fresh DB with only schema) allow dev convenience fallback
+  if printf '%s' "$migrate_output" | grep -qi 'No.*migrations'; then
+    echo "[entrypoint] No migrations found; using 'prisma db push' to sync schema (dev fallback)."
+    npx prisma db push --accept-data-loss || {
+      echo "[entrypoint] ERROR: prisma db push failed" >&2
+      exit 1
+    }
+  else
+    echo "[entrypoint] Non-P3009 migrate failure; attempting one-time 'prisma db push' dev fallback..."
+    if ! npx prisma db push --accept-data-loss; then
+      echo "[entrypoint] ERROR: Fallback prisma db push also failed" >&2
+      echo "[entrypoint] ----- migrate output begin -----"
+      printf '%s\n' "$migrate_output"
+      echo "[entrypoint] ----- migrate output end -----"
+      exit 1
+    fi
+  fi
 else
   echo "[entrypoint] Migrations applied successfully."
-fi
-
-# Verify critical tables exist; if not, attempt another sync (dev-friendly fallback)
-echo "[entrypoint] Verifying database schema..."
-missing_tables=""
-
-# Check for User table
-if ! printf 'SELECT 1 FROM "User" LIMIT 1;' | npx prisma db execute --stdin >/dev/null 2>&1; then
-  missing_tables="$missing_tables User"
-fi
-
-# Check for LessonColorSetting table
-if ! printf 'SELECT 1 FROM "LessonColorSetting" LIMIT 1;' | npx prisma db execute --stdin >/dev/null 2>&1; then
-  missing_tables="$missing_tables LessonColorSetting"
-fi
-
-# Check for DefaultLessonColor table
-if ! printf 'SELECT 1 FROM "DefaultLessonColor" LIMIT 1;' | npx prisma db execute --stdin >/dev/null 2>&1; then
-  missing_tables="$missing_tables DefaultLessonColor"
-fi
-
-if [ -n "$missing_tables" ]; then
-  echo "[entrypoint] WARNING: Missing tables:$missing_tables. Running additional 'prisma db push' to ensure schema sync."
-  if ! npx prisma db push --accept-data-loss; then
-    echo "[entrypoint] ERROR: Additional prisma db push failed" >&2
-    npx prisma migrate status || true
-    exit 1
-  fi
-  echo "[entrypoint] Schema synchronized successfully."
-else
-  echo "[entrypoint] All required tables exist."
 fi
 
 echo "[entrypoint] Starting server..."
