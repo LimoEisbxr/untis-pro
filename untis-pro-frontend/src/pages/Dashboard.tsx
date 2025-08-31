@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Timetable from '../components/Timetable';
 import MoonIcon from '../components/MoonIcon';
 import SettingsModal from '../components/SettingsModal';
+import NotificationBell from '../components/NotificationBell';
+import NotificationPanel from '../components/NotificationPanel';
 import {
     api,
     API_BASE,
@@ -9,6 +11,7 @@ import {
     setLessonColor,
     removeLessonColor,
     getDefaultLessonColors,
+    getNotifications,
 } from '../api';
 import { addDays, fmtLocal, startOfWeek } from '../utils/dates';
 import type {
@@ -16,6 +19,7 @@ import type {
     User,
     LessonColors,
     LessonOffsets,
+    Notification,
 } from '../types';
 
 export default function Dashboard({
@@ -77,6 +81,10 @@ export default function Dashboard({
     const [retrySeconds, setRetrySeconds] = useState<number | null>(null);
     // Settings modal state
     const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+    
+    // Notification state
+    const [notifications, setNotifications] = useState<Notification[]>([]);
+    const [isNotificationPanelOpen, setIsNotificationPanelOpen] = useState(false);
 
     // Derive a friendly info message for admin users when their own timetable isn't available
     const adminInfoMessage = useMemo(() => {
@@ -306,6 +314,25 @@ export default function Dashboard({
         [token, selectedUser?.id, user.isAdmin]
     );
 
+    // Load notifications
+    const loadNotifications = useCallback(async () => {
+        try {
+            const response = await getNotifications(token);
+            setNotifications(response.notifications);
+        } catch (error) {
+            console.error('Failed to load notifications:', error);
+        }
+    }, [token]);
+
+    // Load notifications on component mount and periodically
+    useEffect(() => {
+        loadNotifications();
+        
+        // Reload notifications every 30 seconds
+        const interval = setInterval(loadNotifications, 30000);
+        return () => clearInterval(interval);
+    }, [loadNotifications]);
+
     useEffect(() => {
         const q = queryText.trim();
         if (!q) {
@@ -398,6 +425,11 @@ export default function Dashboard({
                         <div className="text-sm text-slate-600 dark:text-slate-300 mr-4">
                             {user.displayName || user.username}
                         </div>
+                        <NotificationBell
+                            notifications={notifications}
+                            onClick={() => setIsNotificationPanelOpen(true)}
+                            className="mr-1"
+                        />
                         <button
                             className="rounded-full p-2 hover:bg-slate-200 dark:hover:bg-slate-700"
                             title="Settings"
@@ -919,6 +951,14 @@ export default function Dashboard({
                 isOpen={isSettingsModalOpen}
                 onClose={() => setIsSettingsModalOpen(false)}
                 onUserUpdate={onUserUpdate}
+            />
+            
+            <NotificationPanel
+                notifications={notifications}
+                token={token}
+                isOpen={isNotificationPanelOpen}
+                onClose={() => setIsNotificationPanelOpen(false)}
+                onNotificationUpdate={loadNotifications}
             />
         </div>
     );

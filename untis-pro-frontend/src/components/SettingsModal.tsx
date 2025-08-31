@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import type { User } from '../types';
+import type { User, NotificationSettings, AdminNotificationSettings } from '../types';
 import {
     getSharingSettings,
     updateSharingEnabled,
@@ -27,7 +27,16 @@ import {
     userManagerDeclineAccessRequest,
     grantUserManagerStatus,
     revokeUserManagerStatus,
+    getNotificationSettings,
+    updateNotificationSettings,
+    getAdminNotificationSettings,
+    updateAdminNotificationSettings,
 } from '../api';
+import { 
+    requestNotificationPermission, 
+    getNotificationPermission, 
+    isNotificationSupported, 
+} from '../utils/notifications';
 
 export default function SettingsModal({
     token,
@@ -125,6 +134,17 @@ export default function SettingsModal({
     // User-manager status management state
     const [userManagerChanging, setUserManagerChanging] = useState<string | null>(null);
     const [showConfirmUserManager, setShowConfirmUserManager] = useState<{ userId: string; username: string; isGranting: boolean } | null>(null);
+
+    // Notification settings state
+    const [notificationSettings, setNotificationSettings] = useState<NotificationSettings | null>(null);
+    const [notificationLoading, setNotificationLoading] = useState(false);
+    const [notificationError, setNotificationError] = useState<string | null>(null);
+    const [notificationPermission, setNotificationPermission] = useState(getNotificationPermission());
+    
+    // Admin notification settings state
+    const [adminNotificationSettings, setAdminNotificationSettings] = useState<AdminNotificationSettings | null>(null);
+    const [adminNotificationLoading, setAdminNotificationLoading] = useState(false);
+    const [adminNotificationError, setAdminNotificationError] = useState<string | null>(null);
 
     const loadUsers = useCallback(async () => {
         setUserManagementLoading(true);
@@ -612,19 +632,85 @@ export default function SettingsModal({
         [token]
     );
 
+    // Notification settings functions
+    const loadNotificationSettings = useCallback(async () => {
+        setNotificationLoading(true);
+        setNotificationError(null);
+        try {
+            const response = await getNotificationSettings(token);
+            setNotificationSettings(response.settings);
+        } catch (e) {
+            setNotificationError(e instanceof Error ? e.message : 'Failed to load notification settings');
+        } finally {
+            setNotificationLoading(false);
+        }
+    }, [token]);
+
+    const loadAdminNotificationSettings = useCallback(async () => {
+        if (!user.isAdmin) return;
+        setAdminNotificationLoading(true);
+        setAdminNotificationError(null);
+        try {
+            const response = await getAdminNotificationSettings(token);
+            setAdminNotificationSettings(response.settings);
+        } catch (e) {
+            setAdminNotificationError(e instanceof Error ? e.message : 'Failed to load admin notification settings');
+        } finally {
+            setAdminNotificationLoading(false);
+        }
+    }, [token, user.isAdmin]);
+
+    const handleUpdateNotificationSettings = async (updates: Partial<NotificationSettings>) => {
+        if (!notificationSettings) return;
+        
+        try {
+            const response = await updateNotificationSettings(token, updates);
+            setNotificationSettings(response.settings);
+        } catch (e) {
+            setNotificationError(e instanceof Error ? e.message : 'Failed to update notification settings');
+        }
+    };
+
+    const handleUpdateAdminNotificationSettings = async (updates: Partial<AdminNotificationSettings>) => {
+        if (!adminNotificationSettings) return;
+        
+        try {
+            const response = await updateAdminNotificationSettings(token, updates);
+            setAdminNotificationSettings(response.settings);
+        } catch (e) {
+            setAdminNotificationError(e instanceof Error ? e.message : 'Failed to update admin notification settings');
+        }
+    };
+
+    const handleRequestNotificationPermission = async () => {
+        try {
+            const permission = await requestNotificationPermission();
+            setNotificationPermission(permission);
+            
+            if (permission === 'granted') {
+                // Enable browser notifications automatically when permission is granted
+                await handleUpdateNotificationSettings({ browserNotificationsEnabled: true });
+            }
+        } catch (e) {
+            setNotificationError(e instanceof Error ? e.message : 'Failed to request notification permission');
+        }
+    };
+
     // Load settings when modal opens (with stable callbacks)
     useEffect(() => {
         if (isOpen) {
             loadSettings();
+            loadNotificationSettings();
             if (user.isAdmin) {
                 loadUsers();
+                loadAdminNotificationSettings();
                 // Defer whitelist loading until settings fetched and enabled
             }
             setMyDisplayName(user.displayName ?? '');
             setMyNameSaved(false);
             setMyNameError(null);
         }
-    }, [isOpen, user.isAdmin, user.displayName, loadSettings, loadUsers]);
+    }, [isOpen, user.isAdmin, user.displayName, loadSettings, loadUsers, loadNotificationSettings, loadAdminNotificationSettings]);
 
     // Load whitelist and access requests only when enabled in settings
     useEffect(() => {
@@ -759,6 +845,102 @@ export default function SettingsModal({
                                                     />
                                                     <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-red-300 dark:peer-focus:ring-red-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-red-600"></div>
                                                 </label>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Admin Notification Settings */}
+                                    {adminNotificationLoading ? (
+                                        <div className="mb-6 text-center text-slate-600 dark:text-slate-400">
+                                            Loading notification settings...
+                                        </div>
+                                    ) : adminNotificationError ? (
+                                        <div className="mb-6 text-center text-red-600 dark:text-red-400">
+                                            {adminNotificationError}
+                                        </div>
+                                    ) : adminNotificationSettings && (
+                                        <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                                            <h4 className="font-medium text-blue-800 dark:text-blue-200 mb-4">
+                                                Notification System Settings
+                                            </h4>
+                                            
+                                            <div className="space-y-4">
+                                                <div className="flex items-center justify-between">
+                                                    <div>
+                                                        <h5 className="font-medium text-blue-800 dark:text-blue-200">
+                                                            Timetable Notifications
+                                                        </h5>
+                                                        <p className="text-sm text-blue-600 dark:text-blue-300">
+                                                            Enable automatic notifications for timetable changes
+                                                        </p>
+                                                    </div>
+                                                    <label className="relative inline-flex items-center cursor-pointer">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={adminNotificationSettings.enableTimetableNotifications}
+                                                            onChange={(e) =>
+                                                                handleUpdateAdminNotificationSettings({
+                                                                    enableTimetableNotifications: e.target.checked
+                                                                })
+                                                            }
+                                                            className="sr-only peer"
+                                                        />
+                                                        <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-blue-600"></div>
+                                                    </label>
+                                                </div>
+
+                                                <div className="flex items-center justify-between">
+                                                    <div>
+                                                        <h5 className="font-medium text-blue-800 dark:text-blue-200">
+                                                            Access Request Notifications
+                                                        </h5>
+                                                        <p className="text-sm text-blue-600 dark:text-blue-300">
+                                                            Notify user managers about new access requests
+                                                        </p>
+                                                    </div>
+                                                    <label className="relative inline-flex items-center cursor-pointer">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={adminNotificationSettings.enableAccessRequestNotifications}
+                                                            onChange={(e) =>
+                                                                handleUpdateAdminNotificationSettings({
+                                                                    enableAccessRequestNotifications: e.target.checked
+                                                                })
+                                                            }
+                                                            className="sr-only peer"
+                                                        />
+                                                        <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-blue-600"></div>
+                                                    </label>
+                                                </div>
+
+                                                <div>
+                                                    <label className="block text-sm font-medium text-blue-800 dark:text-blue-200 mb-2">
+                                                        Timetable Check Interval (minutes)
+                                                    </label>
+                                                    <p className="text-xs text-blue-600 dark:text-blue-300 mb-2">
+                                                        How often to check for timetable changes (5-1440 minutes)
+                                                    </p>
+                                                    <div className="flex items-center gap-2">
+                                                        <input
+                                                            type="number"
+                                                            min="5"
+                                                            max="1440"
+                                                            value={adminNotificationSettings.timetableFetchInterval}
+                                                            onChange={(e) => {
+                                                                const value = parseInt(e.target.value);
+                                                                if (value >= 5 && value <= 1440) {
+                                                                    handleUpdateAdminNotificationSettings({
+                                                                        timetableFetchInterval: value
+                                                                    });
+                                                                }
+                                                            }}
+                                                            className="w-20 px-2 py-1 text-sm border border-blue-300 dark:border-blue-600 rounded bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100"
+                                                        />
+                                                        <span className="text-sm text-blue-600 dark:text-blue-300">
+                                                            minutes
+                                                        </span>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
                                     )}
@@ -1433,6 +1615,170 @@ export default function SettingsModal({
                                             </div>
                                         )}
                                     </div>
+
+                                    {/* Notification Settings */}
+                                    {notificationLoading ? (
+                                        <div className="text-center text-slate-600 dark:text-slate-400">
+                                            Loading notification settings...
+                                        </div>
+                                    ) : notificationError ? (
+                                        <div className="text-center text-red-600 dark:text-red-400">
+                                            {notificationError}
+                                        </div>
+                                    ) : notificationSettings && (
+                                        <div className="border-t border-slate-200 dark:border-slate-700 pt-6">
+                                            <h3 className="text-lg font-medium mb-4 text-slate-900 dark:text-slate-100">
+                                                Notification Preferences
+                                            </h3>
+                                            
+                                            {/* Browser notification permission */}
+                                            {isNotificationSupported() && (
+                                                <div className="mb-4">
+                                                    <div className="flex items-center justify-between">
+                                                        <div>
+                                                            <h4 className="font-medium text-slate-900 dark:text-slate-100">
+                                                                Browser Notifications
+                                                            </h4>
+                                                            <p className="text-sm text-slate-600 dark:text-slate-400">
+                                                                {notificationPermission === 'granted' 
+                                                                    ? 'Get notified about important updates'
+                                                                    : notificationPermission === 'denied'
+                                                                    ? 'Notifications are blocked. Enable them in your browser settings.'
+                                                                    : 'Allow notifications to stay updated on changes'
+                                                                }
+                                                            </p>
+                                                        </div>
+                                                        {notificationPermission === 'default' && (
+                                                            <button
+                                                                onClick={handleRequestNotificationPermission}
+                                                                className="btn-primary text-sm"
+                                                            >
+                                                                Enable
+                                                            </button>
+                                                        )}
+                                                        {notificationPermission === 'granted' && (
+                                                            <label className="relative inline-flex items-center cursor-pointer">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={notificationSettings.browserNotificationsEnabled}
+                                                                    onChange={(e) =>
+                                                                        handleUpdateNotificationSettings({
+                                                                            browserNotificationsEnabled: e.target.checked
+                                                                        })
+                                                                    }
+                                                                    className="sr-only peer"
+                                                                />
+                                                                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600"></div>
+                                                            </label>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Notification type preferences */}
+                                            {notificationSettings.browserNotificationsEnabled && (
+                                                <div className="space-y-3 ml-4 pl-4 border-l-2 border-slate-200 dark:border-slate-700">
+                                                    <div className="flex items-center justify-between">
+                                                        <div>
+                                                            <h5 className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                                                                Cancelled Lessons
+                                                            </h5>
+                                                            <p className="text-xs text-slate-600 dark:text-slate-400">
+                                                                When your lessons are cancelled
+                                                            </p>
+                                                        </div>
+                                                        <label className="relative inline-flex items-center cursor-pointer">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={notificationSettings.cancelledLessonsEnabled}
+                                                                onChange={(e) =>
+                                                                    handleUpdateNotificationSettings({
+                                                                        cancelledLessonsEnabled: e.target.checked
+                                                                    })
+                                                                }
+                                                                className="sr-only peer"
+                                                            />
+                                                            <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600"></div>
+                                                        </label>
+                                                    </div>
+
+                                                    <div className="flex items-center justify-between">
+                                                        <div>
+                                                            <h5 className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                                                                Irregular Lessons
+                                                            </h5>
+                                                            <p className="text-xs text-slate-600 dark:text-slate-400">
+                                                                When lessons have schedule changes
+                                                            </p>
+                                                        </div>
+                                                        <label className="relative inline-flex items-center cursor-pointer">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={notificationSettings.irregularLessonsEnabled}
+                                                                onChange={(e) =>
+                                                                    handleUpdateNotificationSettings({
+                                                                        irregularLessonsEnabled: e.target.checked
+                                                                    })
+                                                                }
+                                                                className="sr-only peer"
+                                                            />
+                                                            <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600"></div>
+                                                        </label>
+                                                    </div>
+
+                                                    <div className="flex items-center justify-between">
+                                                        <div>
+                                                            <h5 className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                                                                Timetable Changes
+                                                            </h5>
+                                                            <p className="text-xs text-slate-600 dark:text-slate-400">
+                                                                General timetable updates
+                                                            </p>
+                                                        </div>
+                                                        <label className="relative inline-flex items-center cursor-pointer">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={notificationSettings.timetableChangesEnabled}
+                                                                onChange={(e) =>
+                                                                    handleUpdateNotificationSettings({
+                                                                        timetableChangesEnabled: e.target.checked
+                                                                    })
+                                                                }
+                                                                className="sr-only peer"
+                                                            />
+                                                            <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600"></div>
+                                                        </label>
+                                                    </div>
+
+                                                    {(user.isUserManager || user.isAdmin) && (
+                                                        <div className="flex items-center justify-between">
+                                                            <div>
+                                                                <h5 className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                                                                    Access Requests
+                                                                </h5>
+                                                                <p className="text-xs text-slate-600 dark:text-slate-400">
+                                                                    New user access requests
+                                                                </p>
+                                                            </div>
+                                                            <label className="relative inline-flex items-center cursor-pointer">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={notificationSettings.accessRequestsEnabled}
+                                                                    onChange={(e) =>
+                                                                        handleUpdateNotificationSettings({
+                                                                            accessRequestsEnabled: e.target.checked
+                                                                        })
+                                                                    }
+                                                                    className="sr-only peer"
+                                                                />
+                                                                <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600"></div>
+                                                            </label>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
 
                                     {/* Personal sharing toggle */}
                                     <div className="flex items-center justify-between">

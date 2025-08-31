@@ -1,0 +1,206 @@
+// Notification utilities for browser notifications and PWA support
+
+export type NotificationPermissionState = 'default' | 'granted' | 'denied';
+
+export interface NotificationOptions {
+    title: string;
+    body: string;
+    icon?: string;
+    badge?: string;
+    tag?: string;
+    data?: Record<string, unknown>;
+    requireInteraction?: boolean;
+    actions?: NotificationAction[];
+}
+
+export interface NotificationAction {
+    action: string;
+    title: string;
+    icon?: string;
+}
+
+// Check if browser supports notifications
+export function isNotificationSupported(): boolean {
+    return 'Notification' in window;
+}
+
+// Check if service worker is supported
+export function isServiceWorkerSupported(): boolean {
+    return 'serviceWorker' in navigator;
+}
+
+// Get current notification permission status
+export function getNotificationPermission(): NotificationPermissionState {
+    if (!isNotificationSupported()) {
+        return 'denied';
+    }
+    return Notification.permission as NotificationPermissionState;
+}
+
+// Request notification permission
+export async function requestNotificationPermission(): Promise<NotificationPermissionState> {
+    if (!isNotificationSupported()) {
+        throw new Error('Notifications not supported');
+    }
+
+    const permission = await Notification.requestPermission();
+    return permission as NotificationPermissionState;
+}
+
+// Show a browser notification
+export function showNotification(options: NotificationOptions): Notification | null {
+    if (!isNotificationSupported() || getNotificationPermission() !== 'granted') {
+        return null;
+    }
+
+    const notification = new Notification(options.title, {
+        body: options.body,
+        icon: options.icon || '/icon-192.png',
+        badge: options.badge || '/icon-192.png',
+        tag: options.tag,
+        data: options.data,
+        requireInteraction: options.requireInteraction,
+    });
+
+    return notification;
+}
+
+// Get device type for notification preferences
+export function getDeviceType(): 'mobile' | 'desktop' | 'tablet' {
+    const userAgent = navigator.userAgent.toLowerCase();
+    
+    if (/tablet|ipad|playbook|silk/.test(userAgent)) {
+        return 'tablet';
+    }
+    
+    if (/mobile|iphone|ipod|android|blackberry|opera|mini|windows\sce|palm|smartphone|iemobile/.test(userAgent)) {
+        return 'mobile';
+    }
+    
+    return 'desktop';
+}
+
+// Subscribe to push notifications via service worker
+export async function subscribeToPushNotifications(): Promise<PushSubscription | null> {
+    if (!isServiceWorkerSupported()) {
+        throw new Error('Service workers not supported');
+    }
+
+    const registration = await navigator.serviceWorker.ready;
+    
+    // Check if already subscribed
+    const existingSubscription = await registration.pushManager.getSubscription();
+    if (existingSubscription) {
+        return existingSubscription;
+    }
+
+    // VAPID key would need to be configured for real push notifications
+    // For now, we'll simulate the subscription
+    try {
+        const subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            // applicationServerKey: 'your-vapid-public-key' // Would be needed for real implementation
+        });
+        return subscription;
+    } catch (error) {
+        console.warn('Push subscription failed, falling back to browser notifications:', error);
+        return null;
+    }
+}
+
+// Unsubscribe from push notifications
+export async function unsubscribeFromPushNotifications(): Promise<boolean> {
+    if (!isServiceWorkerSupported()) {
+        return false;
+    }
+
+    try {
+        const registration = await navigator.serviceWorker.ready;
+        const subscription = await registration.pushManager.getSubscription();
+        
+        if (subscription) {
+            return await subscription.unsubscribe();
+        }
+        
+        return true;
+    } catch (error) {
+        console.error('Failed to unsubscribe from push notifications:', error);
+        return false;
+    }
+}
+
+// Show notification with automatic fallback
+export async function showNotificationWithFallback(options: NotificationOptions): Promise<void> {
+    // Try service worker notification first (for PWA)
+    if (isServiceWorkerSupported()) {
+        try {
+            const registration = await navigator.serviceWorker.ready;
+            await registration.showNotification(options.title, {
+                body: options.body,
+                icon: options.icon || '/icon-192.png',
+                badge: options.badge || '/icon-192.png',
+                tag: options.tag,
+                data: options.data,
+                requireInteraction: options.requireInteraction,
+                ...(options.actions && { actions: options.actions }),
+            });
+            return;
+        } catch (error) {
+            console.warn('Service worker notification failed, falling back to browser notification:', error);
+        }
+    }
+
+    // Fallback to regular browser notification
+    showNotification(options);
+}
+
+// Format notification for display
+export function formatNotificationTime(dateString: string): string {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffMins < 1) {
+        return 'Just now';
+    } else if (diffMins < 60) {
+        return `${diffMins}m ago`;
+    } else if (diffHours < 24) {
+        return `${diffHours}h ago`;
+    } else if (diffDays < 7) {
+        return `${diffDays}d ago`;
+    } else {
+        return date.toLocaleDateString();
+    }
+}
+
+// Check if notification should be shown based on user preferences
+export function shouldShowNotification(
+    notificationType: string,
+    settings: {
+        browserNotificationsEnabled?: boolean;
+        timetableChangesEnabled?: boolean;
+        accessRequestsEnabled?: boolean;
+        irregularLessonsEnabled?: boolean;
+        cancelledLessonsEnabled?: boolean;
+    }
+): boolean {
+    if (!settings.browserNotificationsEnabled) {
+        return false;
+    }
+
+    switch (notificationType) {
+        case 'timetable_change':
+            return settings.timetableChangesEnabled ?? true;
+        case 'cancelled_lesson':
+            return settings.cancelledLessonsEnabled ?? true;
+        case 'irregular_lesson':
+            return settings.irregularLessonsEnabled ?? true;
+        case 'access_request':
+            return settings.accessRequestsEnabled ?? true;
+        default:
+            return true;
+    }
+}

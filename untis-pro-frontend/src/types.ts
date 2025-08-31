@@ -61,3 +61,51 @@ export type ColorGradient = {
 };
 
 export type LessonOffsets = Record<string, number>; // lessonName -> gradient offset (0..1)
+
+export type Notification = {
+    id: string;
+    type: string;
+    title: string;
+    message: string;
+    data?: Record<string, unknown>;
+    read: boolean;
+    sent: boolean;
+    createdAt: string;
+    expiresAt?: string;
+};
+
+export type NotificationSettings = {
+    id: string;
+    userId: string;
+    browserNotificationsEnabled: boolean;
+    pushNotificationsEnabled: boolean;
+    timetableChangesEnabled: boolean;
+    accessRequestsEnabled: boolean;
+    irregularLessonsEnabled: boolean;
+    cancelledLessonsEnabled: boolean;
+    devicePreferences?: Record<string, Record<string, unknown>>;
+    createdAt: string;
+    updatedAt: string;
+};
+
+export type NotificationSubscription = {
+    id: string;
+    userId: string;
+    endpoint: string;
+    p256dh: string;
+    auth: string;
+    userAgent?: string;
+    deviceType?: 'mobile' | 'desktop' | 'tablet';
+    active: boolean;
+    createdAt: string;
+    updatedAt: string;
+};
+
+export type AdminNotificationSettings = {
+    id: string;
+    timetableFetchInterval: number;
+    enableTimetableNotifications: boolean;
+    enableAccessRequestNotifications: boolean;
+    createdAt: string;
+    updatedAt: string;
+};
