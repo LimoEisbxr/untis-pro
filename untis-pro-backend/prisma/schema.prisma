@@ -39,6 +39,11 @@ model User {
     sharingWith  TimetableShare[] @relation("UserSharingWith")
     sharedWithBy TimetableShare[] @relation("UserSharedWithBy")
 
+    // Notification relationships
+    notifications             Notification[]
+    notificationSettings      NotificationSettings?
+    notificationSubscriptions NotificationSubscription[]
+
     @@unique([username])
 }
 
@@ -176,4 +181,92 @@ model AccessRequest {
     createdAt DateTime @default(now())
     username  String   @unique
     message   String?  // Optional message from user explaining why they need access
+}
+
+// Notification system models
+model Notification {
+    id        String   @id @default(uuid())
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    // Target user
+    userId String
+    user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    // Notification details
+    type      String  // 'timetable_change', 'access_request', etc.
+    title     String
+    message   String
+    data      Json?   // Additional structured data
+
+    // Status
+    read      Boolean @default(false)
+    sent      Boolean @default(false) // For push notifications
+    expiresAt DateTime?
+
+    @@index([userId, createdAt])
+    @@index([type, createdAt])
+}
+
+model NotificationSettings {
+    id        String   @id @default(uuid())
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    // User settings
+    userId String @unique
+    user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    // General notification preferences
+    browserNotificationsEnabled Boolean @default(true)
+    pushNotificationsEnabled     Boolean @default(false)
+
+    // Notification type preferences
+    timetableChangesEnabled   Boolean @default(true)
+    accessRequestsEnabled     Boolean @default(true) // Only relevant for user managers
+    irregularLessonsEnabled   Boolean @default(true)
+    cancelledLessonsEnabled   Boolean @default(true)
+
+    // Device-specific settings (JSON for flexibility)
+    devicePreferences Json? // { "mobile": {...}, "desktop": {...} }
+}
+
+model NotificationSubscription {
+    id        String   @id @default(uuid())
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    // User and device info
+    userId   String
+    user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+    endpoint String @unique // Push subscription endpoint
+    
+    // Push subscription details
+    p256dh String // Public key
+    auth   String // Auth secret
+    
+    // Device metadata
+    userAgent String?
+    deviceType String? // 'mobile', 'desktop', 'tablet'
+    
+    // Status
+    active Boolean @default(true)
+
+    @@index([userId, active])
+}
+
+model AdminNotificationSettings {
+    id        String   @id @default(uuid())
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    // Fetch timing settings (in minutes)
+    timetableFetchInterval Int @default(30) // How often to check for timetable changes
+    
+    // Notification settings
+    enableTimetableNotifications Boolean @default(true)
+    enableAccessRequestNotifications Boolean @default(true)
+    
+    // Single row constraint
+    @@unique([id])
 }

@@ -36,6 +36,8 @@ services:
             UNTIS_MASTER_KEY: ${UNTIS_MASTER_KEY}
             # Do not override CORS_ORIGIN so env file or runtime env controls it; if unset, backend reflects Origin
             CORS_ORIGIN: ${CORS_ORIGIN}
+            # Skip prisma generate at runtime because it's already done in build stage; set to 0 to force regenerate
+            PRISMA_SKIP_RUNTIME_GENERATE: 1
         ports:
             - '3001:3001'
         healthcheck:

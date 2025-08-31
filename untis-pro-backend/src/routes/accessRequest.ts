@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../store/prisma.js';
 import { WHITELIST_ENABLED } from '../server/config.js';
+import { notificationService } from '../services/notificationService.js';
 
 const router = Router();
 
@@ -52,6 +53,9 @@ router.post('/', async (req, res) => {
             },
             select: { id: true, username: true, message: true, createdAt: true },
         });
+
+        // Notify user managers about the new access request
+        await notificationService.notifyAccessRequest(normalizedUsername, message);
 
         res.json({ request, success: true });
     } catch (e: any) {

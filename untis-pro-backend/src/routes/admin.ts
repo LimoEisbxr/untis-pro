@@ -216,4 +216,67 @@ router.delete('/access-requests/:id', adminOnly, async (req, res) => {
     }
 });
 
+// Get admin notification settings
+router.get('/notification-settings', adminOnly, async (_req, res) => {
+    try {
+        let settings = await (prisma as any).adminNotificationSettings.findFirst();
+        
+        // Create default settings if they don't exist
+        if (!settings) {
+            settings = await (prisma as any).adminNotificationSettings.create({
+                data: {
+                    timetableFetchInterval: 30,
+                    enableTimetableNotifications: true,
+                    enableAccessRequestNotifications: true,
+                },
+            });
+        }
+
+        res.json({ settings });
+    } catch (e: any) {
+        const msg = e?.message || 'Failed to fetch admin notification settings';
+        res.status(500).json({ error: msg });
+    }
+});
+
+// Update admin notification settings
+const updateNotificationSettingsSchema = z.object({
+    timetableFetchInterval: z.number().min(5).max(1440).optional(), // 5 minutes to 24 hours
+    enableTimetableNotifications: z.boolean().optional(),
+    enableAccessRequestNotifications: z.boolean().optional(),
+});
+
+router.put('/notification-settings', adminOnly, async (req, res) => {
+    const parsed = updateNotificationSettingsSchema.safeParse(req.body);
+    if (!parsed.success) {
+        return res.status(400).json({ error: parsed.error.flatten() });
+    }
+
+    try {
+        // Get existing settings or create default
+        let settings = await (prisma as any).adminNotificationSettings.findFirst();
+        
+        if (!settings) {
+            settings = await (prisma as any).adminNotificationSettings.create({
+                data: {
+                    timetableFetchInterval: 30,
+                    enableTimetableNotifications: true,
+                    enableAccessRequestNotifications: true,
+                    ...parsed.data,
+                },
+            });
+        } else {
+            settings = await (prisma as any).adminNotificationSettings.update({
+                where: { id: settings.id },
+                data: parsed.data,
+            });
+        }
+
+        res.json({ settings, success: true });
+    } catch (e: any) {
+        const msg = e?.message || 'Failed to update admin notification settings';
+        res.status(500).json({ error: msg });
+    }
+});
+
 export default router;

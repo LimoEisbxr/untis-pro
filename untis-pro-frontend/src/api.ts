@@ -2,7 +2,7 @@ type ViteImportMeta = { env?: { VITE_API_BASE?: string } };
 const API_BASE: string | undefined = (import.meta as unknown as ViteImportMeta)
     .env?.VITE_API_BASE;
 
-import type { LessonColors, LessonOffsets, User } from './types';
+import type { LessonColors, LessonOffsets, User, Notification, NotificationSettings, AdminNotificationSettings } from './types';
 
 export async function api<T>(
     path: string,
@@ -414,6 +414,113 @@ export async function userManagerDeclineAccessRequest(
     return api<{ success: boolean }>(`/api/user-manager/access-requests/${id}`, {
         method: 'DELETE',
         token,
+    });
+}
+
+// Notification API functions
+export async function getNotifications(token: string): Promise<{ notifications: Notification[] }> {
+    return api<{ notifications: Notification[] }>('/api/notifications', { token });
+}
+
+export async function markNotificationAsRead(
+    token: string,
+    notificationId: string
+): Promise<{ success: boolean }> {
+    return api<{ success: boolean }>(`/api/notifications/${notificationId}/read`, {
+        method: 'PATCH',
+        token,
+    });
+}
+
+export async function markAllNotificationsAsRead(token: string): Promise<{ success: boolean }> {
+    return api<{ success: boolean }>('/api/notifications/read-all', {
+        method: 'PATCH',
+        token,
+    });
+}
+
+export async function deleteNotification(
+    token: string,
+    notificationId: string
+): Promise<{ success: boolean }> {
+    return api<{ success: boolean }>(`/api/notifications/${notificationId}`, {
+        method: 'DELETE',
+        token,
+    });
+}
+
+export async function getNotificationSettings(token: string): Promise<{ settings: NotificationSettings }> {
+    return api<{ settings: NotificationSettings }>('/api/notifications/settings', { token });
+}
+
+export async function updateNotificationSettings(
+    token: string,
+    settings: Partial<Pick<NotificationSettings, 
+        'browserNotificationsEnabled' | 
+        'pushNotificationsEnabled' | 
+        'timetableChangesEnabled' | 
+        'accessRequestsEnabled' | 
+        'irregularLessonsEnabled' | 
+        'cancelledLessonsEnabled' | 
+        'devicePreferences'
+    >>
+): Promise<{ settings: NotificationSettings; success: boolean }> {
+    return api<{ settings: NotificationSettings; success: boolean }>('/api/notifications/settings', {
+        method: 'PUT',
+        token,
+        body: JSON.stringify(settings),
+    });
+}
+
+export async function subscribeToPushNotifications(
+    token: string,
+    subscription: {
+        endpoint: string;
+        p256dh: string;
+        auth: string;
+        userAgent?: string;
+        deviceType?: 'mobile' | 'desktop' | 'tablet';
+    }
+): Promise<{ subscription: Record<string, unknown>; success: boolean }> {
+    return api<{ subscription: Record<string, unknown>; success: boolean }>('/api/notifications/subscribe', {
+        method: 'POST',
+        token,
+        body: JSON.stringify(subscription),
+    });
+}
+
+export async function unsubscribeFromPushNotifications(
+    token: string,
+    endpoint: string
+): Promise<{ success: boolean }> {
+    return api<{ success: boolean }>(`/api/notifications/subscribe/${encodeURIComponent(endpoint)}`, {
+        method: 'DELETE',
+        token,
+    });
+}
+
+// Get VAPID public key for push notifications
+export async function getVapidPublicKey(): Promise<{ publicKey: string }> {
+    return api<{ publicKey: string }>('/api/notifications/vapid-public-key');
+}
+
+// Admin notification settings
+export async function getAdminNotificationSettings(token: string): Promise<{ settings: AdminNotificationSettings }> {
+    return api<{ settings: AdminNotificationSettings }>('/api/admin/notification-settings', { token });
+}
+
+export async function updateAdminNotificationSettings(
+    token: string,
+    settings: Partial<Pick<AdminNotificationSettings, 
+        'timetableFetchInterval' | 
+        'enableTimetableNotifications' | 
+        'enableAccessRequestNotifications'
+    >>
+): Promise<{ settings: AdminNotificationSettings; success: boolean }> {
+    return api<{ settings: AdminNotificationSettings; success: boolean }>('/api/admin/notification-settings', {
+        method: 'PUT',
+        token,
+        body: JSON.stringify(settings),
     });
 }
 
