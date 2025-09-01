@@ -225,6 +225,20 @@ html.dark .change-highlight-inline {
     @apply bg-emerald-900/60 text-emerald-200;
 }
 
+/* Mobile (single-lesson) compact highlight to avoid vertical clipping inside tight blocks */
+.change-highlight-mobile {
+    /* Ultra-compact pill for constrained mobile timetable rows */
+    @apply bg-emerald-100 text-emerald-800 rounded-sm px-1 /* no vertical padding */;
+    line-height: 1.0; /* minimize vertical box */
+    font-size: 0.68rem; /* slightly smaller than 11px Tailwind (≈10.9px) */
+    display: inline-flex;
+    align-items: center;
+    transform: translateY(-0.5px); /* optical centering prevents bottom cut */
+}
+html.dark .change-highlight-mobile {
+    @apply bg-emerald-900/60 text-emerald-200;
+}
+
 .change-original {
     @apply line-through text-slate-500 dark:text-slate-400;
 }

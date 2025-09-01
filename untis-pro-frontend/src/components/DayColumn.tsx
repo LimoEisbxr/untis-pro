@@ -250,6 +250,9 @@ const DayColumn: FC<DayColumnProps> = ({
                               .join(', ')
                         : room;
 
+                    // Mobile single-lesson (non-overlapping) detection for special styling tweaks
+                    const singleMobile = isMobile && b.colCount === 1;
+
                     const effectiveColor =
                         lessonColors[subjectType] ??
                         defaultLessonColors[subjectType] ??
@@ -634,7 +637,11 @@ const DayColumn: FC<DayColumnProps> = ({
                                             {l.te.map((t, i) => (
                                                 <span
                                                     key={i}
-                                                    className={t.orgname ? 'change-highlight-inline' : undefined}
+                                                    className={t.orgname
+                                                        ? singleMobile
+                                                            ? 'change-highlight-mobile'
+                                                            : 'change-highlight-inline'
+                                                        : undefined}
                                                 >
                                                     {t.name}
                                                 </span>
@@ -644,11 +651,20 @@ const DayColumn: FC<DayColumnProps> = ({
                                 })()}
                                 {(() => {
                                     const roomInfo = getRoomDisplayText(l);
-                                    if (!roomMobile) return null;
+                                    // Hide room on mobile for cancelled / irregular lessons per request
+                                    if (!roomMobile || cancelled || irregular) return null;
                                     // Only show short room codes in mobile timetable view
                                     return (
                                         <div className="text-[11px] leading-tight truncate max-w-full">
-                                            <div className={`${roomInfo.hasChanges ? 'change-highlight opacity-90' : 'opacity-90'}`}>
+                                            <div
+                                                className={
+                                                    roomInfo.hasChanges
+                                                        ? singleMobile
+                                                            ? 'change-highlight-mobile'
+                                                            : 'change-highlight opacity-90'
+                                                        : 'opacity-90'
+                                                }
+                                            >
                                                 {roomMobile}
                                             </div>
                                         </div>
@@ -688,7 +704,9 @@ const DayColumn: FC<DayColumnProps> = ({
                                                     {l.te.map((t, i) => (
                                                         <span
                                                             key={i}
-                                                            className={t.orgname ? 'change-highlight-inline' : undefined}
+                                                            className={t.orgname
+                                                                ? 'change-highlight-inline'
+                                                                : undefined}
                                                         >
                                                             {t.name}
                                                         </span>
