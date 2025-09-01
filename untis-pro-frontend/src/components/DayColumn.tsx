@@ -1,4 +1,4 @@
-import type { FC } from 'react';
+import type { FC, ReactElement } from 'react';
 import { useEffect, useState } from 'react';
 import FitText from './FitText';
 import type { Lesson, LessonColors } from '../types';
@@ -462,63 +462,86 @@ const DayColumn: FC<DayColumnProps> = ({
                                 }}
                             >
                                 {/* Mobile: absolute icons overlay (no layout impact) */}
-                                <div className="sm:hidden absolute top-1.5 right-1.5 flex flex-col gap-1 items-end pointer-events-none">
-                                    {l.homework && l.homework.length > 0 && (
-                                        <div className="w-3.5 h-3.5 bg-amber-500/90 dark:bg-amber-500/90 rounded-full flex items-center justify-center ring-1 ring-black/15 dark:ring-white/20 shadow-md backdrop-blur-sm">
-                                            <svg
-                                                className="w-2 h-2 text-white"
-                                                fill="currentColor"
-                                                viewBox="0 0 20 20"
-                                            >
-                                                <path
-                                                    fillRule="evenodd"
-                                                    d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z"
-                                                    clipRule="evenodd"
-                                                />
-                                            </svg>
-                                        </div>
-                                    )}
-                                    {l.info && (
-                                        <div className="w-3.5 h-3.5 bg-blue-500/90 dark:bg-blue-500/90 rounded-full flex items-center justify-center ring-1 ring-black/15 dark:ring-white/20 shadow-md backdrop-blur-sm">
-                                            <svg
-                                                className="w-2 h-2 text-white"
-                                                fill="currentColor"
-                                                viewBox="0 0 20 20"
-                                            >
-                                                <path
-                                                    fillRule="evenodd"
-                                                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-                                                    clipRule="evenodd"
-                                                />
-                                            </svg>
-                                        </div>
-                                    )}
-                                    {l.lstext && (
-                                        <div className="w-3.5 h-3.5 bg-violet-500/90 dark:bg-violet-400/90 rounded-full flex items-center justify-center ring-1 ring-black/15 dark:ring-white/20 shadow-md backdrop-blur-sm">
-                                            <svg
-                                                className="w-2 h-2 text-white"
-                                                fill="currentColor"
-                                                viewBox="0 0 20 20"
-                                            >
-                                                <path d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h8.5a2 2 0 001.414-.586l2.5-2.5A2 2 0 0017 12.5V5a2 2 0 00-2-2H4zm9 10h1.586L13 14.586V13z" />
-                                            </svg>
-                                        </div>
-                                    )}
-                                    {l.exams && l.exams.length > 0 && (
-                                        <div className="w-3.5 h-3.5 bg-red-500/90 dark:bg-red-500/90 rounded-full flex items-center justify-center ring-1 ring-black/15 dark:ring-white/20 shadow-md backdrop-blur-sm">
-                                            <svg
-                                                className="w-2 h-2 text-white"
-                                                fill="currentColor"
-                                                viewBox="0 0 20 20"
-                                            >
-                                                <path
-                                                    fillRule="evenodd"
-                                                    d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z"
-                                                    clipRule="evenodd"
-                                                />
-                                            </svg>
-                                        </div>
-                                    )}
+                                <div className="sm:hidden absolute top-1.5 right-1.5 flex flex-row-reverse gap-1 items-center pointer-events-none">
+                                    {/* Mobile badges: show at most three, laid out right-to-left */}
+                                    {(() => {
+                                        const badges: ReactElement[] = [];
+                                        const baseClass =
+                                            'w-3.5 h-3.5 rounded-full flex items-center justify-center ring-1 ring-black/15 dark:ring-white/20 shadow-md backdrop-blur-sm';
+                                        if (l.homework && l.homework.length > 0)
+                                            badges.push(
+                                                <div
+                                                    key="hw"
+                                                    className={`bg-amber-500/90 dark:bg-amber-500/90 ${baseClass}`}
+                                                >
+                                                    <svg
+                                                        className="w-2 h-2 text-white"
+                                                        fill="currentColor"
+                                                        viewBox="0 0 20 20"
+                                                    >
+                                                        <path
+                                                            fillRule="evenodd"
+                                                            d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z"
+                                                            clipRule="evenodd"
+                                                        />
+                                                    </svg>
+                                                </div>
+                                            );
+                                        if (l.info)
+                                            badges.push(
+                                                <div
+                                                    key="info"
+                                                    className={`bg-blue-500/90 dark:bg-blue-500/90 ${baseClass}`}
+                                                >
+                                                    <svg
+                                                        className="w-2 h-2 text-white"
+                                                        fill="currentColor"
+                                                        viewBox="0 0 20 20"
+                                                    >
+                                                        <path
+                                                            fillRule="evenodd"
+                                                            d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                                                            clipRule="evenodd"
+                                                        />
+                                                    </svg>
+                                                </div>
+                                            );
+                                        if (l.lstext)
+                                            badges.push(
+                                                <div
+                                                    key="lstext"
+                                                    className={`bg-violet-500/90 dark:bg-violet-400/90 ${baseClass}`}
+                                                >
+                                                    <svg
+                                                        className="w-2 h-2 text-white"
+                                                        fill="currentColor"
+                                                        viewBox="0 0 20 20"
+                                                    >
+                                                        <path d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h8.5a2 2 0 001.414-.586l2.5-2.5A2 2 0 0017 12.5V5a2 2 0 00-2-2H4zm9 10h1.586L13 14.586V13z" />
+                                                    </svg>
+                                                </div>
+                                            );
+                                        if (l.exams && l.exams.length > 0)
+                                            badges.push(
+                                                <div
+                                                    key="exam"
+                                                    className={`bg-red-500/90 dark:bg-red-500/90 ${baseClass}`}
+                                                >
+                                                    <svg
+                                                        className="w-2 h-2 text-white"
+                                                        fill="currentColor"
+                                                        viewBox="0 0 20 20"
+                                                    >
+                                                        <path
+                                                            fillRule="evenodd"
+                                                            d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z"
+                                                            clipRule="evenodd"
+                                                        />
+                                                    </svg>
+                                                </div>
+                                            );
+                                        return badges.slice(0, 3);
+                                    })()}
                                 </div>
 
                                 {/* Mobile centered layout */}
