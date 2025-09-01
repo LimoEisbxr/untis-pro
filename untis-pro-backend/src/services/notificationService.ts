@@ -310,6 +310,41 @@ export class NotificationService {
                         });
                     }
                 }
+
+                // Check for room/teacher changes (also count as irregular)
+                const hasTeacherChanges = lesson.te?.some((t: any) => t.orgname) || false;
+                const hasRoomChanges = lesson.ro?.some((r: any) => r.orgname) || false;
+                
+                if ((hasTeacherChanges || hasRoomChanges) && user.notificationSettings?.irregularLessonsEnabled) {
+                    const scope = user.notificationSettings?.irregularLessonsTimeScope || 'day';
+                    let shouldNotify = false;
+
+                    if (scope === 'day') {
+                        shouldNotify = lesson.date === todayString;
+                    } else if (scope === 'week') {
+                        shouldNotify = lesson.date >= startOfWeekString && lesson.date <= endOfWeekString;
+                    }
+
+                    if (shouldNotify) {
+                        const changedItems = [];
+                        if (hasTeacherChanges) {
+                            const teacherChanges = lesson.te?.filter((t: any) => t.orgname).map((t: any) => `${t.orgname} → ${t.name}`);
+                            changedItems.push(`Teacher: ${teacherChanges?.join(', ')}`);
+                        }
+                        if (hasRoomChanges) {
+                            const roomChanges = lesson.ro?.filter((r: any) => r.orgname).map((r: any) => `${r.orgname} → ${r.name}`);
+                            changedItems.push(`Room: ${roomChanges?.join(', ')}`);
+                        }
+
+                        await this.createNotification({
+                            type: 'room_teacher_change',
+                            title: 'Room/Teacher Change',
+                            message: `${lesson.su?.[0]?.name || 'Lesson'}: ${changedItems.join(', ')}`,
+                            userId: user.id,
+                            data: lesson,
+                        });
+                    }
+                }
             }
         } catch (error) {
             console.error(`Failed to check timetable changes for user ${user.id}:`, error);

@@ -6,6 +6,7 @@ import { fmtHM, untisToMinutes } from '../utils/dates';
 import { clamp } from '../utils/dates';
 import { generateGradient, getDefaultGradient } from '../utils/colors';
 import { extractSubjectType } from '../utils/subjectUtils';
+import { hasLessonChanges } from '../utils/lessonChanges';
 
 export type Block = {
     l: Lesson;
@@ -225,6 +226,7 @@ const DayColumn: FC<DayColumnProps> = ({
 
                     const cancelled = l.code === 'cancelled';
                     const irregular = l.code === 'irregular';
+                    const hasChanges = hasLessonChanges(l);
                     const subject = l.su?.[0]?.name ?? l.activityType ?? '—';
                     const subjectType = extractSubjectType(subject);
                     const displaySubject = subjectType;
@@ -423,6 +425,21 @@ const DayColumn: FC<DayColumnProps> = ({
                                                 <path
                                                     fillRule="evenodd"
                                                     d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z"
+                                                    clipRule="evenodd"
+                                                />
+                                            </svg>
+                                        </div>
+                                    )}
+                                    {hasChanges && (
+                                        <div className="w-3 h-3 bg-emerald-400 dark:bg-emerald-500 rounded-full flex items-center justify-center shadow-sm">
+                                            <svg
+                                                className="w-2 h-2 text-white"
+                                                fill="currentColor"
+                                                viewBox="0 0 20 20"
+                                            >
+                                                <path
+                                                    fillRule="evenodd"
+                                                    d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z"
                                                     clipRule="evenodd"
                                                 />
                                             </svg>

@@ -209,6 +209,22 @@ html.dark .link-admin {
     @apply text-sky-300;
 }
 
+/* Change highlighting for room/teacher modifications */
+.change-highlight {
+    @apply bg-emerald-100 text-emerald-800 px-1 py-0.5 rounded-md;
+}
+html.dark .change-highlight {
+    @apply bg-emerald-900/60 text-emerald-200;
+}
+
+.change-original {
+    @apply line-through text-slate-500 dark:text-slate-400;
+}
+
+.change-indicator {
+    @apply inline-block w-2 h-2 bg-emerald-500 rounded-full ml-1;
+}
+
 /* Reusable logo text with gradient fill and theme-aware outline */
 .logo-text {
     @apply bg-gradient-to-r from-indigo-600 via-sky-600 to-emerald-600 bg-clip-text text-transparent font-extrabold;
