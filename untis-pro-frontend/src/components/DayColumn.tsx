@@ -5,6 +5,7 @@ import type { Lesson, LessonColors } from '../types';
 import { fmtHM, untisToMinutes } from '../utils/dates';
 import { clamp } from '../utils/dates';
 import { generateGradient, getDefaultGradient } from '../utils/colors';
+import { extractSubjectType } from '../utils/subjectUtils';
 
 export type Block = {
     l: Lesson;
@@ -225,9 +226,8 @@ const DayColumn: FC<DayColumnProps> = ({
                     const cancelled = l.code === 'cancelled';
                     const irregular = l.code === 'irregular';
                     const subject = l.su?.[0]?.name ?? l.activityType ?? '—';
-                    const displaySubject = subject.includes('_')
-                        ? subject.split('_')[0] || subject
-                        : subject;
+                    const subjectType = extractSubjectType(subject);
+                    const displaySubject = subjectType;
                     const room = l.ro?.map((r) => r.name).join(', ');
                     const teacher = l.te?.map((t) => t.name).join(', ');
                     const roomMobile = room
@@ -240,10 +240,10 @@ const DayColumn: FC<DayColumnProps> = ({
                         : room;
 
                     const effectiveColor =
-                        lessonColors[subject] ??
-                        defaultLessonColors[subject] ??
+                        lessonColors[subjectType] ??
+                        defaultLessonColors[subjectType] ??
                         null;
-                    const offset = gradientOffsets?.[subject] ?? 0.5;
+                    const offset = gradientOffsets?.[subjectType] ?? 0.5;
                     const gradient = effectiveColor
                         ? generateGradient(effectiveColor, offset)
                         : getDefaultGradient();
