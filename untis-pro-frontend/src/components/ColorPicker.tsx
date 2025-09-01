@@ -243,11 +243,10 @@ export default function ColorPicker({
                         ))}
                     </div>
 
-                    {/* Gradient Offset Slider: only when user has a custom color override (not when using fallback/admin/default) */}
+                    {/* Gradient Offset Slider: show for admin users, custom colors, or admin-set defaults (hide only for global default) */}
                     {(isAdmin ||
-                        (currentColor &&
-                            (!fallbackColor ||
-                                currentColor !== fallbackColor))) && (
+                        currentColor ||
+                        fallbackColor) && (
                         <div className="space-y-2 pt-3 mt-3 border-t border-slate-200 dark:border-slate-700">
                             <label className="flex items-center justify-between text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
                                 <span>Gradient Offset</span>
