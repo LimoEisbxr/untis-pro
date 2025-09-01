@@ -61,8 +61,8 @@ export default function OnboardingModal({
             )
         },
         {
-            title: "Customize Lesson Colors",
-            description: "Click on any lesson in your timetable to open the details modal and customize its color. Go ahead - try clicking on a lesson now!",
+            title: "Explore Lessons & Customize Colors",
+            description: "Click on any lesson in your timetable to see detailed information, including teacher names, room locations, and customize its color. Go ahead - try clicking on a lesson now!",
             target: '.timetable-lesson',
             position: 'right',
             demoType: 'interactive-lesson',
@@ -82,18 +82,6 @@ export default function OnboardingModal({
             icon: (
                 <svg className="w-12 h-12 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                </svg>
-            )
-        },
-        {
-            title: "Explore Lesson Details",
-            description: "Click on any lesson to see detailed information including teacher names, room locations, and any additional notes or homework.",
-            target: '.timetable-lesson',
-            position: 'left',
-            demoType: 'highlight',
-            icon: (
-                <svg className="w-12 h-12 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
             )
         },
@@ -147,16 +135,17 @@ export default function OnboardingModal({
     useEffect(() => {
         if (shouldAdvanceStep) {
             setShouldAdvanceStep(false);
+            // Add a small delay before advancing to avoid instant skipping
             setTimeout(() => {
                 if (currentStep < steps.length - 1) {
                     setCurrentStep(currentStep + 1);
                 } else {
-                    onComplete();
-                    onClose();
+                    // On the last step, don't auto-advance - let user click "Get Started!"
+                    return;
                 }
-            }, 1000);
+            }, 500);
         }
-    }, [shouldAdvanceStep, currentStep, steps.length, onComplete, onClose]);
+    }, [shouldAdvanceStep, currentStep, steps.length]);
 
     // Handle settings modal interaction
     useEffect(() => {
@@ -170,9 +159,14 @@ export default function OnboardingModal({
         if (!isSettingsModalOpen && hasInteracted) {
             setWaitingForInteraction(false);
             setHasInteracted(false);
+            // Check if this is the last step
+            if (currentStep === steps.length - 1) {
+                // Don't auto-advance on the last step - wait for user action
+                return;
+            }
             setShouldAdvanceStep(true);
         }
-    }, [isSettingsModalOpen, waitingForInteraction, hasInteracted, currentStepData]);
+    }, [isSettingsModalOpen, waitingForInteraction, hasInteracted, currentStepData, currentStep, steps.length]);
 
     // Handle lesson modal interaction (via callback from Timetable component)
     useEffect(() => {
@@ -193,9 +187,14 @@ export default function OnboardingModal({
         if (!isLessonModalOpen && hasInteracted) {
             setWaitingForInteraction(false);
             setHasInteracted(false);
+            // Check if this is the last step
+            if (currentStep === steps.length - 1) {
+                // Don't auto-advance on the last step - wait for user action
+                return;
+            }
             setShouldAdvanceStep(true);
         }
-    }, [waitingForInteraction, hasInteracted, currentStepData]);
+    }, [waitingForInteraction, hasInteracted, currentStepData, currentStep, steps.length]);
 
     // Expose the handler via a global method that can be called by Timetable
     useEffect(() => {
@@ -455,10 +454,10 @@ export default function OnboardingModal({
         >
             {/* Backdrop with cutout for highlighted element */}
             <div 
-                className={`absolute inset-0 backdrop-blur-sm ${
+                className={`absolute inset-0 ${
                     waitingForInteraction && (currentStepData.demoType === 'interactive-lesson' || currentStepData.demoType === 'interactive-settings')
                         ? 'bg-black/20' 
-                        : 'bg-black/60'
+                        : 'backdrop-blur-sm bg-black/60'
                 }`}
                 onClick={waitingForInteraction ? undefined : onClose}
                 style={{
@@ -567,19 +566,19 @@ export default function OnboardingModal({
                     ? 'grid place-items-center inset-0' 
                     : 'absolute'} ${
                     waitingForInteraction && currentStepData.demoType === 'interactive-lesson' && !hasInteracted 
-                        ? 'opacity-50 pointer-events-none' 
+                        ? 'opacity-90' 
                         : waitingForInteraction && currentStepData.demoType === 'interactive-lesson' && hasInteracted 
-                        ? 'opacity-75' 
+                        ? 'opacity-95' 
                         : waitingForInteraction && currentStepData.demoType === 'interactive-settings' && !hasInteracted
-                        ? 'opacity-75 pointer-events-none'
-                        : waitingForInteraction && currentStepData.demoType === 'interactive-settings' && hasInteracted
                         ? 'opacity-90'
-                        : ''
+                        : waitingForInteraction && currentStepData.demoType === 'interactive-settings' && hasInteracted
+                        ? 'opacity-95'
+                        : 'opacity-100'
                 }`}
                 style={'useCenter' in modalPosition ? {} : modalPosition as React.CSSProperties}
             >
                 <div
-                    className={`relative w-full max-w-md max-h-[85vh] overflow-y-auto rounded-2xl shadow-2xl ring-1 ring-black/10 dark:ring-white/10 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md transition-all duration-200 ease-out will-change-transform will-change-opacity ${
+                    className={`relative w-full max-w-md max-h-[85vh] overflow-y-auto rounded-2xl shadow-2xl ring-1 ring-black/10 dark:ring-white/10 bg-white/98 dark:bg-slate-900/98 backdrop-blur-md transition-all duration-200 ease-out will-change-transform will-change-opacity ${
                         'useCenter' in modalPosition ? 'mx-4' : ''
                     } ${
                         waitingForInteraction && (currentStepData.demoType === 'interactive-lesson' || currentStepData.demoType === 'interactive-settings')
