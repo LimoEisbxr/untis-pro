@@ -667,20 +667,34 @@ export default function Timetable({
                             className="pointer-events-none absolute -translate-y-1/2 z-40"
                             style={{
                                 top: nowY,
-                                left: `calc(${axisWidth}px + 0.75rem)`, // axis width + gap (sm gap handled by responsive CSS)
-                                right: '0.75rem',
+                                left: `${axisWidth}px`,
+                                right: '0px',
                             }}
                         >
-                            <div className="flex items-center">
-                                <div className="relative w-full">
-                                    <div className="h-[2px] w-full bg-gradient-to-r from-rose-500 via-fuchsia-500 to-pink-500 shadow-[0_0_0_1px_rgba(244,63,94,0.35)]" />
-                                    <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 h-3 w-3 rounded-full bg-rose-500 ring-2 ring-white/80 dark:ring-slate-900/60 shadow-md" />
-                                    <div className="absolute left-0 -top-5 -translate-x-1/2 whitespace-nowrap">
-                                        <span className="rounded-full bg-rose-500/90 px-2 py-[2px] text-[10px] font-semibold text-white shadow">
-                                            {fmtHM(nowMin)}
-                                        </span>
-                                    </div>
-                                </div>
+                            <div className="grid h-0 w-full gap-x-1 sm:gap-x-3" style={{ gridTemplateColumns: 'repeat(5, 1fr)' }}>
+                                {days.map((d) => {
+                                    const dayKey = fmtLocal(d);
+                                    const isToday = dayKey === todayISO;
+                                    // Thicker line for current day, thinner for others
+                                    const lineHeight = isToday ? 'h-[3px]' : 'h-[1px]';
+                                    
+                                    return (
+                                        <div key={dayKey} className="relative">
+                                            <div className={`${lineHeight} w-full bg-gradient-to-r from-rose-500 via-fuchsia-500 to-pink-500 shadow-[0_0_0_1px_rgba(244,63,94,0.35)]`} />
+                                            {/* Only show the time indicator dot on the current day */}
+                                            {isToday && (
+                                                <>
+                                                    <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 h-3 w-3 rounded-full bg-rose-500 ring-2 ring-white/80 dark:ring-slate-900/60 shadow-md" />
+                                                    <div className="absolute left-0 -top-5 -translate-x-1/2 whitespace-nowrap">
+                                                        <span className="rounded-full bg-rose-500/90 px-2 py-[2px] text-[10px] font-semibold text-white shadow">
+                                                            {fmtHM(nowMin)}
+                                                        </span>
+                                                    </div>
+                                                </>
+                                            )}
+                                        </div>
+                                    );
+                                })}
                             </div>
                         </div>
                     )}
