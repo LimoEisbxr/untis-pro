@@ -302,9 +302,11 @@ const DayColumn: FC<DayColumnProps> = ({
                         heightPx - reservedBottomPx >= MIN_PREVIEW_HEIGHT;
                     
                     // Determine if there's enough space to show time frame along with teacher
-                    // Use a threshold slightly higher than MIN_EVENT_HEIGHT to ensure readability
-                    const MIN_TIME_DISPLAY_HEIGHT = isMobile ? 44 : 32;
-                    const canShowTimeFrame = !isMobile && (heightPx - reservedBottomPx >= MIN_TIME_DISPLAY_HEIGHT);
+                    // We need space for: subject (~16px) + teacher (~14px) + time (~14px) + margins
+                    // Only show time if we have sufficient space for subject + teacher + time (minimum 50px total)
+                    const MIN_TIME_DISPLAY_HEIGHT = isMobile ? 50 : 50;
+                    const availableSpace = heightPx - reservedBottomPx;
+                    const canShowTimeFrame = !isMobile && availableSpace >= MIN_TIME_DISPLAY_HEIGHT;
 
                     // Compute content padding so mobile remains centered when icons exist
                     // Desktop readability fix:
