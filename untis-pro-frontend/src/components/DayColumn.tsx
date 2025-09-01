@@ -251,9 +251,9 @@ const DayColumn: FC<DayColumnProps> = ({
                     // Create tinted gradient for cancelled/irregular lessons using CSS overlays
                     const gradient = baseGradient;
                     const statusOverlay = cancelled 
-                        ? 'linear-gradient(to right, rgba(239, 68, 68, 0.25), rgba(239, 68, 68, 0.2), rgba(239, 68, 68, 0.25))'
+                        ? 'linear-gradient(to right, rgba(239, 68, 68, 0.4), rgba(239, 68, 68, 0.35), rgba(239, 68, 68, 0.4))'
                         : irregular 
-                        ? 'linear-gradient(to right, rgba(16, 185, 129, 0.25), rgba(16, 185, 129, 0.2), rgba(16, 185, 129, 0.25))'
+                        ? 'linear-gradient(to right, rgba(16, 185, 129, 0.4), rgba(16, 185, 129, 0.35), rgba(16, 185, 129, 0.4))'
                         : null;
 
                     const GAP_PCT = 1.5; // Reduced gap for better space utilization
@@ -346,9 +346,9 @@ const DayColumn: FC<DayColumnProps> = ({
                             key={l.id}
                             className={`absolute rounded-md p-2 sm:p-2 text-[11px] sm:text-xs overflow-hidden cursor-pointer transform duration-150 hover:shadow-lg hover:brightness-110 hover:saturate-140 hover:contrast-110 backdrop-blur-[1px] ${textColorClass} ${
                                 cancelled
-                                    ? 'border-8 border-rose-500 dark:border-rose-400'
+                                    ? 'border-6 border-rose-500 dark:border-rose-400'
                                     : irregular
-                                    ? 'border-8 border-emerald-500 dark:border-emerald-400'
+                                    ? 'border-6 border-emerald-500 dark:border-emerald-400'
                                     : 'ring-1 ring-slate-900/10 dark:ring-white/15'
                             }`}
                             style={{
@@ -588,7 +588,7 @@ const DayColumn: FC<DayColumnProps> = ({
                                         <div className="font-semibold leading-tight text-[13px]">
                                             {displaySubject}
                                         </div>
-                                        {canShowTimeFrame && (
+                                        {canShowTimeFrame && !cancelled && !irregular && (
                                             <div className="opacity-90 sm:mt-0 leading-tight text-[12px]">
                                                 <span className="whitespace-nowrap">
                                                     {fmtHM(b.startMin)}–
