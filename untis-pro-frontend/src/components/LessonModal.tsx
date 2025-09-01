@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import type { Lesson, LessonColors } from '../types';
 import { fmtHM, untisToMinutes } from '../utils/dates';
 import ColorPicker from './ColorPicker';
+import { extractSubjectType } from '../utils/subjectUtils';
 
 export default function LessonModal({
     lesson,
@@ -99,6 +100,7 @@ export default function LessonModal({
     };
 
     const subject = lesson.su?.[0]?.name ?? lesson.activityType ?? '—';
+    const subjectType = extractSubjectType(subject);
     const subjectLong = lesson.su?.[0]?.longname ?? subject;
     const room = lesson.ro?.map((r) => r.name).join(', ');
     const roomLong = lesson.ro?.map((r) => r.longname || r.name).join(', ');
@@ -505,7 +507,7 @@ export default function LessonModal({
                                 </div>
                             )}
 
-                            {onColorChange && subject && (
+                            {onColorChange && subjectType && (
                                 <div>
                                     <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-3">
                                         Customize Color
@@ -513,32 +515,32 @@ export default function LessonModal({
                                     <div className="border border-slate-200 dark:border-slate-700 rounded-lg p-4">
                                         <ColorPicker
                                             currentColor={
-                                                lessonColors?.[subject]
+                                                lessonColors?.[subjectType]
                                             }
                                             fallbackColor={
-                                                defaultLessonColors?.[subject]
+                                                defaultLessonColors?.[subjectType]
                                             }
                                             canRemoveFallback={!!isAdmin}
                                             onColorChange={(color) =>
                                                 onColorChange(
-                                                    subject,
+                                                    subjectType,
                                                     color,
                                                     gradientOffsets?.[
-                                                        subject
+                                                        subjectType
                                                     ] ?? 0.5
                                                 )
                                             }
                                             onRemoveColor={() =>
-                                                onColorChange(subject, null)
+                                                onColorChange(subjectType, null)
                                             }
                                             isAdmin={!!isAdmin}
                                             gradientOffset={
-                                                gradientOffsets?.[subject] ??
+                                                gradientOffsets?.[subjectType] ??
                                                 0.5
                                             }
                                             onGradientOffsetChange={(v) =>
                                                 onGradientOffsetChange?.(
-                                                    subject,
+                                                    subjectType,
                                                     v
                                                 )
                                             }
