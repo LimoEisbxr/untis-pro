@@ -225,6 +225,7 @@ export default function Timetable({
     viewingUserId,
     onWeekNavigate,
     onLessonModalStateChange,
+    isOnboardingActive,
 }: {
     data: TimetableResponse | null;
     weekStart: Date;
@@ -241,6 +242,7 @@ export default function Timetable({
     viewingUserId?: string; // if admin is viewing a student
     onWeekNavigate?: (direction: 'prev' | 'next') => void; // optional external navigation handler
     onLessonModalStateChange?: (isOpen: boolean) => void; // callback for onboarding
+    isOnboardingActive?: boolean;
     // Extended: allow passing current offset when color set
     // (so initial color creation can persist chosen offset)
     // Keeping backwards compatibility (third param optional)
@@ -756,6 +758,7 @@ export default function Timetable({
                 onColorChange={onColorChange}
                 gradientOffsets={gradientOffsets}
                 onGradientOffsetChange={updateGradientOffset}
+                isOnboardingActive={isOnboardingActive}
             />
         </div>
     );

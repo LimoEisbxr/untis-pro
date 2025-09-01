@@ -840,6 +840,7 @@ export default function Dashboard({
                                 }
                             }}
                             onLessonModalStateChange={setIsLessonModalOpen}
+                            isOnboardingActive={isOnboardingOpen}
                         />
                     </div>
                 </section>

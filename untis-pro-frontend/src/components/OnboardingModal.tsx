@@ -271,7 +271,7 @@ export default function OnboardingModal({
             setWaitingForInteraction(false);
             setHasInteracted(false);
             if (currentStep < steps.length - 1) {
-                setCurrentStep(currentStep + 1);
+                setShouldAdvanceStep(true);
             } else {
                 return; // Don't auto-complete on last step
             }
@@ -294,7 +294,7 @@ export default function OnboardingModal({
             setWaitingForInteraction(false);
             setHasInteracted(false);
             if (currentStep < steps.length - 1) {
-                setCurrentStep(currentStep + 1);
+                setShouldAdvanceStep(true);
             } else {
                 return; // Don't auto-complete on last step
             }
@@ -512,16 +512,12 @@ export default function OnboardingModal({
             if (modalStepIndex < modalOnboardingSteps.length - 1) {
                 setModalStepIndex(modalStepIndex + 1);
             } else {
-                // End modal onboarding and close modal
+                // End modal onboarding and continue with main tour
                 setInModalOnboarding(false);
                 setModalOnboardingSteps([]);
                 setModalStepIndex(0);
-                // Close the appropriate modal
-                if (modalOnboardingSteps === lessonModalSteps) {
-                    // Lesson modal should be closed by the user or automatically
-                } else if (modalOnboardingSteps === settingsModalSteps) {
-                    // Settings modal should be closed by the user or automatically
-                }
+                // Don't close the modal here - let the user close it naturally
+                // The modal will close and trigger the main tour continuation
             }
             return;
         }
@@ -599,7 +595,7 @@ export default function OnboardingModal({
 
     return createPortal(
         <div
-            className={`fixed inset-0 z-50 transition-opacity duration-200 ${
+            className={`fixed inset-0 ${inModalOnboarding ? 'z-[10000]' : 'z-50'} transition-opacity duration-200 ${
                 waitingForInteraction && (currentStepData.demoType === 'interactive-lesson' || currentStepData.demoType === 'interactive-settings')
                     ? 'pointer-events-none' 
                     : ''
