@@ -63,7 +63,7 @@ export default function OnboardingModal({
         {
             title: "Customize Lesson Colors",
             description: "Click on any lesson in your timetable to open the details modal and customize its color. Go ahead - try clicking on a lesson now!",
-            target: '.timetable-lesson:first-of-type',
+            target: '.timetable-lesson',
             position: 'right',
             demoType: 'interactive-lesson',
             requiresInteraction: true,
@@ -88,7 +88,7 @@ export default function OnboardingModal({
         {
             title: "Explore Lesson Details",
             description: "Click on any lesson to see detailed information including teacher names, room locations, and any additional notes or homework.",
-            target: '.timetable-lesson:nth-of-type(2), .timetable-lesson:first-of-type',
+            target: '.timetable-lesson',
             position: 'left',
             demoType: 'highlight',
             icon: (
@@ -222,7 +222,47 @@ export default function OnboardingModal({
         }
         
         if (currentStepData.target) {
-            const element = document.querySelector(currentStepData.target);
+            const findElement = () => {
+                let element: Element | null = null;
+                
+                // For lesson highlighting (both interactive and regular), try multiple strategies
+                if (currentStepData.demoType === 'interactive-lesson' || 
+                    (currentStepData.target === '.timetable-lesson' && currentStepData.demoType === 'highlight')) {
+                    // Try to find any visible lesson that's not too small or clipped
+                    const lessons = Array.from(document.querySelectorAll('.timetable-lesson'));
+                    for (const lesson of lessons) {
+                        const rect = lesson.getBoundingClientRect();
+                        // Check if lesson is visible and has reasonable size
+                        if (rect.width > 50 && rect.height > 30 && 
+                            rect.top >= 0 && rect.left >= 0 && 
+                            rect.bottom <= window.innerHeight && 
+                            rect.right <= window.innerWidth) {
+                            element = lesson;
+                            break;
+                        }
+                    }
+                    
+                    // Fallback: try first visible lesson even if partially clipped
+                    if (!element && lessons.length > 0) {
+                        for (const lesson of lessons) {
+                            const rect = lesson.getBoundingClientRect();
+                            if (rect.width > 30 && rect.height > 20) {
+                                element = lesson;
+                                break;
+                            }
+                        }
+                    }
+                } else {
+                    // For other elements, use normal querySelector
+                    if (currentStepData.target) {
+                        element = document.querySelector(currentStepData.target);
+                    }
+                }
+                
+                return element;
+            };
+            
+            const element = findElement();
             if (element) {
                 setHighlightedElement(element);
                 // Scroll element into view if needed
@@ -233,11 +273,29 @@ export default function OnboardingModal({
                 });
             } else {
                 setHighlightedElement(null);
+                
+                // For lessons, retry after a short delay in case they haven't rendered yet
+                if (currentStepData.demoType === 'interactive-lesson' || 
+                    (currentStepData.target === '.timetable-lesson' && currentStepData.demoType === 'highlight')) {
+                    const retryTimeout = setTimeout(() => {
+                        const retryElement = findElement();
+                        if (retryElement) {
+                            setHighlightedElement(retryElement);
+                            retryElement.scrollIntoView({ 
+                                behavior: 'smooth', 
+                                block: 'center',
+                                inline: 'center'
+                            });
+                        }
+                    }, 1000); // Retry after 1 second
+                    
+                    return () => clearTimeout(retryTimeout);
+                }
             }
         } else {
             setHighlightedElement(null);
         }
-    }, [currentStep, isOpen, isVisible, currentStepData.requiresInteraction, currentStepData.target]);
+    }, [currentStep, isOpen, isVisible, currentStepData.requiresInteraction, currentStepData.target, currentStepData.demoType]);
 
     // Update spotlight position
     useEffect(() => {
