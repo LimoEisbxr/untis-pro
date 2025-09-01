@@ -247,13 +247,13 @@ const DayColumn: FC<DayColumnProps> = ({
                     const baseGradient = effectiveColor
                         ? generateGradient(effectiveColor, offset)
                         : getDefaultGradient();
-                    
+
                     // Create tinted gradient for cancelled/irregular lessons using CSS overlays
                     const gradient = baseGradient;
-                    const statusOverlay = cancelled 
-                        ? 'linear-gradient(to right, rgba(239, 68, 68, 0.4), rgba(239, 68, 68, 0.35), rgba(239, 68, 68, 0.4))'
-                        : irregular 
-                        ? 'linear-gradient(to right, rgba(16, 185, 129, 0.4), rgba(16, 185, 129, 0.35), rgba(16, 185, 129, 0.4))'
+                    const statusOverlay = cancelled
+                        ? 'linear-gradient(to right, rgba(239, 68, 68, 0.6), rgba(239, 68, 68, 0.55), rgba(239, 68, 68, 0.6))'
+                        : irregular
+                        ? 'linear-gradient(to right, rgba(16, 185, 129, 0.6), rgba(16, 185, 129, 0.55), rgba(16, 185, 129, 0.6))'
                         : null;
 
                     const GAP_PCT = 1.5; // Reduced gap for better space utilization
@@ -323,7 +323,10 @@ const DayColumn: FC<DayColumnProps> = ({
                     // only occupy a small corner on the right. We now only reserve space for the optional room label plus
                     // a small constant (8px) and let the text flow underneath the vertical icon column if needed.
                     // Reduce padding when lessons are side by side to maximize text space
-                    const sideByySideAdjustment = b.colCount > 1 ? Math.max(0, roomPadRightPx - 40) : roomPadRightPx;
+                    const sideByySideAdjustment =
+                        b.colCount > 1
+                            ? Math.max(0, roomPadRightPx - 40)
+                            : roomPadRightPx;
                     const contentPadRight = isMobile
                         ? 0 // mobile keeps centered layout
                         : sideByySideAdjustment + 4; // reduced padding for side-by-side lessons
@@ -346,7 +349,7 @@ const DayColumn: FC<DayColumnProps> = ({
                             key={l.id}
                             className={`absolute rounded-md p-2 sm:p-2 text-[11px] sm:text-xs overflow-hidden cursor-pointer transform duration-150 hover:shadow-lg hover:brightness-110 hover:saturate-140 hover:contrast-110 backdrop-blur-[1px] ${textColorClass} ${
                                 cancelled
-                                    ? 'border-6 border-rose-500 dark:border-rose-400'
+                                    ? 'border-6 border-rose-600 dark:border-rose-500'
                                     : irregular
                                     ? 'border-6 border-emerald-500 dark:border-emerald-400'
                                     : 'ring-1 ring-slate-900/10 dark:ring-white/15'
@@ -356,7 +359,7 @@ const DayColumn: FC<DayColumnProps> = ({
                                 height: heightPx,
                                 left: `${leftPct}%`,
                                 width: `${widthPct}%`,
-                                background: statusOverlay 
+                                background: statusOverlay
                                     ? `${statusOverlay}, linear-gradient(to right, ${gradient.from}, ${gradient.via}, ${gradient.to})`
                                     : `linear-gradient(to right, ${gradient.from}, ${gradient.via}, ${gradient.to})`,
                                 // Larger invisible hit target for touch
@@ -375,7 +378,9 @@ const DayColumn: FC<DayColumnProps> = ({
                             {/* Indicators + room label (desktop) */}
                             <div className="absolute top-1 right-1 hidden sm:flex flex-col items-end gap-1">
                                 {room && (
-                                    <div className={`hidden sm:block text-[11px] leading-tight whitespace-nowrap drop-shadow-sm ${textColorClass}`}>
+                                    <div
+                                        className={`hidden sm:block text-[11px] leading-tight whitespace-nowrap drop-shadow-sm ${textColorClass}`}
+                                    >
                                         {room}
                                     </div>
                                 )}
@@ -588,14 +593,19 @@ const DayColumn: FC<DayColumnProps> = ({
                                         <div className="font-semibold leading-tight text-[13px]">
                                             {displaySubject}
                                         </div>
-                                        {canShowTimeFrame && !cancelled && !irregular && (
-                                            <div className="opacity-90 sm:mt-0 leading-tight text-[12px]">
-                                                <span className="whitespace-nowrap">
-                                                    {fmtHM(b.startMin)}–
-                                                    {fmtHM(b.endMin)}
-                                                </span>
-                                            </div>
-                                        )}
+                                        {/* Show timeframe unless cancelled/irregular AND this is a single (non-overlapping) lesson. */}
+                                        {canShowTimeFrame &&
+                                            !(
+                                                (cancelled || irregular) &&
+                                                b.colCount === 2
+                                            ) && (
+                                                <div className="opacity-90 sm:mt-0 leading-tight text-[12px]">
+                                                    <span className="whitespace-nowrap">
+                                                        {fmtHM(b.startMin)}–
+                                                        {fmtHM(b.endMin)}
+                                                    </span>
+                                                </div>
+                                            )}
                                         {teacher && (
                                             <div className="opacity-90 leading-tight text-[12px]">
                                                 {teacher}
