@@ -300,6 +300,11 @@ const DayColumn: FC<DayColumnProps> = ({
                     const MIN_PREVIEW_HEIGHT = isMobile ? 44 : 56;
                     const canShowPreview =
                         heightPx - reservedBottomPx >= MIN_PREVIEW_HEIGHT;
+                    
+                    // Determine if there's enough space to show time frame along with teacher
+                    // Use a threshold slightly higher than MIN_EVENT_HEIGHT to ensure readability
+                    const MIN_TIME_DISPLAY_HEIGHT = isMobile ? 44 : 32;
+                    const canShowTimeFrame = !isMobile && (heightPx - reservedBottomPx >= MIN_TIME_DISPLAY_HEIGHT);
 
                     // Compute content padding so mobile remains centered when icons exist
                     // Desktop readability fix:
@@ -536,12 +541,14 @@ const DayColumn: FC<DayColumnProps> = ({
                                         <div className="font-semibold leading-tight text-[13px]">
                                             {displaySubject}
                                         </div>
-                                        <div className="opacity-90 sm:mt-0 leading-tight text-[12px]">
-                                            <span className="whitespace-nowrap">
-                                                {fmtHM(b.startMin)}–
-                                                {fmtHM(b.endMin)}
-                                            </span>
-                                        </div>
+                                        {canShowTimeFrame && (
+                                            <div className="opacity-90 sm:mt-0 leading-tight text-[12px]">
+                                                <span className="whitespace-nowrap">
+                                                    {fmtHM(b.startMin)}–
+                                                    {fmtHM(b.endMin)}
+                                                </span>
+                                            </div>
+                                        )}
                                         {teacher && (
                                             <div className="opacity-90 leading-tight text-[12px]">
                                                 {teacher}
