@@ -12,7 +12,12 @@ import {
     getDefaultLessonColors,
     getNotifications,
 } from '../api';
-import { addDays, fmtLocal, startOfWeek } from '../utils/dates';
+import {
+    addDays,
+    fmtLocal,
+    startOfWeek,
+    getISOWeekNumber,
+} from '../utils/dates';
 import { useTimetableCache } from '../hooks/useTimetableCache';
 import type {
     TimetableResponse,
@@ -119,6 +124,12 @@ export default function Dashboard({
         [weekStartDate]
     );
 
+    // Calculate the calendar week number
+    const calendarWeek = useMemo(
+        () => getISOWeekNumber(weekStartDate),
+        [weekStartDate]
+    );
+
     const loadMine = useCallback(async () => {
         setLoadError(null);
         try {
@@ -163,7 +174,14 @@ export default function Dashboard({
         } finally {
             /* no loading flag */
         }
-    }, [getTimetableData, user.id, weekStartDate, token, weekStartStr, weekEndStr]);
+    }, [
+        getTimetableData,
+        user.id,
+        weekStartDate,
+        token,
+        weekStartStr,
+        weekEndStr,
+    ]);
 
     const loadUser = useCallback(
         async (userId: string) => {
@@ -210,7 +228,14 @@ export default function Dashboard({
                 /* no loading flag */
             }
         },
-        [getTimetableData, user.id, weekStartDate, token, weekStartStr, weekEndStr]
+        [
+            getTimetableData,
+            user.id,
+            weekStartDate,
+            token,
+            weekStartStr,
+            weekEndStr,
+        ]
     );
 
     useEffect(() => {
@@ -752,12 +777,17 @@ export default function Dashboard({
                                     </svg>
                                 </button>
                             </div>
-                            {/* Week picker (week info removed) */}
-                            <div className="flex items-end gap-3 ml-auto mr-5">
+                            {/* Week picker with calendar week display */}
+                            <div className="flex items-end gap-3 ml-auto">
                                 <div>
-                                    <label className="label sm:text-sm text-[11px]">
-                                        Week
-                                    </label>
+                                    <div className="flex justify-between items-center">
+                                        <label className="label sm:text-sm text-[11px]">
+                                            Week
+                                        </label>
+                                        <label className="label sm:text-sm text-[11px]">
+                                            CW {calendarWeek}
+                                        </label>
+                                    </div>
                                     <input
                                         type="date"
                                         className="input text-sm"
