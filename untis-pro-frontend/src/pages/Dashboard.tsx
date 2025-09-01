@@ -575,57 +575,7 @@ export default function Dashboard({
             <main className="mx-auto max-w-screen-2xl p-4">
                 <section className="card p-4">
                     <div className="space-y-2 sm:space-y-4">
-                        {/* Row 1: navigation buttons (enlarged slightly on mobile) */}
-                        <div className="grid grid-cols-3 gap-2 sm:flex sm:w-full sm:items-center sm:gap-3">
-                            <button
-                                className="btn-secondary px-3 py-1.5 text-sm sm:text-sm flex items-center justify-center"
-                                onClick={() => {
-                                    const ns = fmtLocal(
-                                        addDays(new Date(start), -7)
-                                    );
-                                    setStart(ns);
-                                }}
-                                aria-label="Previous week"
-                            >
-                                <span aria-hidden className="mr-1 sm:mr-1">
-                                    ←
-                                </span>
-                                <span className="hidden sm:inline">
-                                    Prev Week
-                                </span>
-                                <span className="sm:hidden">Prev</span>
-                            </button>
-                            <button
-                                className="btn-secondary px-3 py-1.5 text-sm sm:text-sm flex items-center justify-center"
-                                onClick={() => setStart(fmtLocal(new Date()))}
-                                aria-label="This week"
-                            >
-                                <span className="hidden sm:inline">
-                                    This Week
-                                </span>
-                                <span className="sm:hidden">This</span>
-                            </button>
-                            <button
-                                className="btn-secondary px-3 py-1.5 text-sm sm:text-sm flex items-center justify-center"
-                                onClick={() => {
-                                    const ns = fmtLocal(
-                                        addDays(new Date(start), 7)
-                                    );
-                                    setStart(ns);
-                                }}
-                                aria-label="Next week"
-                            >
-                                <span className="hidden sm:inline mr-1">
-                                    Next Week
-                                </span>
-                                <span className="sm:hidden">Next</span>
-                                <span aria-hidden className="ml-1">
-                                    →
-                                </span>
-                            </button>
-                        </div>
-
-                        {/* Row 2: search (desktop), mobile icons (search+home), week picker */}
+                        {/* Search (desktop), mobile icons (search+home), week picker */}
                         <div className="flex flex-wrap items-end gap-3">
                             {/* Desktop search */}
                             <div
@@ -749,6 +699,7 @@ export default function Dashboard({
                                         onClick={() => {
                                             setSelectedUser(null);
                                             setQueryText('');
+                                            setStart(fmtLocal(new Date())); // Return to current week
                                             loadMine();
                                         }}
                                     >
@@ -796,6 +747,7 @@ export default function Dashboard({
                                     onClick={() => {
                                         setSelectedUser(null);
                                         setQueryText('');
+                                        setStart(fmtLocal(new Date())); // Return to current week
                                         loadMine();
                                     }}
                                     aria-label="Load my timetable"
