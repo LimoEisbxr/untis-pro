@@ -99,8 +99,12 @@ router.get('/my-colors', authMiddleware, colorLimiter, async (req, res) => {
             return;
         }
 
-        // Non-admin: merge global defaults with user overrides
-        const [defaults, overrides] = await Promise.all([
+        // Non-admin: check user's ignoreAdminColors preference
+        const [user, defaults, overrides] = await Promise.all([
+            prisma.user.findUnique({
+                where: { id: req.user!.id },
+                select: { ignoreAdminColors: true },
+            }),
             (prisma as any).defaultLessonColor.findMany({
                 select: { lessonName: true, color: true, offset: true },
             }),
@@ -112,14 +116,20 @@ router.get('/my-colors', authMiddleware, colorLimiter, async (req, res) => {
 
         const colorMerged: Record<string, string> = {};
         const offsetMerged: Record<string, number> = {};
-        for (const item of defaults as Array<{
-            lessonName: string;
-            color: string;
-            offset: number;
-        }>) {
-            colorMerged[item.lessonName] = item.color;
-            offsetMerged[item.lessonName] = item.offset;
+
+        // Only include admin defaults if the user hasn't opted to ignore them
+        if (!user?.ignoreAdminColors) {
+            for (const item of defaults as Array<{
+                lessonName: string;
+                color: string;
+                offset: number;
+            }>) {
+                colorMerged[item.lessonName] = item.color;
+                offsetMerged[item.lessonName] = item.offset;
+            }
         }
+
+        // Always include user-specific overrides
         for (const item of overrides as Array<{
             lessonName: string;
             color: string;

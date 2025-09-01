@@ -5,6 +5,7 @@ export type User = {
     isAdmin?: boolean;
     isUserManager?: boolean;
     school?: string;
+    ignoreAdminColors?: boolean;
 };
 
 export type TimetableResponse = {

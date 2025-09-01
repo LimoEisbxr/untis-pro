@@ -35,6 +35,7 @@ import {
     updateNotificationSettings,
     getAdminNotificationSettings,
     updateAdminNotificationSettings,
+    updateColorPreferences,
 } from '../api';
 import { subscribeToPushNotifications as apiSubscribeToPush, unsubscribeFromPushNotifications as apiUnsubscribeFromPush, getVapidPublicKey } from '../api';
 import {
@@ -122,6 +123,14 @@ export default function SettingsModal({
     const [savingMyName, setSavingMyName] = useState(false);
     const [myNameError, setMyNameError] = useState<string | null>(null);
     const [myNameSaved, setMyNameSaved] = useState(false);
+
+    // Color preferences state
+    const [ignoreAdminColors, setIgnoreAdminColors] = useState<boolean>(
+        user.ignoreAdminColors ?? false
+    );
+    const [savingColorPrefs, setSavingColorPrefs] = useState(false);
+    const [colorPrefsError, setColorPrefsError] = useState<string | null>(null);
+    const [colorPrefsSaved, setColorPrefsSaved] = useState(false);
 
     // Whitelist (admin) state — username only
     const [whitelist, setWhitelist] = useState<WhitelistRule[]>([]);
@@ -507,6 +516,33 @@ export default function SettingsModal({
             setSavingMyName(false);
         }
     }, [token, myDisplayName, user, onUserUpdate]);
+
+    // Handle color preferences update
+    const handleToggleIgnoreAdminColors = async (enabled: boolean) => {
+        setSavingColorPrefs(true);
+        setColorPrefsError(null);
+        setColorPrefsSaved(false);
+        try {
+            await updateColorPreferences(token, enabled);
+            setIgnoreAdminColors(enabled);
+            
+            // Update the user in the parent component
+            if (onUserUpdate) {
+                onUserUpdate({
+                    ...user,
+                    ignoreAdminColors: enabled,
+                });
+            }
+            setColorPrefsSaved(true);
+            setTimeout(() => setColorPrefsSaved(false), 3000);
+        } catch (e) {
+            setColorPrefsError(
+                e instanceof Error ? e.message : 'Failed to update color preferences'
+            );
+        } finally {
+            setSavingColorPrefs(false);
+        }
+    };
 
     const handleToggleSharing = async (enabled: boolean) => {
         if (!settings) return;
@@ -2523,6 +2559,47 @@ export default function SettingsModal({
                                         {myNameSaved && !myNameError && (
                                             <div className="mt-1 text-sm text-green-600 dark:text-green-400">
                                                 Saved
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Color Preferences */}
+                                    <div className="border-t border-slate-200 dark:border-slate-700 pt-6">
+                                        <h3 className="text-lg font-medium mb-4 text-slate-900 dark:text-slate-100">
+                                            Color Preferences
+                                        </h3>
+                                        
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <h4 className="font-medium text-slate-900 dark:text-slate-100">
+                                                    Use Default Colors
+                                                </h4>
+                                                <p className="text-sm text-slate-600 dark:text-slate-400">
+                                                    Ignore admin-set colors and use the default color scheme
+                                                </p>
+                                            </div>
+                                            <label className="relative inline-flex items-center cursor-pointer">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={ignoreAdminColors}
+                                                    onChange={(e) =>
+                                                        handleToggleIgnoreAdminColors(e.target.checked)
+                                                    }
+                                                    disabled={savingColorPrefs}
+                                                    className="sr-only peer"
+                                                />
+                                                <div className="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-indigo-600"></div>
+                                            </label>
+                                        </div>
+                                        
+                                        {colorPrefsError && (
+                                            <div className="mt-2 text-sm text-red-600 dark:text-red-400">
+                                                {colorPrefsError}
+                                            </div>
+                                        )}
+                                        {colorPrefsSaved && !colorPrefsError && (
+                                            <div className="mt-2 text-sm text-green-600 dark:text-green-400">
+                                                Color preferences updated!
                                             </div>
                                         )}
                                     </div>

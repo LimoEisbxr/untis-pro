@@ -263,6 +263,21 @@ export async function updateMyDisplayName(
     );
 }
 
+// Update current user's color preferences
+export async function updateColorPreferences(
+    token: string,
+    ignoreAdminColors: boolean
+): Promise<{ success: boolean }> {
+    return api<{ success: boolean }>(
+        `/api/users/me/color-preferences`,
+        {
+            method: 'PATCH',
+            token,
+            body: JSON.stringify({ ignoreAdminColors }),
+        }
+    );
+}
+
 // New: Whitelist management (username-only)
 export type WhitelistRule = { id: string; value: string; createdAt: string };
 export async function listWhitelist(token: string): Promise<{ rules: WhitelistRule[] }> {

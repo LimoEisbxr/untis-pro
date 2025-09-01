@@ -10,6 +10,9 @@ const querySchema = z.object({ q: z.string().trim().min(1).max(100) });
 const updateMeSchema = z.object({
     displayName: z.string().trim().max(100).nullable(),
 });
+const updateColorPreferenceSchema = z.object({
+    ignoreAdminColors: z.boolean(),
+});
 
 // Authenticated user search (by username/displayName)
 // NOTE: Consider adding rate limiting in front of this route in production.
@@ -165,6 +168,25 @@ router.patch('/me', authMiddleware, async (req, res) => {
         res.json({ user });
     } catch (e: any) {
         const msg = e?.message || 'Failed to update profile';
+        res.status(400).json({ error: msg });
+    }
+});
+
+// Update current user's color preferences
+router.patch('/me/color-preferences', authMiddleware, async (req, res) => {
+    const parsed = updateColorPreferenceSchema.safeParse(req.body);
+    if (!parsed.success) {
+        return res.status(400).json({ error: parsed.error.flatten() });
+    }
+    try {
+        const userId = req.user!.id;
+        await prisma.user.update({
+            where: { id: userId },
+            data: { ignoreAdminColors: parsed.data.ignoreAdminColors },
+        });
+        res.json({ success: true });
+    } catch (e: any) {
+        const msg = e?.message || 'Failed to update color preferences';
         res.status(400).json({ error: msg });
     }
 });
