@@ -672,15 +672,42 @@ export default function Timetable({
                             }}
                         >
                             <div className="relative w-full">
-                                {/* Base thin line spanning full width */}
-                                <div className="h-[1px] w-full bg-gradient-to-r from-rose-500 via-fuchsia-500 to-pink-500 shadow-[0_0_0_1px_rgba(244,63,94,0.35)]" />
+                                {/* Base thin line spanning full width with subtle glow */}
+                                <div className="h-[1px] w-full bg-gradient-to-r from-rose-500 via-fuchsia-500 to-pink-500 shadow-[0_0_4px_rgba(244,63,94,0.4)]" />
                                 
-                                {/* Thicker line overlay for current day only */}
+                                {/* Seamless thicker overlay for current day with tapered edges */}
                                 <div 
-                                    className="absolute top-0 h-[3px] bg-gradient-to-r from-rose-500 via-fuchsia-500 to-pink-500 -translate-y-1/2" 
+                                    className="absolute top-0 h-[3px] -translate-y-1/2"
                                     style={{
                                         left: `${(days.findIndex(d => fmtLocal(d) === todayISO) / 5) * 100}%`,
-                                        width: '20%', // 1/5 of total width for one day
+                                        width: '20%',
+                                        background: `linear-gradient(to right, 
+                                            transparent 0%, 
+                                            rgba(244,63,94,0.3) 2%, 
+                                            rgb(244,63,94) 8%, 
+                                            rgb(217,70,239) 50%, 
+                                            rgb(236,72,153) 92%, 
+                                            rgba(236,72,153,0.3) 98%, 
+                                            transparent 100%
+                                        )`,
+                                        filter: 'drop-shadow(0 0 6px rgba(244,63,94,0.6))',
+                                    }}
+                                />
+                                
+                                {/* Additional glow effect for seamless blending */}
+                                <div 
+                                    className="absolute top-0 h-[5px] -translate-y-1/2 opacity-40"
+                                    style={{
+                                        left: `${(days.findIndex(d => fmtLocal(d) === todayISO) / 5) * 100}%`,
+                                        width: '20%',
+                                        background: `linear-gradient(to right, 
+                                            transparent 0%, 
+                                            rgba(244,63,94,0.1) 5%, 
+                                            rgba(244,63,94,0.6) 50%, 
+                                            rgba(244,63,94,0.1) 95%, 
+                                            transparent 100%
+                                        )`,
+                                        filter: 'blur(1px)',
                                     }}
                                 />
                                 
@@ -691,9 +718,11 @@ export default function Timetable({
                                         left: `${(days.findIndex(d => fmtLocal(d) === todayISO) / 5) * 100}%`,
                                     }}
                                 >
-                                    <div className="h-3 w-3 rounded-full bg-rose-500 ring-2 ring-white/80 dark:ring-slate-900/60 shadow-md -translate-x-1/2" />
+                                    <div className="h-3 w-3 rounded-full bg-rose-500 ring-2 ring-white/80 dark:ring-slate-900/60 shadow-lg -translate-x-1/2" 
+                                         style={{ filter: 'drop-shadow(0 0 4px rgba(244,63,94,0.8))' }} />
                                     <div className="absolute -top-5 -translate-x-1/2 whitespace-nowrap">
-                                        <span className="rounded-full bg-rose-500/90 px-2 py-[2px] text-[10px] font-semibold text-white shadow">
+                                        <span className="rounded-full bg-rose-500/95 px-2 py-[2px] text-[10px] font-semibold text-white shadow-lg"
+                                              style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))' }}>
                                             {fmtHM(nowMin)}
                                         </span>
                                     </div>
