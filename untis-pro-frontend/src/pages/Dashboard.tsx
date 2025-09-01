@@ -346,6 +346,15 @@ export default function Dashboard({
             abortRef.current?.abort();
             return;
         }
+        if (q.length < 2) {
+            // Don't search with less than 2 characters - clear results and loading state
+            setResults([]);
+            lastResultsRef.current = [];
+            setSearchLoading(false);
+            setSearchError(null);
+            abortRef.current?.abort();
+            return;
+        }
         let cancelled = false;
         setSearchLoading(true);
         setSearchError(null);
