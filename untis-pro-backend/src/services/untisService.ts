@@ -646,16 +646,6 @@ async function enrichLessonsWithHomeworkAndExams(
         (prisma as any).exam.findMany({ where: whereClause }),
     ]);
 
-    console.debug(`[homework] Found ${homework.length} homework items for userId ${userId}`, {
-        homeworkSample: homework.slice(0, 3).map((hw: any) => ({
-            id: hw.untisId,
-            subject: hw.subject,
-            date: hw.date,
-            lessonId: hw.lessonId,
-            text: hw.text?.substring(0, 50) + '...'
-        }))
-    });
-
     const lessonMatchesHw = (hw: any, lesson: any) => {
         const idsToCheck = [
             lesson?.id,
@@ -702,7 +692,6 @@ async function enrichLessonsWithHomeworkAndExams(
                 (hw: any) => {
                     // Primary matching: homework lessonId matches lesson ID
                     if (lessonMatchesHw(hw, lesson)) {
-                        console.debug(`[homework] Primary match: hw ${hw.untisId} -> lesson ${lesson.id} (lessonId)`);
                         return true;
                     }
                     
@@ -711,10 +700,7 @@ async function enrichLessonsWithHomeworkAndExams(
                         // Only attach if homework date is within 7 days of lesson date
                         // This prevents homework from being attached to all lessons of same subject
                         if (dateWithinRange(hw.date, lesson.date, 7)) {
-                            console.debug(`[homework] Secondary match: hw ${hw.untisId} -> lesson ${lesson.id} (subject: ${hw.subject}, date within range)`);
                             return true;
-                        } else {
-                            console.debug(`[homework] Subject match but date out of range: hw ${hw.untisId} (${hw.date}) vs lesson ${lesson.id} (${lesson.date})`);
                         }
                     }
                     
