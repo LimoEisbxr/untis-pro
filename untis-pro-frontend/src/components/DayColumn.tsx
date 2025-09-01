@@ -609,7 +609,7 @@ const DayColumn: FC<DayColumnProps> = ({
                                             {teacher}
                                         </div>
                                     )}
-                                    {roomMobile && (
+                                    {roomMobile && !(cancelled || irregular) && (
                                         <div className="text-[11px] opacity-90 leading-tight truncate max-w-full">
                                             {roomMobile}
                                         </div>
