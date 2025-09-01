@@ -143,6 +143,8 @@ router.get('/settings', authMiddleware, async (req, res) => {
                     accessRequestsEnabled: (req.user as any).isUserManager || false,
                     irregularLessonsEnabled: true,
                     cancelledLessonsEnabled: true,
+                    cancelledLessonsTimeScope: 'day',
+                    irregularLessonsTimeScope: 'day',
                 },
             });
         }
@@ -162,6 +164,8 @@ const updateSettingsSchema = z.object({
     accessRequestsEnabled: z.boolean().optional(),
     irregularLessonsEnabled: z.boolean().optional(),
     cancelledLessonsEnabled: z.boolean().optional(),
+    cancelledLessonsTimeScope: z.enum(['day', 'week']).optional(),
+    irregularLessonsTimeScope: z.enum(['day', 'week']).optional(),
     devicePreferences: z.record(z.any()).optional(),
 });
 
