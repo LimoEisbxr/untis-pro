@@ -244,11 +244,19 @@ const DayColumn: FC<DayColumnProps> = ({
                         defaultLessonColors[subjectType] ??
                         null;
                     const offset = gradientOffsets?.[subjectType] ?? 0.5;
-                    const gradient = effectiveColor
+                    const baseGradient = effectiveColor
                         ? generateGradient(effectiveColor, offset)
                         : getDefaultGradient();
+                    
+                    // Create tinted gradient for cancelled/irregular lessons using CSS overlays
+                    const gradient = baseGradient;
+                    const statusOverlay = cancelled 
+                        ? 'linear-gradient(to right, rgba(239, 68, 68, 0.25), rgba(239, 68, 68, 0.2), rgba(239, 68, 68, 0.25))'
+                        : irregular 
+                        ? 'linear-gradient(to right, rgba(16, 185, 129, 0.25), rgba(16, 185, 129, 0.2), rgba(16, 185, 129, 0.25))'
+                        : null;
 
-                    const GAP_PCT = 2.25;
+                    const GAP_PCT = 1.5; // Reduced gap for better space utilization
                     let widthPct =
                         (100 - GAP_PCT * (b.colCount - 1)) / b.colCount;
                     let leftPct = b.colIndex * (widthPct + GAP_PCT);
@@ -314,9 +322,11 @@ const DayColumn: FC<DayColumnProps> = ({
                     // which caused FitText to aggressively down‑scale subject/time/teacher text even though the icons
                     // only occupy a small corner on the right. We now only reserve space for the optional room label plus
                     // a small constant (8px) and let the text flow underneath the vertical icon column if needed.
+                    // Reduce padding when lessons are side by side to maximize text space
+                    const sideByySideAdjustment = b.colCount > 1 ? Math.max(0, roomPadRightPx - 40) : roomPadRightPx;
                     const contentPadRight = isMobile
                         ? 0 // mobile keeps centered layout
-                        : roomPadRightPx + 8; // exclude indicator width for better available text width
+                        : sideByySideAdjustment + 4; // reduced padding for side-by-side lessons
                     const contentPadLeft = 0;
 
                     // Auto contrast decision based on middle gradient (via) luminance heuristics
@@ -336,9 +346,9 @@ const DayColumn: FC<DayColumnProps> = ({
                             key={l.id}
                             className={`absolute rounded-md p-2 sm:p-2 text-[11px] sm:text-xs overflow-hidden cursor-pointer transform duration-150 hover:shadow-lg hover:brightness-110 hover:saturate-140 hover:contrast-110 backdrop-blur-[1px] ${textColorClass} ${
                                 cancelled
-                                    ? 'border-4 border-rose-500 dark:border-rose-400'
+                                    ? 'border-8 border-rose-500 dark:border-rose-400'
                                     : irregular
-                                    ? 'border-4 border-emerald-500 dark:border-emerald-400'
+                                    ? 'border-8 border-emerald-500 dark:border-emerald-400'
                                     : 'ring-1 ring-slate-900/10 dark:ring-white/15'
                             }`}
                             style={{
@@ -346,7 +356,9 @@ const DayColumn: FC<DayColumnProps> = ({
                                 height: heightPx,
                                 left: `${leftPct}%`,
                                 width: `${widthPct}%`,
-                                background: `linear-gradient(to right, ${gradient.from}, ${gradient.via}, ${gradient.to})` as string,
+                                background: statusOverlay 
+                                    ? `${statusOverlay}, linear-gradient(to right, ${gradient.from}, ${gradient.via}, ${gradient.to})`
+                                    : `linear-gradient(to right, ${gradient.from}, ${gradient.via}, ${gradient.to})`,
                                 // Larger invisible hit target for touch
                                 paddingTop: isMobile ? 6 : undefined,
                                 paddingBottom: isMobile ? 6 : undefined,

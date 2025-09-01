@@ -10,6 +10,7 @@ export default {
         'ring-emerald-500',
         'ring-emerald-400',
         'border-4',
+        'border-8',
         'border-rose-500',
         'border-rose-400',
         'border-emerald-500',
