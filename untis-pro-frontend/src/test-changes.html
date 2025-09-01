@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Room/Teacher Change Testing</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Change highlighting for room/teacher modifications */
+        .change-highlight {
+            background-color: rgb(209 250 229);
+            color: rgb(6 95 70);
+            padding: 0.125rem 0.25rem;
+            border-radius: 0.375rem;
+        }
+        .dark .change-highlight {
+            background-color: rgba(6, 95, 70, 0.6);
+            color: rgb(167 243 208);
+        }
+        
+        .change-original {
+            text-decoration: line-through;
+            color: rgb(100 116 139);
+        }
+        .dark .change-original {
+            color: rgb(148 163 184);
+        }
+        
+        .change-indicator {
+            display: inline-block;
+            width: 0.5rem;
+            height: 0.5rem;
+            background-color: rgb(16 185 129);
+            border-radius: 9999px;
+            margin-left: 0.25rem;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-slate-50 via-slate-100 to-sky-50 min-h-screen p-8">
+    <div class="max-w-6xl mx-auto">
+        <h1 class="text-3xl font-bold text-slate-800 mb-2">Room/Teacher Change Testing</h1>
+        <p class="text-slate-600 mb-8">This page demonstrates the room/teacher change highlighting feature. The lessons below contain various types of changes:</p>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <!-- Math lesson with teacher change -->
+            <div class="relative rounded-md p-4 text-xs ring-1 ring-slate-900/10 shadow-lg bg-gradient-to-r from-blue-400 to-blue-600 text-white cursor-pointer">
+                <!-- Green change indicator -->
+                <div class="absolute top-2 right-2 flex flex-col items-end gap-1">
+                    <div class="text-[11px] leading-tight whitespace-nowrap drop-shadow-sm">
+                        <div class="flex flex-col items-end">
+                            <div class="text-white">Room 101</div>
+                        </div>
+                    </div>
+                    <div class="flex gap-1">
+                        <div class="w-3 h-3 bg-emerald-400 rounded-full flex items-center justify-center shadow-sm">
+                            <svg class="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"/>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="font-semibold leading-tight text-[13px]">Math</div>
+                <div class="opacity-90 mt-1 leading-tight text-[12px]">08:00–08:50</div>
+                <div class="leading-tight text-[12px]">
+                    <div class="change-highlight opacity-90">Dr. John Smith</div>
+                    <div class="text-[11px] change-original opacity-75 mt-0.5">Orig: Dr. Johnson</div>
+                </div>
+            </div>
+            
+            <!-- Physics lesson with room change -->
+            <div class="relative rounded-md p-4 text-xs ring-1 ring-slate-900/10 shadow-lg bg-gradient-to-r from-green-400 to-green-600 text-white cursor-pointer">
+                <div class="absolute top-2 right-2 flex flex-col items-end gap-1">
+                    <div class="text-[11px] leading-tight whitespace-nowrap drop-shadow-sm">
+                        <div class="flex flex-col items-end">
+                            <div class="change-highlight">Workroom 1 (A5.59 C)</div>
+                            <div class="text-[10px] change-original text-white opacity-75">Orig: N6.01 WB</div>
+                        </div>
+                    </div>
+                    <div class="flex gap-1">
+                        <div class="w-3 h-3 bg-emerald-400 rounded-full flex items-center justify-center shadow-sm">
+                            <svg class="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"/>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="font-semibold leading-tight text-[13px]">Physics</div>
+                <div class="opacity-90 mt-1 leading-tight text-[12px]">09:00–09:50</div>
+                <div class="opacity-90 leading-tight text-[12px]">Dr. Brown</div>
+            </div>
+            
+            <!-- Chemistry lesson with both teacher and room changes -->
+            <div class="relative rounded-md p-4 text-xs ring-1 ring-slate-900/10 shadow-lg bg-gradient-to-r from-purple-400 to-purple-600 text-white cursor-pointer">
+                <div class="absolute top-2 right-2 flex flex-col items-end gap-1">
+                    <div class="text-[11px] leading-tight whitespace-nowrap drop-shadow-sm">
+                        <div class="flex flex-col items-end">
+                            <div class="change-highlight">Laboratory C (Lab C)</div>
+                            <div class="text-[10px] change-original text-white opacity-75">Orig: Lab D</div>
+                        </div>
+                    </div>
+                    <div class="flex gap-1">
+                        <div class="w-3 h-3 bg-emerald-400 rounded-full flex items-center justify-center shadow-sm">
+                            <svg class="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"/>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="font-semibold leading-tight text-[13px]">Chemistry</div>
+                <div class="opacity-90 mt-1 leading-tight text-[12px]">10:00–10:50</div>
+                <div class="leading-tight text-[12px]">
+                    <div class="change-highlight opacity-90">Prof. Michael Wilson</div>
+                    <div class="text-[11px] change-original opacity-75 mt-0.5">Orig: Prof. Brown</div>
+                </div>
+            </div>
+            
+            <!-- English lesson with no changes -->
+            <div class="relative rounded-md p-4 text-xs ring-1 ring-slate-900/10 shadow-lg bg-gradient-to-r from-red-400 to-red-600 text-white cursor-pointer">
+                <div class="absolute top-2 right-2 flex flex-col items-end gap-1">
+                    <div class="text-[11px] leading-tight whitespace-nowrap drop-shadow-sm text-white">Room 205</div>
+                </div>
+                
+                <div class="font-semibold leading-tight text-[13px]">English</div>
+                <div class="opacity-90 mt-1 leading-tight text-[12px]">11:00–11:50</div>
+                <div class="opacity-90 leading-tight text-[12px]">Ms. Johnson</div>
+            </div>
+        </div>
+        
+        <div class="bg-white rounded-lg p-6 shadow-sm border border-slate-200">
+            <h2 class="text-xl font-semibold text-slate-800 mb-4">Testing Room and Teacher Changes</h2>
+            <p class="text-slate-600 mb-4">This page demonstrates the room/teacher change highlighting feature. The lessons below contain various types of changes:</p>
+            
+            <ul class="space-y-2 text-sm text-slate-700">
+                <li class="flex items-center gap-2">
+                    <div class="w-3 h-3 bg-emerald-500 rounded-full"></div>
+                    <strong>Math:</strong> Teacher change (Dr. Johnson → Dr. Smith), green change indicator
+                </li>
+                <li class="flex items-center gap-2">
+                    <div class="w-3 h-3 bg-emerald-500 rounded-full"></div>
+                    <strong>Physics:</strong> Room change (N6.01 WB → Workroom 1), green change indicator
+                </li>
+                <li class="flex items-center gap-2">
+                    <div class="w-3 h-3 bg-emerald-500 rounded-full"></div>
+                    <strong>Chemistry:</strong> Both teacher and room changes, green change indicator
+                </li>
+                <li class="flex items-center gap-2">
+                    <div class="w-3 h-3 bg-gray-300 rounded-full"></div>
+                    <strong>English:</strong> No changes, no indicator
+                </li>
+            </ul>
+            
+            <div class="mt-6 p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
+                <div class="flex items-center gap-2 text-emerald-800 mb-2">
+                    <div class="w-2 h-2 bg-emerald-500 rounded-full"></div>
+                    <span class="font-medium">Green indicator shows room/teacher changes</span>
+                </div>
+                <p class="text-emerald-700 text-sm">When teachers or rooms are modified in the schedule, green backgrounds highlight the changed items and original names are shown crossed out below.</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

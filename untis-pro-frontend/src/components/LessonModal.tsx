@@ -4,6 +4,7 @@ import type { Lesson, LessonColors } from '../types';
 import { fmtHM, untisToMinutes } from '../utils/dates';
 import ColorPicker from './ColorPicker';
 import { extractSubjectType } from '../utils/subjectUtils';
+import { getTeacherDisplayText, getRoomDisplayText } from '../utils/lessonChanges';
 
 export default function LessonModal({
     lesson,
@@ -102,10 +103,17 @@ export default function LessonModal({
     const subject = lesson.su?.[0]?.name ?? lesson.activityType ?? '—';
     const subjectType = extractSubjectType(subject);
     const subjectLong = lesson.su?.[0]?.longname ?? subject;
-    const room = lesson.ro?.map((r) => r.name).join(', ');
-    const roomLong = lesson.ro?.map((r) => r.longname || r.name).join(', ');
-    const teacher = lesson.te?.map((t) => t.name).join(', ');
-    const teacherLong = lesson.te?.map((t) => t.longname || t.name).join(', ');
+    
+    // Use helper functions to get teacher and room display info
+    const teacherInfo = getTeacherDisplayText(lesson);
+    const roomInfo = getRoomDisplayText(lesson);
+    
+    // Keep old variables for backward compatibility in other parts
+    const teacher = teacherInfo.current;
+    const teacherLong = lesson.te?.map((t) => t.longname || t.name).join(', ') || '';
+    const room = roomInfo.current;
+    const roomLong = lesson.ro?.map((r) => r.longname || r.name).join(', ') || '';
+    
     const startTime = fmtHM(untisToMinutes(lesson.startTime));
     const endTime = fmtHM(untisToMinutes(lesson.endTime));
 
@@ -240,34 +248,50 @@ export default function LessonModal({
                                         {startTime} - {endTime}
                                     </p>
                                 </div>
-                                {teacherLong && (
+                                {teacherInfo.current && (
                                     <div>
                                         <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-2">
                                             Teacher
                                         </h3>
-                                        <p className="text-slate-900 dark:text-slate-100">
-                                            {teacherLong}
-                                        </p>
-                                        {teacherLong !== teacher && (
-                                            <p className="text-sm text-slate-600 dark:text-slate-400">
-                                                ({teacher})
+                                        <div className="space-y-1">
+                                            <p className="text-slate-900 dark:text-slate-100">
+                                                {teacherInfo.hasChanges ? (
+                                                    <span className="change-highlight">
+                                                        {teacherLong && teacherLong !== teacher ? `${teacherLong} (${teacher})` : teacherLong || teacher}
+                                                    </span>
+                                                ) : (
+                                                    teacherLong && teacherLong !== teacher ? `${teacherLong} (${teacher})` : teacherLong || teacher
+                                                )}
                                             </p>
-                                        )}
+                                            {teacherInfo.hasChanges && teacherInfo.original && (
+                                                <p className="text-sm change-original">
+                                                    Original: {teacherInfo.original}
+                                                </p>
+                                            )}
+                                        </div>
                                     </div>
                                 )}
-                                {roomLong && (
+                                {roomInfo.current && (
                                     <div>
                                         <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-2">
                                             Room
                                         </h3>
-                                        <p className="text-slate-900 dark:text-slate-100">
-                                            {roomLong}
-                                        </p>
-                                        {roomLong !== room && (
-                                            <p className="text-sm text-slate-600 dark:text-slate-400">
-                                                ({room})
+                                        <div className="space-y-1">
+                                            <p className="text-slate-900 dark:text-slate-100">
+                                                {roomInfo.hasChanges ? (
+                                                    <span className="change-highlight">
+                                                        {roomLong && roomLong !== room ? `${roomLong} (${room})` : roomLong || room}
+                                                    </span>
+                                                ) : (
+                                                    roomLong && roomLong !== room ? `${roomLong} (${room})` : roomLong || room
+                                                )}
                                             </p>
-                                        )}
+                                            {roomInfo.hasChanges && roomInfo.original && (
+                                                <p className="text-sm change-original">
+                                                    Original: {roomInfo.original}
+                                                </p>
+                                            )}
+                                        </div>
                                     </div>
                                 )}
                             </div>
