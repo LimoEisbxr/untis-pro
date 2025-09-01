@@ -168,7 +168,7 @@ html.dark .label {
 /* Unified fade-in (used for dynamic list items). Avoids double definitions that caused flicker. */
 .animate-fade-in {
     opacity: 0; /* start transparent */
-    animation: fade-in-smart 220ms cubic-bezier(.4,.1,.2,1) forwards;
+    animation: fade-in-smart 220ms cubic-bezier(0.4, 0.1, 0.2, 1) forwards;
     will-change: opacity, transform;
 }
 @media (prefers-reduced-motion: reduce) {
@@ -178,9 +178,17 @@ html.dark .label {
     }
 }
 @keyframes fade-in-smart {
-    0% { opacity: 0; transform: translateY(6px); }
-    60% { opacity: 1; }
-    100% { opacity: 1; transform: translateY(0); }
+    0% {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+    60% {
+        opacity: 1;
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 /* Reusable surfaces */
@@ -229,7 +237,7 @@ html.dark .change-highlight-inline {
 .change-highlight-mobile {
     /* Ultra-compact pill for constrained mobile timetable rows */
     @apply bg-emerald-100 text-emerald-800 rounded-sm px-1 /* no vertical padding */;
-    line-height: 1.0; /* minimize vertical box */
+    line-height: 1; /* minimize vertical box */
     font-size: 0.68rem; /* slightly smaller than 11px Tailwind (≈10.9px) */
     display: inline-flex;
     align-items: center;

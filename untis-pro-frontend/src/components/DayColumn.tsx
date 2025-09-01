@@ -394,10 +394,17 @@ const DayColumn: FC<DayColumnProps> = ({
                                 {room && (
                                     <div className="hidden sm:block text-[11px] leading-tight whitespace-nowrap drop-shadow-sm">
                                         {(() => {
-                                            const roomInfo = getRoomDisplayText(l);
+                                            const roomInfo =
+                                                getRoomDisplayText(l);
                                             // Show only short room codes (no long names or originals) in timetable view
                                             return (
-                                                <div className={`${roomInfo.hasChanges ? 'change-highlight' : textColorClass}`}>
+                                                <div
+                                                    className={`${
+                                                        roomInfo.hasChanges
+                                                            ? 'change-highlight'
+                                                            : textColorClass
+                                                    }`}
+                                                >
                                                     {room}
                                                 </div>
                                             );
@@ -516,16 +523,23 @@ const DayColumn: FC<DayColumnProps> = ({
                                         const badges: ReactElement[] = [];
                                         const baseClass =
                                             'w-3.5 h-3.5 rounded-full flex items-center justify-center ring-1 ring-black/15 dark:ring-white/20 shadow-md backdrop-blur-sm';
-                                        
+
                                         // Count information types available
-                                        const hasHomework = l.homework && l.homework.length > 0;
+                                        const hasHomework =
+                                            l.homework && l.homework.length > 0;
                                         const hasInfo = !!l.info;
                                         const hasLstext = !!l.lstext;
-                                        const hasExams = l.exams && l.exams.length > 0;
-                                        const informationCount = [hasHomework, hasInfo, hasLstext, hasExams].filter(Boolean).length;
-                                        
+                                        const hasExams =
+                                            l.exams && l.exams.length > 0;
+                                        const informationCount = [
+                                            hasHomework,
+                                            hasInfo,
+                                            hasLstext,
+                                            hasExams,
+                                        ].filter(Boolean).length;
+
                                         const isMerged = isLessonMerged(l);
-                                        
+
                                         // For single lessons with multiple information types, show ellipsis instead
                                         if (!isMerged && informationCount > 1) {
                                             badges.push(
@@ -612,9 +626,11 @@ const DayColumn: FC<DayColumnProps> = ({
                                                     </div>
                                                 );
                                         }
-                                        
+
                                         // For merged lessons, keep the limit of 3 badges
-                                        return isMerged ? badges.slice(0, 3) : badges.slice(0, 1);
+                                        return isMerged
+                                            ? badges.slice(0, 3)
+                                            : badges.slice(0, 1);
                                     })()}
                                 </div>
 
@@ -630,46 +646,54 @@ const DayColumn: FC<DayColumnProps> = ({
                                     >
                                         {displaySubject}
                                     </div>
-                                {(() => {
-                                    if (!l.te || l.te.length === 0) return null;
-                                    return (
-                                        <div className="text-[11px] leading-tight truncate max-w-full flex flex-wrap justify-center gap-x-1">
-                                            {l.te.map((t, i) => (
-                                                <span
-                                                    key={i}
-                                                    className={t.orgname
-                                                        ? singleMobile
-                                                            ? 'change-highlight-mobile'
-                                                            : 'change-highlight-inline'
-                                                        : undefined}
-                                                >
-                                                    {t.name}
-                                                </span>
-                                            ))}
-                                        </div>
-                                    );
-                                })()}
-                                {(() => {
-                                    const roomInfo = getRoomDisplayText(l);
-                                    // Hide room on mobile for cancelled / irregular lessons per request
-                                    if (!roomMobile || cancelled || irregular) return null;
-                                    // Only show short room codes in mobile timetable view
-                                    return (
-                                        <div className="text-[11px] leading-tight truncate max-w-full">
-                                            <div
-                                                className={
-                                                    roomInfo.hasChanges
-                                                        ? singleMobile
-                                                            ? 'change-highlight-mobile'
-                                                            : 'change-highlight opacity-90'
-                                                        : 'opacity-90'
-                                                }
-                                            >
-                                                {roomMobile}
+                                    {(() => {
+                                        if (!l.te || l.te.length === 0)
+                                            return null;
+                                        return (
+                                            <div className="text-[11px] leading-tight truncate max-w-full flex flex-wrap justify-center gap-x-1">
+                                                {l.te.map((t, i) => (
+                                                    <span
+                                                        key={i}
+                                                        className={
+                                                            t.orgname
+                                                                ? singleMobile
+                                                                    ? 'change-highlight-mobile'
+                                                                    : 'change-highlight-inline'
+                                                                : undefined
+                                                        }
+                                                    >
+                                                        {t.name}
+                                                    </span>
+                                                ))}
                                             </div>
-                                        </div>
-                                    );
-                                })()}
+                                        );
+                                    })()}
+                                    {(() => {
+                                        const roomInfo = getRoomDisplayText(l);
+                                        // Hide room on mobile for cancelled / irregular lessons per request
+                                        if (
+                                            !roomMobile ||
+                                            cancelled ||
+                                            irregular
+                                        )
+                                            return null;
+                                        // Only show short room codes in mobile timetable view
+                                        return (
+                                            <div className="text-[11px] leading-tight truncate max-w-full">
+                                                <div
+                                                    className={
+                                                        roomInfo.hasChanges
+                                                            ? singleMobile
+                                                                ? 'change-highlight-mobile'
+                                                                : 'change-highlight opacity-90'
+                                                            : 'opacity-90'
+                                                    }
+                                                >
+                                                    {roomMobile}
+                                                </div>
+                                            </div>
+                                        );
+                                    })()}
                                     {/* Removed lstext preview in timetable (mobile) */}
                                 </div>
                                 {/* Original flexible desktop layout */}
@@ -698,15 +722,18 @@ const DayColumn: FC<DayColumnProps> = ({
                                                 </div>
                                             )}
                                         {(() => {
-                                            if (!l.te || l.te.length === 0) return null;
+                                            if (!l.te || l.te.length === 0)
+                                                return null;
                                             return (
                                                 <div className="leading-tight text-[12px] flex flex-wrap gap-x-1">
                                                     {l.te.map((t, i) => (
                                                         <span
                                                             key={i}
-                                                            className={t.orgname
-                                                                ? 'change-highlight-inline'
-                                                                : undefined}
+                                                            className={
+                                                                t.orgname
+                                                                    ? 'change-highlight-inline'
+                                                                    : undefined
+                                                            }
                                                         >
                                                             {t.name}
                                                         </span>
