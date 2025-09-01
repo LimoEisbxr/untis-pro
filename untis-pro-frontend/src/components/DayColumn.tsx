@@ -288,7 +288,7 @@ const DayColumn: FC<DayColumnProps> = ({
                     lastBottomByCol[colKey] = topPx + heightPx;
 
                     // Reserve space for bottom labels and pad right for indicators
-                    const labelReservePx = cancelled || irregular ? 22 : 0;
+                    const labelReservePx = 0; // No longer reserve space for status labels
                     const MIN_BOTTOM_RESERVE = isMobile ? 4 : 6; // slightly tighter on mobile
                     const reservedBottomPx = Math.max(
                         labelReservePx,
@@ -334,23 +334,19 @@ const DayColumn: FC<DayColumnProps> = ({
                     return (
                         <div
                             key={l.id}
-                            className={`absolute rounded-md p-2 sm:p-2 text-[11px] sm:text-xs ring-1 ring-slate-900/10 dark:ring-white/15 overflow-hidden cursor-pointer transform duration-150 hover:shadow-lg hover:brightness-110 hover:saturate-140 hover:contrast-110 backdrop-blur-[1px] ${textColorClass} ${
+                            className={`absolute rounded-md p-2 sm:p-2 text-[11px] sm:text-xs overflow-hidden cursor-pointer transform duration-150 hover:shadow-lg hover:brightness-110 hover:saturate-140 hover:contrast-110 backdrop-blur-[1px] ${textColorClass} ${
                                 cancelled
-                                    ? 'bg-rose-500/90'
+                                    ? 'ring-2 ring-rose-400 dark:ring-rose-500'
                                     : irregular
-                                    ? 'bg-emerald-500/90'
-                                    : ''
+                                    ? 'ring-2 ring-emerald-400 dark:ring-emerald-500'
+                                    : 'ring-1 ring-slate-900/10 dark:ring-white/15'
                             }`}
                             style={{
                                 top: topPx,
                                 height: heightPx,
                                 left: `${leftPct}%`,
                                 width: `${widthPct}%`,
-                                background: cancelled
-                                    ? undefined
-                                    : irregular
-                                    ? undefined
-                                    : (`linear-gradient(to right, ${gradient.from}, ${gradient.via}, ${gradient.to})` as string),
+                                background: `linear-gradient(to right, ${gradient.from}, ${gradient.via}, ${gradient.to})` as string,
                                 // Larger invisible hit target for touch
                                 paddingTop: isMobile ? 6 : undefined,
                                 paddingBottom: isMobile ? 6 : undefined,
@@ -603,16 +599,7 @@ const DayColumn: FC<DayColumnProps> = ({
                                         {l.lstext}
                                     </div>
                                 )} */}
-                                {cancelled && (
-                                    <div className="hidden sm:block absolute bottom-1 right-2 text-right text-[10px] font-semibold uppercase tracking-wide">
-                                        Cancelled
-                                    </div>
-                                )}
-                                {irregular && (
-                                    <div className="hidden sm:block absolute bottom-1 right-2 text-right text-[10px] font-semibold uppercase tracking-wide">
-                                        Irregular
-                                    </div>
-                                )}
+                                {/* Status text overlays removed - now shown only in modal */}
                             </div>
                         </div>
                     );
