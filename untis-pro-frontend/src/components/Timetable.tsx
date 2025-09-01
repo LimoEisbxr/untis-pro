@@ -672,8 +672,8 @@ export default function Timetable({
                             }}
                         >
                             <div className="relative w-full">
-                                {/* Base thin line spanning full width with subtle glow */}
-                                <div className="h-[1px] w-full bg-gradient-to-r from-rose-500 via-fuchsia-500 to-pink-500 shadow-[0_0_4px_rgba(244,63,94,0.4)]" />
+                                {/* Base thin line spanning full width with subtle glow - centered to align with thick overlay */}
+                                <div className="h-[1px] w-full bg-gradient-to-r from-rose-500 via-fuchsia-500 to-pink-500 shadow-[0_0_4px_rgba(244,63,94,0.4)] -translate-y-1/2" />
                                 
                                 {/* Seamless thicker overlay for current day with tapered edges */}
                                 <div 
