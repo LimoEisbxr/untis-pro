@@ -424,6 +424,19 @@ export default function OnboardingModal({
         onClose();
     };
 
+    const handleSkipStep = () => {
+        // Skip the current interactive step
+        if (currentStepData.requiresInteraction && waitingForInteraction) {
+            setWaitingForInteraction(false);
+            setHasInteracted(false);
+            if (currentStep < steps.length - 1) {
+                setCurrentStep(currentStep + 1);
+            } else {
+                handleComplete();
+            }
+        }
+    };
+
     if (!showModal) return null;
 
     const isFirstStep = currentStep === 0;
@@ -433,7 +446,7 @@ export default function OnboardingModal({
     return createPortal(
         <div
             className={`fixed inset-0 z-50 transition-opacity duration-200 ${
-                waitingForInteraction && currentStepData.demoType === 'interactive-lesson' 
+                waitingForInteraction && (currentStepData.demoType === 'interactive-lesson' || currentStepData.demoType === 'interactive-settings')
                     ? 'pointer-events-none' 
                     : ''
             } ${
@@ -443,7 +456,7 @@ export default function OnboardingModal({
             {/* Backdrop with cutout for highlighted element */}
             <div 
                 className={`absolute inset-0 backdrop-blur-sm ${
-                    waitingForInteraction && currentStepData.demoType === 'interactive-lesson' 
+                    waitingForInteraction && (currentStepData.demoType === 'interactive-lesson' || currentStepData.demoType === 'interactive-settings')
                         ? 'bg-black/20' 
                         : 'bg-black/60'
                 }`}
@@ -557,6 +570,10 @@ export default function OnboardingModal({
                         ? 'opacity-50 pointer-events-none' 
                         : waitingForInteraction && currentStepData.demoType === 'interactive-lesson' && hasInteracted 
                         ? 'opacity-75' 
+                        : waitingForInteraction && currentStepData.demoType === 'interactive-settings' && !hasInteracted
+                        ? 'opacity-75 pointer-events-none'
+                        : waitingForInteraction && currentStepData.demoType === 'interactive-settings' && hasInteracted
+                        ? 'opacity-90'
                         : ''
                 }`}
                 style={'useCenter' in modalPosition ? {} : modalPosition as React.CSSProperties}
@@ -565,7 +582,7 @@ export default function OnboardingModal({
                     className={`relative w-full max-w-md max-h-[85vh] overflow-y-auto rounded-2xl shadow-2xl ring-1 ring-black/10 dark:ring-white/10 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md transition-all duration-200 ease-out will-change-transform will-change-opacity ${
                         'useCenter' in modalPosition ? 'mx-4' : ''
                     } ${
-                        waitingForInteraction && currentStepData.demoType === 'interactive-lesson' 
+                        waitingForInteraction && (currentStepData.demoType === 'interactive-lesson' || currentStepData.demoType === 'interactive-settings')
                             ? 'pointer-events-auto' 
                             : ''
                     } ${
@@ -632,6 +649,16 @@ export default function OnboardingModal({
                             >
                                 Previous
                             </button>
+
+                            {/* Show skip step button during interactive steps */}
+                            {waitingForInteraction && currentStepData.requiresInteraction && (
+                                <button
+                                    onClick={handleSkipStep}
+                                    className="py-2.5 px-4 rounded-lg font-medium transition-all duration-200 bg-amber-100 hover:bg-amber-200 dark:bg-amber-900/30 dark:hover:bg-amber-900/50 text-amber-800 dark:text-amber-200 border border-amber-300 dark:border-amber-700"
+                                >
+                                    Skip step
+                                </button>
+                            )}
                             
                             <button
                                 onClick={handleNext}
