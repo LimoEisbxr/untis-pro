@@ -6,7 +6,7 @@ import { fmtHM, untisToMinutes } from '../utils/dates';
 import { clamp } from '../utils/dates';
 import { generateGradient, getDefaultGradient } from '../utils/colors';
 import { extractSubjectType } from '../utils/subjectUtils';
-import { hasLessonChanges } from '../utils/lessonChanges';
+import { hasLessonChanges, getTeacherDisplayText, getRoomDisplayText } from '../utils/lessonChanges';
 
 export type Block = {
     l: Lesson;
@@ -369,8 +369,25 @@ const DayColumn: FC<DayColumnProps> = ({
                             {/* Indicators + room label (desktop) */}
                             <div className="absolute top-1 right-1 hidden sm:flex flex-col items-end gap-1">
                                 {room && (
-                                    <div className={`hidden sm:block text-[11px] leading-tight whitespace-nowrap drop-shadow-sm ${textColorClass}`}>
-                                        {room}
+                                    <div className="hidden sm:block text-[11px] leading-tight whitespace-nowrap drop-shadow-sm">
+                                        {(() => {
+                                            const roomInfo = getRoomDisplayText(l);
+                                            const roomLong = l.ro?.map((r) => r.longname || r.name).join(', ') || '';
+                                            const displayName = roomLong && roomLong !== room ? `${roomLong} (${room})` : room;
+                                            
+                                            return (
+                                                <div className="flex flex-col items-end">
+                                                    <div className={`${roomInfo.hasChanges ? 'change-highlight' : textColorClass}`}>
+                                                        {displayName}
+                                                    </div>
+                                                    {roomInfo.hasChanges && roomInfo.original && (
+                                                        <div className={`text-[10px] change-original ${textColorClass} opacity-75`}>
+                                                            Orig: {roomInfo.original}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })()}
                                     </div>
                                 )}
                                 <div className="flex gap-1">
@@ -573,16 +590,46 @@ const DayColumn: FC<DayColumnProps> = ({
                                     >
                                         {displaySubject}
                                     </div>
-                                    {teacher && (
-                                        <div className="text-[11px] opacity-90 leading-tight truncate max-w-full">
-                                            {teacher}
+                                {(() => {
+                                    const teacherInfo = getTeacherDisplayText(l);
+                                    if (!teacher) return null;
+                                    
+                                    const teacherLong = l.te?.map((t) => t.longname || t.name).join(', ') || '';
+                                    const displayName = teacherLong && teacherLong !== teacher ? `${teacherLong} (${teacher})` : teacher;
+                                    
+                                    return (
+                                        <div className="text-[11px] leading-tight truncate max-w-full">
+                                            <div className={`${teacherInfo.hasChanges ? 'change-highlight opacity-90' : 'opacity-90'}`}>
+                                                {displayName}
+                                            </div>
+                                            {teacherInfo.hasChanges && teacherInfo.original && (
+                                                <div className="text-[10px] change-original opacity-75">
+                                                    Orig: {teacherInfo.original}
+                                                </div>
+                                            )}
                                         </div>
-                                    )}
-                                    {roomMobile && (
-                                        <div className="text-[11px] opacity-90 leading-tight truncate max-w-full">
-                                            {roomMobile}
+                                    );
+                                })()}
+                                {(() => {
+                                    const roomInfo = getRoomDisplayText(l);
+                                    if (!roomMobile) return null;
+                                    
+                                    const roomLong = l.ro?.map((r) => r.longname || r.name).join(', ') || '';
+                                    const displayName = roomLong && roomLong !== roomMobile ? `${roomLong} (${roomMobile})` : roomMobile;
+                                    
+                                    return (
+                                        <div className="text-[11px] leading-tight truncate max-w-full">
+                                            <div className={`${roomInfo.hasChanges ? 'change-highlight opacity-90' : 'opacity-90'}`}>
+                                                {displayName}
+                                            </div>
+                                            {roomInfo.hasChanges && roomInfo.original && (
+                                                <div className="text-[10px] change-original opacity-75">
+                                                    Orig: {roomInfo.original}
+                                                </div>
+                                            )}
                                         </div>
-                                    )}
+                                    );
+                                })()}
                                     {/* Removed lstext preview in timetable (mobile) */}
                                 </div>
                                 {/* Original flexible desktop layout */}
@@ -605,11 +652,26 @@ const DayColumn: FC<DayColumnProps> = ({
                                                 </span>
                                             </div>
                                         )}
-                                        {teacher && (
-                                            <div className="opacity-90 leading-tight text-[12px]">
-                                                {teacher}
-                                            </div>
-                                        )}
+                                        {(() => {
+                                            const teacherInfo = getTeacherDisplayText(l);
+                                            if (!teacher) return null;
+                                            
+                                            const teacherLong = l.te?.map((t) => t.longname || t.name).join(', ') || '';
+                                            const displayName = teacherLong && teacherLong !== teacher ? `${teacherLong} (${teacher})` : teacher;
+                                            
+                                            return (
+                                                <div className="leading-tight text-[12px]">
+                                                    <div className={`${teacherInfo.hasChanges ? 'change-highlight opacity-90' : 'opacity-90'}`}>
+                                                        {displayName}
+                                                    </div>
+                                                    {teacherInfo.hasChanges && teacherInfo.original && (
+                                                        <div className="text-[11px] change-original opacity-75 mt-0.5">
+                                                            Orig: {teacherInfo.original}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })()}
                                     </FitText>
                                 </div>
                                 {/* Info/Notes preview (desktop) */}

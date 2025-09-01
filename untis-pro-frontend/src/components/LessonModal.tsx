@@ -257,20 +257,15 @@ export default function LessonModal({
                                             <p className="text-slate-900 dark:text-slate-100">
                                                 {teacherInfo.hasChanges ? (
                                                     <span className="change-highlight">
-                                                        {teacherLong || teacherInfo.current}
+                                                        {teacherLong && teacherLong !== teacher ? `${teacherLong} (${teacher})` : teacherLong || teacher}
                                                     </span>
                                                 ) : (
-                                                    teacherLong || teacherInfo.current
+                                                    teacherLong && teacherLong !== teacher ? `${teacherLong} (${teacher})` : teacherLong || teacher
                                                 )}
                                             </p>
                                             {teacherInfo.hasChanges && teacherInfo.original && (
                                                 <p className="text-sm change-original">
                                                     Original: {teacherInfo.original}
-                                                </p>
-                                            )}
-                                            {teacherLong !== teacher && !teacherInfo.hasChanges && (
-                                                <p className="text-sm text-slate-600 dark:text-slate-400">
-                                                    ({teacher})
                                                 </p>
                                             )}
                                         </div>
@@ -285,20 +280,15 @@ export default function LessonModal({
                                             <p className="text-slate-900 dark:text-slate-100">
                                                 {roomInfo.hasChanges ? (
                                                     <span className="change-highlight">
-                                                        {roomLong || roomInfo.current}
+                                                        {roomLong && roomLong !== room ? `${roomLong} (${room})` : roomLong || room}
                                                     </span>
                                                 ) : (
-                                                    roomLong || roomInfo.current
+                                                    roomLong && roomLong !== room ? `${roomLong} (${room})` : roomLong || room
                                                 )}
                                             </p>
                                             {roomInfo.hasChanges && roomInfo.original && (
                                                 <p className="text-sm change-original">
                                                     Original: {roomInfo.original}
-                                                </p>
-                                            )}
-                                            {roomLong !== room && !roomInfo.hasChanges && (
-                                                <p className="text-sm text-slate-600 dark:text-slate-400">
-                                                    ({room})
                                                 </p>
                                             )}
                                         </div>
