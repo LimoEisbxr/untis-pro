@@ -362,7 +362,7 @@ const DayColumn: FC<DayColumnProps> = ({
                             {/* Indicators + room label (desktop) */}
                             <div className="absolute top-1 right-1 hidden sm:flex flex-col items-end gap-1">
                                 {room && (
-                                    <div className="hidden sm:block text-[11px] leading-tight whitespace-nowrap text-white/95 drop-shadow-sm">
+                                    <div className={`hidden sm:block text-[11px] leading-tight whitespace-nowrap drop-shadow-sm ${textColorClass}`}>
                                         {room}
                                     </div>
                                 )}
@@ -498,7 +498,7 @@ const DayColumn: FC<DayColumnProps> = ({
                                 {/* Mobile centered layout */}
                                 <div className="flex flex-col items-center justify-center text-center gap-0.5 h-full sm:hidden px-0.5">
                                     {l.info && canShowPreview && (
-                                        <div className="w-full text-[11px] font-medium leading-snug px-1.5 py-0.5 rounded-md bg-white/25 dark:bg-white/15 backdrop-blur-sm shadow-sm text-white/95 max-h-[40px] overflow-hidden">
+                                        <div className={`w-full text-[11px] font-medium leading-snug px-1.5 py-0.5 rounded-md bg-white/25 dark:bg-white/15 backdrop-blur-sm shadow-sm max-h-[40px] overflow-hidden ${textColorClass}`}>
                                             {l.info}
                                         </div>
                                     )}
@@ -551,7 +551,7 @@ const DayColumn: FC<DayColumnProps> = ({
                                 </div>
                                 {/* Info/Notes preview (desktop) */}
                                 {l.info && canShowPreview && (
-                                    <div className="hidden sm:block mt-1 text-[11px] leading-snug text-white/90 whitespace-pre-wrap">
+                                    <div className={`hidden sm:block mt-1 text-[11px] leading-snug whitespace-pre-wrap ${textColorClass}`}>
                                         {l.info}
                                     </div>
                                 )}
