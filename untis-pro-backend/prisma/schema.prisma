@@ -233,6 +233,10 @@ model NotificationSettings {
     irregularLessonsEnabled   Boolean @default(true)
     cancelledLessonsEnabled   Boolean @default(true)
 
+    // Time scope preferences for notifications
+    cancelledLessonsTimeScope String @default("day") // "day" | "week"
+    irregularLessonsTimeScope String @default("day") // "day" | "week"
+
     // Device-specific settings (JSON for flexibility)
     devicePreferences Json? // { "mobile": {...}, "desktop": {...} }
 }
