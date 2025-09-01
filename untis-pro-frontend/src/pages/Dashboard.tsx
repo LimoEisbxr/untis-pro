@@ -93,6 +93,7 @@ export default function Dashboard({
 
     // Onboarding state
     const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
+    const [isLessonModalOpen, setIsLessonModalOpen] = useState(false);
 
     // Derive a friendly info message for admin users when their own timetable isn't available
     const adminInfoMessage = useMemo(() => {
@@ -838,6 +839,7 @@ export default function Dashboard({
                                     setStart(ns);
                                 }
                             }}
+                            onLessonModalStateChange={setIsLessonModalOpen}
                         />
                     </div>
                 </section>
@@ -1168,6 +1170,7 @@ export default function Dashboard({
                 onComplete={handleOnboardingComplete}
                 isSettingsModalOpen={isSettingsModalOpen}
                 onOpenSettings={() => setIsSettingsModalOpen(true)}
+                isLessonModalOpen={isLessonModalOpen}
             />
         </div>
     );
