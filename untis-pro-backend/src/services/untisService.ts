@@ -646,6 +646,16 @@ async function enrichLessonsWithHomeworkAndExams(
         (prisma as any).exam.findMany({ where: whereClause }),
     ]);
 
+    console.debug(`[homework] Found ${homework.length} homework items for userId ${userId}`, {
+        homeworkSample: homework.slice(0, 3).map((hw: any) => ({
+            id: hw.untisId,
+            subject: hw.subject,
+            date: hw.date,
+            lessonId: hw.lessonId,
+            text: hw.text?.substring(0, 50) + '...'
+        }))
+    });
+
     const lessonMatchesHw = (hw: any, lesson: any) => {
         const idsToCheck = [
             lesson?.id,
@@ -657,17 +667,59 @@ async function enrichLessonsWithHomeworkAndExams(
         return idsToCheck.some((v) => v === hw.lessonId);
     };
 
+    const subjectMatches = (hwSubject: string, lessonSubject: string) => {
+        if (!hwSubject || !lessonSubject) return false;
+        // Normalize subject names for comparison (case insensitive, trim whitespace)
+        return hwSubject.toLowerCase().trim() === lessonSubject.toLowerCase().trim();
+    };
+
+    // Helper to check if homework date is within a reasonable range of lesson date
+    const dateWithinRange = (hwDate: number, lessonDate: number, dayRange: number = 7) => {
+        if (hwDate === lessonDate) return true;
+        
+        // Convert YYYYMMDD to Date objects for comparison
+        const hwDateObj = new Date(
+            Math.floor(hwDate / 10000),
+            Math.floor((hwDate % 10000) / 100) - 1,
+            hwDate % 100
+        );
+        const lessonDateObj = new Date(
+            Math.floor(lessonDate / 10000),
+            Math.floor((lessonDate % 10000) / 100) - 1,
+            lessonDate % 100
+        );
+        
+        const diffMs = Math.abs(hwDateObj.getTime() - lessonDateObj.getTime());
+        const diffDays = diffMs / (1000 * 60 * 60 * 24);
+        return diffDays <= dayRange;
+    };
+
     // Enrich lessons with homework and exam data
     return lessons.map((lesson) => {
         const subjectName = lesson.su?.[0]?.name;
         const lessonHomework = homework
             .filter(
-                (hw: any) =>
-                    lessonMatchesHw(hw, lesson) ||
-                    (hw.date === lesson.date &&
-                        hw.subject &&
-                        subjectName &&
-                        hw.subject === subjectName)
+                (hw: any) => {
+                    // Primary matching: homework lessonId matches lesson ID
+                    if (lessonMatchesHw(hw, lesson)) {
+                        console.debug(`[homework] Primary match: hw ${hw.untisId} -> lesson ${lesson.id} (lessonId)`);
+                        return true;
+                    }
+                    
+                    // Secondary matching: subject matches and date is within reasonable range
+                    if (hw.subject && subjectName && subjectMatches(hw.subject, subjectName)) {
+                        // Only attach if homework date is within 7 days of lesson date
+                        // This prevents homework from being attached to all lessons of same subject
+                        if (dateWithinRange(hw.date, lesson.date, 7)) {
+                            console.debug(`[homework] Secondary match: hw ${hw.untisId} -> lesson ${lesson.id} (subject: ${hw.subject}, date within range)`);
+                            return true;
+                        } else {
+                            console.debug(`[homework] Subject match but date out of range: hw ${hw.untisId} (${hw.date}) vs lesson ${lesson.id} (${lesson.date})`);
+                        }
+                    }
+                    
+                    return false;
+                }
             )
             .map((hw: any) => ({
                 id: hw.untisId,
