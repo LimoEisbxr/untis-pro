@@ -83,6 +83,8 @@ export type NotificationSettings = {
     accessRequestsEnabled: boolean;
     irregularLessonsEnabled: boolean;
     cancelledLessonsEnabled: boolean;
+    cancelledLessonsTimeScope: 'day' | 'week';
+    irregularLessonsTimeScope: 'day' | 'week';
     devicePreferences?: Record<string, Record<string, unknown>>;
     createdAt: string;
     updatedAt: string;

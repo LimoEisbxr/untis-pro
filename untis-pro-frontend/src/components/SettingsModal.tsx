@@ -2088,6 +2088,47 @@ export default function SettingsModal({
                                                         </label>
                                                     </div>
 
+                                                    {/* Time scope for cancelled lessons (User Manager) */}
+                                                    {notificationSettings.cancelledLessonsEnabled && (
+                                                        <div className="ml-4 pl-4 border-l border-slate-200 dark:border-slate-600">
+                                                            <p className="text-xs font-medium text-slate-700 dark:text-slate-300 mb-2">
+                                                                Notify me for cancelled lessons:
+                                                            </p>
+                                                            <div className="flex gap-4">
+                                                                <label className="flex items-center cursor-pointer">
+                                                                    <input
+                                                                        type="radio"
+                                                                        name="umCancelledScope"
+                                                                        value="day"
+                                                                        checked={notificationSettings.cancelledLessonsTimeScope === 'day'}
+                                                                        onChange={() => handleUpdateNotificationSettings({
+                                                                            cancelledLessonsTimeScope: 'day'
+                                                                        })}
+                                                                        className="w-4 h-4 text-indigo-600 border-slate-300 dark:border-slate-600 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:ring-2"
+                                                                    />
+                                                                    <span className="ml-2 text-xs text-slate-600 dark:text-slate-400">
+                                                                        Today only
+                                                                    </span>
+                                                                </label>
+                                                                <label className="flex items-center cursor-pointer">
+                                                                    <input
+                                                                        type="radio"
+                                                                        name="umCancelledScope"
+                                                                        value="week"
+                                                                        checked={notificationSettings.cancelledLessonsTimeScope === 'week'}
+                                                                        onChange={() => handleUpdateNotificationSettings({
+                                                                            cancelledLessonsTimeScope: 'week'
+                                                                        })}
+                                                                        className="w-4 h-4 text-indigo-600 border-slate-300 dark:border-slate-600 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:ring-2"
+                                                                    />
+                                                                    <span className="ml-2 text-xs text-slate-600 dark:text-slate-400">
+                                                                        This week
+                                                                    </span>
+                                                                </label>
+                                                            </div>
+                                                        </div>
+                                                    )}
+
                                                     <div className="flex items-center justify-between">
                                                         <div>
                                                             <h5 className="text-sm font-medium text-slate-900 dark:text-slate-100">
@@ -2121,6 +2162,47 @@ export default function SettingsModal({
                                                             <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600"></div>
                                                         </label>
                                                     </div>
+
+                                                    {/* Time scope for irregular lessons (User Manager) */}
+                                                    {notificationSettings.irregularLessonsEnabled && (
+                                                        <div className="ml-4 pl-4 border-l border-slate-200 dark:border-slate-600">
+                                                            <p className="text-xs font-medium text-slate-700 dark:text-slate-300 mb-2">
+                                                                Notify me for irregular lessons:
+                                                            </p>
+                                                            <div className="flex gap-4">
+                                                                <label className="flex items-center cursor-pointer">
+                                                                    <input
+                                                                        type="radio"
+                                                                        name="umIrregularScope"
+                                                                        value="day"
+                                                                        checked={notificationSettings.irregularLessonsTimeScope === 'day'}
+                                                                        onChange={() => handleUpdateNotificationSettings({
+                                                                            irregularLessonsTimeScope: 'day'
+                                                                        })}
+                                                                        className="w-4 h-4 text-indigo-600 border-slate-300 dark:border-slate-600 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:ring-2"
+                                                                    />
+                                                                    <span className="ml-2 text-xs text-slate-600 dark:text-slate-400">
+                                                                        Today only
+                                                                    </span>
+                                                                </label>
+                                                                <label className="flex items-center cursor-pointer">
+                                                                    <input
+                                                                        type="radio"
+                                                                        name="umIrregularScope"
+                                                                        value="week"
+                                                                        checked={notificationSettings.irregularLessonsTimeScope === 'week'}
+                                                                        onChange={() => handleUpdateNotificationSettings({
+                                                                            irregularLessonsTimeScope: 'week'
+                                                                        })}
+                                                                        className="w-4 h-4 text-indigo-600 border-slate-300 dark:border-slate-600 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:ring-2"
+                                                                    />
+                                                                    <span className="ml-2 text-xs text-slate-600 dark:text-slate-400">
+                                                                        This week
+                                                                    </span>
+                                                                </label>
+                                                            </div>
+                                                        </div>
+                                                    )}
 
                                                     <div className="flex items-center justify-between">
                                                         <div>
@@ -2551,6 +2633,47 @@ export default function SettingsModal({
                                                             </label>
                                                         </div>
 
+                                                        {/* Time scope for cancelled lessons */}
+                                                        {notificationSettings.cancelledLessonsEnabled && (
+                                                            <div className="ml-4 pl-4 border-l border-slate-200 dark:border-slate-600">
+                                                                <p className="text-xs font-medium text-slate-700 dark:text-slate-300 mb-2">
+                                                                    Notify me for cancelled lessons:
+                                                                </p>
+                                                                <div className="flex gap-4">
+                                                                    <label className="flex items-center cursor-pointer">
+                                                                        <input
+                                                                            type="radio"
+                                                                            name="cancelledScope"
+                                                                            value="day"
+                                                                            checked={notificationSettings.cancelledLessonsTimeScope === 'day'}
+                                                                            onChange={() => handleUpdateNotificationSettings({
+                                                                                cancelledLessonsTimeScope: 'day'
+                                                                            })}
+                                                                            className="w-4 h-4 text-indigo-600 border-slate-300 dark:border-slate-600 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:ring-2"
+                                                                        />
+                                                                        <span className="ml-2 text-xs text-slate-600 dark:text-slate-400">
+                                                                            Today only
+                                                                        </span>
+                                                                    </label>
+                                                                    <label className="flex items-center cursor-pointer">
+                                                                        <input
+                                                                            type="radio"
+                                                                            name="cancelledScope"
+                                                                            value="week"
+                                                                            checked={notificationSettings.cancelledLessonsTimeScope === 'week'}
+                                                                            onChange={() => handleUpdateNotificationSettings({
+                                                                                cancelledLessonsTimeScope: 'week'
+                                                                            })}
+                                                                            className="w-4 h-4 text-indigo-600 border-slate-300 dark:border-slate-600 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:ring-2"
+                                                                        />
+                                                                        <span className="ml-2 text-xs text-slate-600 dark:text-slate-400">
+                                                                            This week
+                                                                        </span>
+                                                                    </label>
+                                                                </div>
+                                                            </div>
+                                                        )}
+
                                                         <div className="flex items-center justify-between">
                                                             <div>
                                                                 <h5 className="text-sm font-medium text-slate-900 dark:text-slate-100">
@@ -2587,6 +2710,47 @@ export default function SettingsModal({
                                                                 <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600"></div>
                                                             </label>
                                                         </div>
+
+                                                        {/* Time scope for irregular lessons */}
+                                                        {notificationSettings.irregularLessonsEnabled && (
+                                                            <div className="ml-4 pl-4 border-l border-slate-200 dark:border-slate-600">
+                                                                <p className="text-xs font-medium text-slate-700 dark:text-slate-300 mb-2">
+                                                                    Notify me for irregular lessons:
+                                                                </p>
+                                                                <div className="flex gap-4">
+                                                                    <label className="flex items-center cursor-pointer">
+                                                                        <input
+                                                                            type="radio"
+                                                                            name="irregularScope"
+                                                                            value="day"
+                                                                            checked={notificationSettings.irregularLessonsTimeScope === 'day'}
+                                                                            onChange={() => handleUpdateNotificationSettings({
+                                                                                irregularLessonsTimeScope: 'day'
+                                                                            })}
+                                                                            className="w-4 h-4 text-indigo-600 border-slate-300 dark:border-slate-600 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:ring-2"
+                                                                        />
+                                                                        <span className="ml-2 text-xs text-slate-600 dark:text-slate-400">
+                                                                            Today only
+                                                                        </span>
+                                                                    </label>
+                                                                    <label className="flex items-center cursor-pointer">
+                                                                        <input
+                                                                            type="radio"
+                                                                            name="irregularScope"
+                                                                            value="week"
+                                                                            checked={notificationSettings.irregularLessonsTimeScope === 'week'}
+                                                                            onChange={() => handleUpdateNotificationSettings({
+                                                                                irregularLessonsTimeScope: 'week'
+                                                                            })}
+                                                                            className="w-4 h-4 text-indigo-600 border-slate-300 dark:border-slate-600 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:ring-2"
+                                                                        />
+                                                                        <span className="ml-2 text-xs text-slate-600 dark:text-slate-400">
+                                                                            This week
+                                                                        </span>
+                                                                    </label>
+                                                                </div>
+                                                            </div>
+                                                        )}
 
                                                         <div className="flex items-center justify-between">
                                                             <div>
