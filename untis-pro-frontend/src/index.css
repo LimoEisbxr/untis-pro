@@ -217,6 +217,14 @@ html.dark .change-highlight {
     @apply bg-emerald-900/60 text-emerald-200;
 }
 
+/* Inline (per-token) highlight variant: smaller padding & pill shape */
+.change-highlight-inline {
+    @apply bg-emerald-100 text-emerald-800 px-1 rounded-sm leading-tight;
+}
+html.dark .change-highlight-inline {
+    @apply bg-emerald-900/60 text-emerald-200;
+}
+
 .change-original {
     @apply line-through text-slate-500 dark:text-slate-400;
 }

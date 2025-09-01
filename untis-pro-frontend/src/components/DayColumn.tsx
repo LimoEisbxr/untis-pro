@@ -6,7 +6,7 @@ import { fmtHM, untisToMinutes } from '../utils/dates';
 import { clamp } from '../utils/dates';
 import { generateGradient, getDefaultGradient } from '../utils/colors';
 import { extractSubjectType } from '../utils/subjectUtils';
-import { hasLessonChanges, getTeacherDisplayText, getRoomDisplayText } from '../utils/lessonChanges';
+import { hasLessonChanges, getRoomDisplayText } from '../utils/lessonChanges';
 
 export type Block = {
     l: Lesson;
@@ -372,19 +372,10 @@ const DayColumn: FC<DayColumnProps> = ({
                                     <div className="hidden sm:block text-[11px] leading-tight whitespace-nowrap drop-shadow-sm">
                                         {(() => {
                                             const roomInfo = getRoomDisplayText(l);
-                                            const roomLong = l.ro?.map((r) => r.longname || r.name).join(', ') || '';
-                                            const displayName = roomLong && roomLong !== room ? `${roomLong} (${room})` : room;
-                                            
+                                            // Show only short room codes (no long names or originals) in timetable view
                                             return (
-                                                <div className="flex flex-col items-end">
-                                                    <div className={`${roomInfo.hasChanges ? 'change-highlight' : textColorClass}`}>
-                                                        {displayName}
-                                                    </div>
-                                                    {roomInfo.hasChanges && roomInfo.original && (
-                                                        <div className={`text-[10px] change-original ${textColorClass} opacity-75`}>
-                                                            Orig: {roomInfo.original}
-                                                        </div>
-                                                    )}
+                                                <div className={`${roomInfo.hasChanges ? 'change-highlight' : textColorClass}`}>
+                                                    {room}
                                                 </div>
                                             );
                                         })()}
@@ -591,42 +582,29 @@ const DayColumn: FC<DayColumnProps> = ({
                                         {displaySubject}
                                     </div>
                                 {(() => {
-                                    const teacherInfo = getTeacherDisplayText(l);
-                                    if (!teacher) return null;
-                                    
-                                    const teacherLong = l.te?.map((t) => t.longname || t.name).join(', ') || '';
-                                    const displayName = teacherLong && teacherLong !== teacher ? `${teacherLong} (${teacher})` : teacher;
-                                    
+                                    if (!l.te || l.te.length === 0) return null;
                                     return (
-                                        <div className="text-[11px] leading-tight truncate max-w-full">
-                                            <div className={`${teacherInfo.hasChanges ? 'change-highlight opacity-90' : 'opacity-90'}`}>
-                                                {displayName}
-                                            </div>
-                                            {teacherInfo.hasChanges && teacherInfo.original && (
-                                                <div className="text-[10px] change-original opacity-75">
-                                                    Orig: {teacherInfo.original}
-                                                </div>
-                                            )}
+                                        <div className="text-[11px] leading-tight truncate max-w-full flex flex-wrap justify-center gap-x-1">
+                                            {l.te.map((t, i) => (
+                                                <span
+                                                    key={i}
+                                                    className={t.orgname ? 'change-highlight-inline' : undefined}
+                                                >
+                                                    {t.name}
+                                                </span>
+                                            ))}
                                         </div>
                                     );
                                 })()}
                                 {(() => {
                                     const roomInfo = getRoomDisplayText(l);
                                     if (!roomMobile) return null;
-                                    
-                                    const roomLong = l.ro?.map((r) => r.longname || r.name).join(', ') || '';
-                                    const displayName = roomLong && roomLong !== roomMobile ? `${roomLong} (${roomMobile})` : roomMobile;
-                                    
+                                    // Only show short room codes in mobile timetable view
                                     return (
                                         <div className="text-[11px] leading-tight truncate max-w-full">
                                             <div className={`${roomInfo.hasChanges ? 'change-highlight opacity-90' : 'opacity-90'}`}>
-                                                {displayName}
+                                                {roomMobile}
                                             </div>
-                                            {roomInfo.hasChanges && roomInfo.original && (
-                                                <div className="text-[10px] change-original opacity-75">
-                                                    Orig: {roomInfo.original}
-                                                </div>
-                                            )}
                                         </div>
                                     );
                                 })()}
@@ -653,22 +631,17 @@ const DayColumn: FC<DayColumnProps> = ({
                                             </div>
                                         )}
                                         {(() => {
-                                            const teacherInfo = getTeacherDisplayText(l);
-                                            if (!teacher) return null;
-                                            
-                                            const teacherLong = l.te?.map((t) => t.longname || t.name).join(', ') || '';
-                                            const displayName = teacherLong && teacherLong !== teacher ? `${teacherLong} (${teacher})` : teacher;
-                                            
+                                            if (!l.te || l.te.length === 0) return null;
                                             return (
-                                                <div className="leading-tight text-[12px]">
-                                                    <div className={`${teacherInfo.hasChanges ? 'change-highlight opacity-90' : 'opacity-90'}`}>
-                                                        {displayName}
-                                                    </div>
-                                                    {teacherInfo.hasChanges && teacherInfo.original && (
-                                                        <div className="text-[11px] change-original opacity-75 mt-0.5">
-                                                            Orig: {teacherInfo.original}
-                                                        </div>
-                                                    )}
+                                                <div className="leading-tight text-[12px] flex flex-wrap gap-x-1">
+                                                    {l.te.map((t, i) => (
+                                                        <span
+                                                            key={i}
+                                                            className={t.orgname ? 'change-highlight-inline' : undefined}
+                                                        >
+                                                            {t.name}
+                                                        </span>
+                                                    ))}
                                                 </div>
                                             );
                                         })()}
