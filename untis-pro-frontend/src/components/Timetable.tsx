@@ -399,6 +399,11 @@ export default function Timetable({
     const handleLessonClick = (lesson: Lesson) => {
         setSelectedLesson(lesson);
         setIsModalOpen(true);
+        
+        // Notify onboarding if active
+        if (typeof (window as Window & typeof globalThis & { onboardingLessonModalStateChange?: (isOpen: boolean) => void }).onboardingLessonModalStateChange === 'function') {
+            (window as Window & typeof globalThis & { onboardingLessonModalStateChange: (isOpen: boolean) => void }).onboardingLessonModalStateChange(true);
+        }
     };
 
     // Responsive vertical spacing; mobile gets tighter layout
@@ -726,6 +731,11 @@ export default function Timetable({
                 onClose={() => {
                     setIsModalOpen(false);
                     setSelectedLesson(null);
+                    
+                    // Notify onboarding if active
+                    if (typeof (window as Window & typeof globalThis & { onboardingLessonModalStateChange?: (isOpen: boolean) => void }).onboardingLessonModalStateChange === 'function') {
+                        (window as Window & typeof globalThis & { onboardingLessonModalStateChange: (isOpen: boolean) => void }).onboardingLessonModalStateChange(false);
+                    }
                 }}
                 isDeveloperMode={isDeveloperMode}
                 lessonColors={lessonColors}

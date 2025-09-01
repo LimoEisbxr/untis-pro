@@ -419,7 +419,7 @@ export default function Dashboard({
     // Development helper - expose function to reset onboarding
     useEffect(() => {
         if (typeof window !== 'undefined') {
-            (window as any).resetOnboarding = () => {
+            (window as Window & typeof globalThis & { resetOnboarding?: () => void }).resetOnboarding = () => {
                 localStorage.removeItem('untis-pro-onboarding-completed');
                 setIsOnboardingOpen(true);
                 console.log('Onboarding reset - modal will show');
@@ -1166,6 +1166,8 @@ export default function Dashboard({
                 isOpen={isOnboardingOpen}
                 onClose={() => setIsOnboardingOpen(false)}
                 onComplete={handleOnboardingComplete}
+                isSettingsModalOpen={isSettingsModalOpen}
+                onOpenSettings={() => setIsSettingsModalOpen(true)}
             />
         </div>
     );

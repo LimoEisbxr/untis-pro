@@ -1,5 +1,14 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import React from 'react';
+
+// Extend the Window interface for our global functions
+declare global {
+    interface Window {
+        onboardingLessonModalStateChange?: (isOpen: boolean) => void;
+        resetOnboarding?: () => void;
+    }
+}
 
 interface OnboardingStep {
     title: string;
@@ -8,22 +17,33 @@ interface OnboardingStep {
     icon: React.ReactNode;
     target?: string; // CSS selector for element to highlight
     position?: 'top' | 'bottom' | 'left' | 'right' | 'center';
-    demoType?: 'highlight' | 'click' | 'type' | 'point';
+    demoType?: 'highlight' | 'click' | 'type' | 'point' | 'interactive-settings' | 'interactive-lesson';
+    requiresInteraction?: boolean; // Whether to wait for user interaction
+    interactionCompleted?: boolean; // Track if interaction is done
 }
 
 export default function OnboardingModal({
     isOpen,
     onClose,
     onComplete,
+    isSettingsModalOpen,
+    onOpenSettings,
+    onLessonModalStateChange,
 }: {
     isOpen: boolean;
     onClose: () => void;
     onComplete: () => void;
+    isSettingsModalOpen?: boolean;
+    onOpenSettings?: () => void;
+    onLessonModalStateChange?: (isOpen: boolean) => void;
 }) {
     const [showModal, setShowModal] = useState(false);
     const [isVisible, setIsVisible] = useState(false);
     const [currentStep, setCurrentStep] = useState(0);
     const [highlightedElement, setHighlightedElement] = useState<Element | null>(null);
+    const [waitingForInteraction, setWaitingForInteraction] = useState(false);
+    const [hasInteracted, setHasInteracted] = useState(false);
+    const [shouldAdvanceStep, setShouldAdvanceStep] = useState(false);
     const spotlightRef = useRef<HTMLDivElement>(null);
     const pointerRef = useRef<HTMLDivElement>(null);
 
@@ -42,10 +62,11 @@ export default function OnboardingModal({
         },
         {
             title: "Customize Lesson Colors",
-            description: "Click on any lesson in your timetable to open details and customize its color. Make your schedule visually organized with your preferred color scheme.",
+            description: "Click on any lesson in your timetable to open the details modal and customize its color. Go ahead - try clicking on a lesson now!",
             target: '.timetable-lesson:first-of-type',
             position: 'right',
-            demoType: 'click',
+            demoType: 'interactive-lesson',
+            requiresInteraction: true,
             icon: (
                 <svg className="w-12 h-12 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zM21 5a2 2 0 00-2-2h-4a2 2 0 00-2 2v6a2 2 0 002 2h4a2 2 0 002-2V5z" />
@@ -78,10 +99,11 @@ export default function OnboardingModal({
         },
         {
             title: "Personalize Your Profile",
-            description: "Click the settings icon in the top right to change your display name and customize other preferences to make Untis Pro truly yours.",
+            description: "Click the settings icon in the top right to explore your profile settings and customization options. Try opening the settings now!",
             target: 'button[title="Settings"], button[aria-label="Settings"]',
             position: 'bottom',
-            demoType: 'point',
+            demoType: 'interactive-settings',
+            requiresInteraction: true,
             icon: (
                 <svg className="w-12 h-12 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
@@ -119,11 +141,86 @@ export default function OnboardingModal({
         };
     }, [isOpen, showModal]);
 
+    const currentStepData = steps[currentStep];
+
+    // Handle step advancement
+    useEffect(() => {
+        if (shouldAdvanceStep) {
+            setShouldAdvanceStep(false);
+            setTimeout(() => {
+                if (currentStep < steps.length - 1) {
+                    setCurrentStep(currentStep + 1);
+                } else {
+                    onComplete();
+                    onClose();
+                }
+            }, 1000);
+        }
+    }, [shouldAdvanceStep, currentStep, steps.length, onComplete, onClose]);
+
+    // Handle settings modal interaction
+    useEffect(() => {
+        if (!waitingForInteraction || currentStepData.demoType !== 'interactive-settings') return;
+        
+        if (isSettingsModalOpen && !hasInteracted) {
+            setHasInteracted(true);
+        }
+        
+        // When settings modal closes after being opened, mark interaction as complete
+        if (!isSettingsModalOpen && hasInteracted) {
+            setWaitingForInteraction(false);
+            setHasInteracted(false);
+            setShouldAdvanceStep(true);
+        }
+    }, [isSettingsModalOpen, waitingForInteraction, hasInteracted, currentStepData]);
+
+    // Handle lesson modal interaction (via callback from Timetable component)
+    useEffect(() => {
+        if (onLessonModalStateChange) {
+            onLessonModalStateChange(waitingForInteraction && currentStepData.demoType === 'interactive-lesson');
+        }
+    }, [waitingForInteraction, currentStepData, onLessonModalStateChange]);
+
+    // Method for external components to report lesson modal state changes
+    const handleLessonModalStateChange = useCallback((isLessonModalOpen: boolean) => {
+        if (!waitingForInteraction || currentStepData.demoType !== 'interactive-lesson') return;
+        
+        if (isLessonModalOpen && !hasInteracted) {
+            setHasInteracted(true);
+        }
+        
+        // When lesson modal closes after being opened, mark interaction as complete
+        if (!isLessonModalOpen && hasInteracted) {
+            setWaitingForInteraction(false);
+            setHasInteracted(false);
+            setShouldAdvanceStep(true);
+        }
+    }, [waitingForInteraction, hasInteracted, currentStepData]);
+
+    // Expose the handler via a global method that can be called by Timetable
+    useEffect(() => {
+        if (isOpen && waitingForInteraction && currentStepData.demoType === 'interactive-lesson') {
+            window.onboardingLessonModalStateChange = handleLessonModalStateChange;
+        }
+        
+        return () => {
+            delete window.onboardingLessonModalStateChange;
+        };
+    }, [isOpen, waitingForInteraction, currentStepData, handleLessonModalStateChange]);
+
     // Update highlighted element when step changes
     useEffect(() => {
         if (!isOpen || !isVisible) return;
         
-        const currentStepData = steps[currentStep];
+        // Handle interactive steps
+        if (currentStepData.requiresInteraction) {
+            setWaitingForInteraction(true);
+            setHasInteracted(false);
+        } else {
+            setWaitingForInteraction(false);
+            setHasInteracted(false);
+        }
+        
         if (currentStepData.target) {
             const element = document.querySelector(currentStepData.target);
             if (element) {
@@ -140,7 +237,7 @@ export default function OnboardingModal({
         } else {
             setHighlightedElement(null);
         }
-    }, [currentStep, isOpen, isVisible]);
+    }, [currentStep, isOpen, isVisible, currentStepData.requiresInteraction, currentStepData.target]);
 
     // Update spotlight position
     useEffect(() => {
@@ -187,7 +284,7 @@ export default function OnboardingModal({
             case 'right':
                 if (rect.right + 400 < viewport.width) {
                     return {
-                        position: 'fixed',
+                        position: 'fixed' as const,
                         left: rect.right + 20,
                         top: Math.max(20, rect.top - 100),
                     };
@@ -196,7 +293,7 @@ export default function OnboardingModal({
             case 'left':
                 if (rect.left - 400 > 0) {
                     return {
-                        position: 'fixed',
+                        position: 'fixed' as const,
                         right: viewport.width - rect.left + 20,
                         top: Math.max(20, rect.top - 100),
                     };
@@ -205,7 +302,7 @@ export default function OnboardingModal({
             case 'bottom':
                 if (rect.bottom + 300 < viewport.height) {
                     return {
-                        position: 'fixed',
+                        position: 'fixed' as const,
                         left: Math.max(20, rect.left - 100),
                         top: rect.bottom + 20,
                     };
@@ -214,7 +311,7 @@ export default function OnboardingModal({
             case 'top':
                 if (rect.top - 300 > 0) {
                     return {
-                        position: 'fixed',
+                        position: 'fixed' as const,
                         left: Math.max(20, rect.left - 100),
                         bottom: viewport.height - rect.top + 20,
                     };
@@ -223,10 +320,29 @@ export default function OnboardingModal({
         }
         
         // Fallback to center if positioning doesn't work
-        return { position: 'center' };
+        return { useCenter: true };
     };
 
     const handleNext = () => {
+        // For interactive steps, trigger the appropriate action instead of proceeding
+        if (currentStepData.requiresInteraction && !waitingForInteraction) {
+            if (currentStepData.demoType === 'interactive-settings' && onOpenSettings) {
+                onOpenSettings();
+                setWaitingForInteraction(true);
+                setHasInteracted(false);
+                return;
+            } else if (currentStepData.demoType === 'interactive-lesson') {
+                setWaitingForInteraction(true);
+                setHasInteracted(false);
+                return;
+            }
+        }
+        
+        // If already waiting for interaction, don't proceed until interaction is complete
+        if (waitingForInteraction) {
+            return;
+        }
+        
         if (currentStep < steps.length - 1) {
             setCurrentStep(currentStep + 1);
         } else {
@@ -252,7 +368,6 @@ export default function OnboardingModal({
 
     if (!showModal) return null;
 
-    const currentStepData = steps[currentStep];
     const isFirstStep = currentStep === 0;
     const isLastStep = currentStep === steps.length - 1;
     const modalPosition = getModalPosition();
@@ -288,15 +403,15 @@ export default function OnboardingModal({
                             0 0 0 9999px rgba(0, 0, 0, 0.4),
                             inset 0 0 0 2px rgba(56, 189, 248, 0.3)
                         `,
-                        animation: currentStepData.demoType === 'click' 
+                        animation: (currentStepData.demoType === 'click' || currentStepData.demoType?.startsWith('interactive'))
                             ? 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite' 
                             : 'glow 3s ease-in-out infinite alternate',
                     }}
                 />
             )}
 
-            {/* Animated pointer for click demonstrations */}
-            {highlightedElement && currentStepData.demoType === 'click' && (
+            {/* Enhanced pointer for interactive demonstrations */}
+            {highlightedElement && (currentStepData.demoType === 'click' || currentStepData.demoType === 'interactive-lesson') && (
                 <div
                     ref={pointerRef}
                     className="absolute pointer-events-none z-10"
@@ -307,18 +422,26 @@ export default function OnboardingModal({
                     }}
                 >
                     <div className="relative">
-                        <div className="w-8 h-8 bg-sky-500 rounded-full flex items-center justify-center text-white animate-ping">
+                        <div className={`w-8 h-8 bg-sky-500 rounded-full flex items-center justify-center text-white ${
+                            currentStepData.demoType === 'interactive-lesson' && waitingForInteraction ? 'animate-bounce' : 'animate-ping'
+                        }`}>
                             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                                 <path fillRule="evenodd" d="M6.672 1.911a1 1 0 10-1.932.518l.259.966a1 1 0 001.932-.518l-.26-.966zM2.429 4.74a1 1 0 10-.517 1.932l.966.259a1 1 0 00.517-1.932l-.966-.26zm8.814-.569a1 1 0 00-1.415-1.414l-.707.707a1 1 0 101.415 1.414l.707-.707zm-7.071 7.072l.707-.707A1 1 0 003.465 9.12l-.708.707a1 1 0 001.415 1.415zm3.2-5.171a1 1 0 00-1.3 1.3l4 10a1 1 0 001.823.075l1.38-2.759 3.018 3.02a1 1 0 001.414-1.415l-3.019-3.02 2.76-1.379a1 1 0 00-.076-1.822l-10-4z" clipRule="evenodd" />
                             </svg>
                         </div>
                         <div className="absolute inset-0 w-8 h-8 bg-sky-500 rounded-full animate-pulse opacity-75"></div>
+                        {/* Interactive hint text */}
+                        {currentStepData.demoType === 'interactive-lesson' && waitingForInteraction && !hasInteracted && (
+                            <div className="absolute top-10 left-1/2 transform -translate-x-1/2 bg-sky-500 text-white px-3 py-1 rounded-lg text-sm font-medium whitespace-nowrap animate-pulse">
+                                Click me!
+                            </div>
+                        )}
                     </div>
                 </div>
             )}
 
-            {/* Animated arrow pointer */}
-            {highlightedElement && currentStepData.demoType === 'point' && (
+            {/* Enhanced arrow pointer for settings */}
+            {highlightedElement && currentStepData.demoType === 'interactive-settings' && (
                 <div
                     className="absolute pointer-events-none z-10"
                     style={{
@@ -327,10 +450,16 @@ export default function OnboardingModal({
                         transform: 'translateY(-50%)',
                     }}
                 >
-                    <div className="flex items-center animate-pulse">
-                        <svg className="w-8 h-8 text-sky-500 animate-bounce" fill="currentColor" viewBox="0 0 20 20">
+                    <div className="flex items-center">
+                        <svg className={`w-8 h-8 text-sky-500 ${waitingForInteraction ? 'animate-bounce' : 'animate-pulse'}`} fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
                         </svg>
+                        {/* Interactive hint text */}
+                        {waitingForInteraction && !hasInteracted && (
+                            <div className="ml-3 bg-sky-500 text-white px-3 py-1 rounded-lg text-sm font-medium whitespace-nowrap animate-pulse">
+                                Click me!
+                            </div>
+                        )}
                     </div>
                 </div>
             )}
@@ -355,14 +484,14 @@ export default function OnboardingModal({
 
             {/* Modal positioned based on highlighted element */}
             <div
-                className={`${modalPosition.position === 'center' 
+                className={`${'useCenter' in modalPosition 
                     ? 'grid place-items-center inset-0' 
                     : 'absolute'}`}
-                style={modalPosition.position !== 'center' ? modalPosition : {}}
+                style={'useCenter' in modalPosition ? {} : modalPosition as React.CSSProperties}
             >
                 <div
                     className={`relative w-full max-w-md max-h-[85vh] overflow-y-auto rounded-2xl shadow-2xl ring-1 ring-black/10 dark:ring-white/10 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md transition-all duration-200 ease-out will-change-transform will-change-opacity ${
-                        modalPosition.position === 'center' ? 'mx-4' : ''
+                        'useCenter' in modalPosition ? 'mx-4' : ''
                     } ${
                         isVisible
                             ? 'opacity-100 translate-y-0 scale-100'
@@ -430,9 +559,19 @@ export default function OnboardingModal({
                             
                             <button
                                 onClick={handleNext}
-                                className="flex-1 py-2.5 px-4 rounded-lg font-medium bg-gradient-to-r from-sky-500 to-indigo-500 hover:from-sky-600 hover:to-indigo-600 text-white transition-all duration-200 shadow-lg hover:shadow-xl"
+                                disabled={waitingForInteraction}
+                                className={`flex-1 py-2.5 px-4 rounded-lg font-medium transition-all duration-200 shadow-lg hover:shadow-xl ${
+                                    waitingForInteraction 
+                                        ? 'bg-slate-300 dark:bg-slate-600 text-slate-500 dark:text-slate-400 cursor-not-allowed' 
+                                        : 'bg-gradient-to-r from-sky-500 to-indigo-500 hover:from-sky-600 hover:to-indigo-600 text-white'
+                                }`}
                             >
-                                {isLastStep ? 'Get Started!' : 'Next'}
+                                {waitingForInteraction 
+                                    ? (currentStepData.demoType === 'interactive-settings' 
+                                        ? (hasInteracted ? 'Waiting for you to close settings...' : 'Click the settings icon above!')
+                                        : (hasInteracted ? 'Waiting for you to close the lesson...' : 'Click on a lesson above!'))
+                                    : (isLastStep ? 'Get Started!' : 'Next')
+                                }
                             </button>
                         </div>
                     </div>
