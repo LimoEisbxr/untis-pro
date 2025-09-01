@@ -4,6 +4,8 @@ import MoonIcon from '../components/MoonIcon';
 import SettingsModal from '../components/SettingsModal';
 import NotificationBell from '../components/NotificationBell';
 import NotificationPanel from '../components/NotificationPanel';
+import { DesktopTabNavigation, MobileTabNavigation, type Tab } from '../components/TabNavigation';
+import SduiNewsList from '../components/SduiNewsList';
 import {
     API_BASE,
     getLessonColors,
@@ -95,6 +97,9 @@ export default function Dashboard({
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [isNotificationPanelOpen, setIsNotificationPanelOpen] =
         useState(false);
+
+    // Tab navigation state
+    const [activeTab, setActiveTab] = useState<Tab>('timetable');
 
     // Derive a friendly info message for admin users when their own timetable isn't available
     const adminInfoMessage = useMemo(() => {
@@ -572,8 +577,20 @@ export default function Dashboard({
                     </div>
                 </div>
             </header>
-            <main className="mx-auto max-w-screen-2xl p-4">
-                <section className="card p-4">
+            
+            {/* Main layout with sidebar for desktop */}
+            <div className="flex min-h-[calc(100vh-80px)]">
+                {/* Desktop sidebar navigation */}
+                <DesktopTabNavigation 
+                    activeTab={activeTab} 
+                    onTabChange={setActiveTab} 
+                />
+                
+                {/* Main content area */}
+                <main className="flex-1 overflow-auto">
+                    <div className="mx-auto max-w-screen-2xl p-4">
+                        {activeTab === 'timetable' ? (
+                            <section className="card p-4">
                     <div className="space-y-2 sm:space-y-4">
                         {/* Row 1: navigation buttons (enlarged slightly on mobile) */}
                         <div className="grid grid-cols-3 gap-2 sm:flex sm:w-full sm:items-center sm:gap-3">
@@ -908,7 +925,18 @@ export default function Dashboard({
                         />
                     </div>
                 </section>
-            </main>
+                        ) : (
+                            <SduiNewsList token={token} />
+                        )}
+                    </div>
+                </main>
+            </div>
+            
+            {/* Mobile bottom navigation */}
+            <MobileTabNavigation 
+                activeTab={activeTab} 
+                onTabChange={setActiveTab} 
+            />
 
             {/* Mobile full-screen search overlay */}
             {mobileSearchOpen && (

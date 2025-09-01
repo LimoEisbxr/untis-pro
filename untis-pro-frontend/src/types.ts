@@ -111,3 +111,32 @@ export type AdminNotificationSettings = {
     createdAt: string;
     updatedAt: string;
 };
+
+// Sdui News types
+export type SduiNews = {
+    id: number;
+    title: string;
+    content: string;
+    author?: string;
+    createdAt: string;
+    updatedAt: string;
+    attachments?: SduiAttachment[];
+};
+
+export type SduiAttachment = {
+    id: number;
+    name: string;
+    type: string;
+    url: string;
+    size?: number;
+};
+
+export type SduiNewsResponse = {
+    data: SduiNews[];
+    status: string;
+    meta: {
+        warnings: string[];
+        errors: string[];
+        success: string[];
+    };
+};
