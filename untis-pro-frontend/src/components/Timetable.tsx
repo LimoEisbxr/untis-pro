@@ -754,6 +754,10 @@ export default function Timetable({
                     
                     {/* Sliding container for day columns */}
                     <div className="flex-1 overflow-hidden relative">
+                        {/* Subtle overlay during dragging to indicate interaction */}
+                        {isDragging && (
+                            <div className="absolute inset-0 bg-black/5 dark:bg-white/5 z-20 pointer-events-none transition-opacity duration-150" />
+                        )}
                         <div
                             ref={slidingTrackRef}
                             className="flex transition-transform duration-300 ease-out"
@@ -764,7 +768,9 @@ export default function Timetable({
                             }}
                         >
                             {/* Previous Week */}
-                            <div className="w-1/3 flex gap-x-1 sm:gap-x-3">
+                            <div className="w-1/3 flex gap-x-1 sm:gap-x-3 relative">
+                                {/* Week separator line - left side */}
+                                <div className="absolute right-0 top-0 bottom-0 w-px bg-slate-200 dark:bg-slate-700 opacity-30 z-10" />
                                 {prevWeekDays.map((d) => {
                                     const key = fmtLocal(d);
                                     // Previous week has no lessons (empty), but we show the structure
@@ -912,7 +918,9 @@ export default function Timetable({
                             </div>
                             
                             {/* Next Week */}
-                            <div className="w-1/3 flex gap-x-1 sm:gap-x-3">
+                            <div className="w-1/3 flex gap-x-1 sm:gap-x-3 relative">
+                                {/* Week separator line - left side */}
+                                <div className="absolute left-0 top-0 bottom-0 w-px bg-slate-200 dark:bg-slate-700 opacity-30 z-10" />
                                 {nextWeekDays.map((d) => {
                                     const key = fmtLocal(d);
                                     // Next week has no lessons (empty), but we show the structure
