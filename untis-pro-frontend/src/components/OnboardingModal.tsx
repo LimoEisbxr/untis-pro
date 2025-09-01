@@ -433,13 +433,21 @@ export default function OnboardingModal({
     return createPortal(
         <div
             className={`fixed inset-0 z-50 transition-opacity duration-200 ${
+                waitingForInteraction && currentStepData.demoType === 'interactive-lesson' 
+                    ? 'pointer-events-none' 
+                    : ''
+            } ${
                 isVisible ? 'opacity-100' : 'opacity-0'
             }`}
         >
             {/* Backdrop with cutout for highlighted element */}
             <div 
-                className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-                onClick={onClose}
+                className={`absolute inset-0 backdrop-blur-sm ${
+                    waitingForInteraction && currentStepData.demoType === 'interactive-lesson' 
+                        ? 'bg-black/20' 
+                        : 'bg-black/60'
+                }`}
+                onClick={waitingForInteraction ? undefined : onClose}
                 style={{
                     maskImage: highlightedElement 
                         ? `radial-gradient(ellipse at center, transparent 0%, transparent 40%, black 70%)` 
@@ -544,12 +552,22 @@ export default function OnboardingModal({
             <div
                 className={`${'useCenter' in modalPosition 
                     ? 'grid place-items-center inset-0' 
-                    : 'absolute'}`}
+                    : 'absolute'} ${
+                    waitingForInteraction && currentStepData.demoType === 'interactive-lesson' && !hasInteracted 
+                        ? 'opacity-50 pointer-events-none' 
+                        : waitingForInteraction && currentStepData.demoType === 'interactive-lesson' && hasInteracted 
+                        ? 'opacity-75' 
+                        : ''
+                }`}
                 style={'useCenter' in modalPosition ? {} : modalPosition as React.CSSProperties}
             >
                 <div
                     className={`relative w-full max-w-md max-h-[85vh] overflow-y-auto rounded-2xl shadow-2xl ring-1 ring-black/10 dark:ring-white/10 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md transition-all duration-200 ease-out will-change-transform will-change-opacity ${
                         'useCenter' in modalPosition ? 'mx-4' : ''
+                    } ${
+                        waitingForInteraction && currentStepData.demoType === 'interactive-lesson' 
+                            ? 'pointer-events-auto' 
+                            : ''
                     } ${
                         isVisible
                             ? 'opacity-100 translate-y-0 scale-100'
