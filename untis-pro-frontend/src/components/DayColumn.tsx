@@ -7,6 +7,7 @@ import { fmtHM, untisToMinutes } from '../utils/dates';
 import { clamp } from '../utils/dates';
 import { generateGradient, getDefaultGradient } from '../utils/colors';
 import { extractSubjectType } from '../utils/subjectUtils';
+import { hasLessonChanges, getRoomDisplayText } from '../utils/lessonChanges';
 
 export type Block = {
     l: Lesson;
@@ -234,6 +235,7 @@ const DayColumn: FC<DayColumnProps> = ({
 
                     const cancelled = l.code === 'cancelled';
                     const irregular = l.code === 'irregular';
+                    const hasChanges = hasLessonChanges(l);
                     const subject = l.su?.[0]?.name ?? l.activityType ?? '—';
                     const subjectType = extractSubjectType(subject);
                     const displaySubject = subjectType;
@@ -387,10 +389,16 @@ const DayColumn: FC<DayColumnProps> = ({
                             {/* Indicators + room label (desktop) */}
                             <div className="absolute top-1 right-1 hidden sm:flex flex-col items-end gap-1">
                                 {room && (
-                                    <div
-                                        className={`hidden sm:block text-[11px] leading-tight whitespace-nowrap drop-shadow-sm ${textColorClass}`}
-                                    >
-                                        {room}
+                                    <div className="hidden sm:block text-[11px] leading-tight whitespace-nowrap drop-shadow-sm">
+                                        {(() => {
+                                            const roomInfo = getRoomDisplayText(l);
+                                            // Show only short room codes (no long names or originals) in timetable view
+                                            return (
+                                                <div className={`${roomInfo.hasChanges ? 'change-highlight' : textColorClass}`}>
+                                                    {room}
+                                                </div>
+                                            );
+                                        })()}
                                     </div>
                                 )}
                                 <div className="flex gap-1">
@@ -445,6 +453,21 @@ const DayColumn: FC<DayColumnProps> = ({
                                                 <path
                                                     fillRule="evenodd"
                                                     d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z"
+                                                    clipRule="evenodd"
+                                                />
+                                            </svg>
+                                        </div>
+                                    )}
+                                    {hasChanges && (
+                                        <div className="w-3 h-3 bg-emerald-400 dark:bg-emerald-500 rounded-full flex items-center justify-center shadow-sm">
+                                            <svg
+                                                className="w-2 h-2 text-white"
+                                                fill="currentColor"
+                                                viewBox="0 0 20 20"
+                                            >
+                                                <path
+                                                    fillRule="evenodd"
+                                                    d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z"
                                                     clipRule="evenodd"
                                                 />
                                             </svg>
@@ -604,16 +627,33 @@ const DayColumn: FC<DayColumnProps> = ({
                                     >
                                         {displaySubject}
                                     </div>
-                                    {teacher && (
-                                        <div className="text-[11px] opacity-90 leading-tight truncate max-w-full">
-                                            {teacher}
+                                {(() => {
+                                    if (!l.te || l.te.length === 0) return null;
+                                    return (
+                                        <div className="text-[11px] leading-tight truncate max-w-full flex flex-wrap justify-center gap-x-1">
+                                            {l.te.map((t, i) => (
+                                                <span
+                                                    key={i}
+                                                    className={t.orgname ? 'change-highlight-inline' : undefined}
+                                                >
+                                                    {t.name}
+                                                </span>
+                                            ))}
                                         </div>
-                                    )}
-                                    {roomMobile && !(cancelled || irregular) && (
-                                        <div className="text-[11px] opacity-90 leading-tight truncate max-w-full">
-                                            {roomMobile}
+                                    );
+                                })()}
+                                {(() => {
+                                    const roomInfo = getRoomDisplayText(l);
+                                    if (!roomMobile) return null;
+                                    // Only show short room codes in mobile timetable view
+                                    return (
+                                        <div className="text-[11px] leading-tight truncate max-w-full">
+                                            <div className={`${roomInfo.hasChanges ? 'change-highlight opacity-90' : 'opacity-90'}`}>
+                                                {roomMobile}
+                                            </div>
                                         </div>
-                                    )}
+                                    );
+                                })()}
                                     {/* Removed lstext preview in timetable (mobile) */}
                                 </div>
                                 {/* Original flexible desktop layout */}
@@ -641,11 +681,21 @@ const DayColumn: FC<DayColumnProps> = ({
                                                     </span>
                                                 </div>
                                             )}
-                                        {teacher && (
-                                            <div className="opacity-90 leading-tight text-[12px]">
-                                                {teacher}
-                                            </div>
-                                        )}
+                                        {(() => {
+                                            if (!l.te || l.te.length === 0) return null;
+                                            return (
+                                                <div className="leading-tight text-[12px] flex flex-wrap gap-x-1">
+                                                    {l.te.map((t, i) => (
+                                                        <span
+                                                            key={i}
+                                                            className={t.orgname ? 'change-highlight-inline' : undefined}
+                                                        >
+                                                            {t.name}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            );
+                                        })()}
                                     </FitText>
                                 </div>
                                 {/* Info/Notes preview (desktop) */}
