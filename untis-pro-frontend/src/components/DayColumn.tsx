@@ -297,16 +297,16 @@ const DayColumn: FC<DayColumnProps> = ({
                     // Extra right padding for room label shown under icons on desktop
                     const roomPadRightPx = !isMobile && room ? 88 : 0;
                     // Allow a more compact mobile layout: lower height threshold for previews
-                    const MIN_PREVIEW_HEIGHT = isMobile ? 44 : 56;
-                    const canShowPreview =
-                        heightPx - reservedBottomPx >= MIN_PREVIEW_HEIGHT;
-                    
+                    // Previously used to decide rendering of inline info previews; now removed.
+                    // const MIN_PREVIEW_HEIGHT = isMobile ? 44 : 56;
+
                     // Determine if there's enough space to show time frame along with teacher
                     // We need space for: subject (~16px) + teacher (~14px) + time (~14px) + margins
                     // Only show time if we have sufficient space for subject + teacher + time (minimum 50px total)
-                    const MIN_TIME_DISPLAY_HEIGHT = isMobile ? 50 : 50;
+                    const MIN_TIME_DISPLAY_HEIGHT = isMobile ? 55 : 55;
                     const availableSpace = heightPx - reservedBottomPx;
-                    const canShowTimeFrame = !isMobile && availableSpace >= MIN_TIME_DISPLAY_HEIGHT;
+                    const canShowTimeFrame =
+                        !isMobile && availableSpace >= MIN_TIME_DISPLAY_HEIGHT;
 
                     // Compute content padding so mobile remains centered when icons exist
                     // Desktop readability fix:
@@ -334,9 +334,7 @@ const DayColumn: FC<DayColumnProps> = ({
                     return (
                         <div
                             key={l.id}
-
                             className={`absolute rounded-md p-2 sm:p-2 text-[11px] sm:text-xs ring-1 ring-slate-900/10 dark:ring-white/15 overflow-hidden cursor-pointer transform duration-150 hover:shadow-lg hover:brightness-110 hover:saturate-140 hover:contrast-110 backdrop-blur-[1px] ${textColorClass} ${
-
                                 cancelled
                                     ? 'bg-rose-500/90'
                                     : irregular
@@ -431,6 +429,27 @@ const DayColumn: FC<DayColumnProps> = ({
                                         </div>
                                     )}
                                 </div>
+                                {/* Desktop inline info snippet under icons (only when time is shown) */}
+                                {l.info &&
+                                    l.info.trim().length < 4 &&
+                                    canShowTimeFrame && (
+                                        <div
+                                            className="mt-0.5 max-w-[140px] text-[10px] leading-snug text-white/90 text-right bg-black/15 dark:bg-black/20 px-1 py-0.5 rounded-sm backdrop-blur-[1px] overflow-hidden"
+                                            style={{ maxHeight: '3.3em' }}
+                                        >
+                                            {l.info}
+                                        </div>
+                                    )}
+                                {l.lstext &&
+                                    l.lstext.trim().length < 4 &&
+                                    canShowTimeFrame && (
+                                        <div
+                                            className="mt-0.5 max-w-[140px] text-[10px] leading-snug text-white/90 text-right bg-black/10 dark:bg-black/15 px-1 py-0.5 rounded-sm backdrop-blur-[1px] overflow-hidden"
+                                            style={{ maxHeight: '3.3em' }}
+                                        >
+                                            {l.lstext}
+                                        </div>
+                                    )}
                             </div>
 
                             {/* Content */}
@@ -504,17 +523,12 @@ const DayColumn: FC<DayColumnProps> = ({
 
                                 {/* Mobile centered layout */}
                                 <div className="flex flex-col items-center justify-center text-center gap-0.5 h-full sm:hidden px-0.5">
-                                    {l.info && canShowPreview && (
-                                        <div className="w-full text-[11px] font-medium leading-snug px-1.5 py-0.5 rounded-md bg-white/25 dark:bg-white/15 backdrop-blur-sm shadow-sm text-white/95 max-h-[40px] overflow-hidden">
-                                            {l.info}
-                                        </div>
-                                    )}
+                                    {/* Info preview removed from mobile timetable view */}
                                     <div
                                         className="font-semibold leading-snug w-full whitespace-nowrap truncate"
                                         style={{
                                             fontSize:
                                                 'clamp(12px, 3.5vw, 15px)',
-
                                         }}
                                     >
                                         {displaySubject}
@@ -559,11 +573,7 @@ const DayColumn: FC<DayColumnProps> = ({
                                     </FitText>
                                 </div>
                                 {/* Info/Notes preview (desktop) */}
-                                {l.info && canShowPreview && (
-                                    <div className="hidden sm:block mt-1 text-[11px] leading-snug text-white/90 whitespace-pre-wrap">
-                                        {l.info}
-                                    </div>
-                                )}
+                                {/* Info preview moved to indicators area (desktop) */}
                                 {/* Removed lstext preview in timetable (desktop) */}
                                 {/* {l.lstext && canShowPreview && (
                                     <div className="hidden sm:block mt-0.5 text-[11px] leading-snug text-white/90 whitespace-pre-wrap">
