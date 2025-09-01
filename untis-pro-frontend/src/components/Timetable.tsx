@@ -100,6 +100,8 @@ function deduplicateHomework(
     const allHomework = [...homework1, ...homework2];
     const deduplicated: Homework[] = [];
 
+    console.debug(`[frontend] Deduplicating homework: ${homework1.length} + ${homework2.length} = ${allHomework.length} total`);
+
     for (const hw of allHomework) {
         const existingIndex = deduplicated.findIndex((existing) =>
             areHomeworkIdentical(existing, hw)
@@ -108,16 +110,20 @@ function deduplicateHomework(
         if (existingIndex === -1) {
             // New homework, add it
             deduplicated.push(hw);
+            console.debug(`[frontend] Added homework: ${hw.id} - ${hw.text?.substring(0, 30)}...`);
         } else {
             // Duplicate found, merge completion status (completed if either is completed)
+            const wasCompleted = deduplicated[existingIndex].completed;
             deduplicated[existingIndex] = {
                 ...deduplicated[existingIndex],
                 completed:
                     deduplicated[existingIndex].completed || hw.completed,
             };
+            console.debug(`[frontend] Merged duplicate homework: ${hw.id} (completed: ${wasCompleted} -> ${deduplicated[existingIndex].completed})`);
         }
     }
 
+    console.debug(`[frontend] Final homework count after deduplication: ${deduplicated.length}`);
     return deduplicated;
 }
 

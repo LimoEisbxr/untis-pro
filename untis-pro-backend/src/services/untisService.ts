@@ -541,7 +541,7 @@ async function storeHomeworkData(
                 hw.subject?.name ||
                 '';
             await (prisma as any).homework.upsert({
-                where: { untisId: hw.id },
+                where: { userId_untisId: { userId, untisId: hw.id } },
                 update: {
                     lessonId: hw.lessonId,
                     // Store due date; Untis returns both date (assigned) and dueDate
@@ -583,7 +583,7 @@ async function storeExamData(userId: string, examData: any[]) {
     for (const exam of examData) {
         try {
             await (prisma as any).exam.upsert({
-                where: { untisId: exam.id },
+                where: { userId_untisId: { userId, untisId: exam.id } },
                 update: {
                     date: exam.date,
                     startTime: exam.startTime,
