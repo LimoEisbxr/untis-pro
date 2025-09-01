@@ -51,27 +51,33 @@ export default function ColorPicker({
 
     // Debouncing logic to prevent rate limit hits
     const debounceTimer = useRef<number | null>(null);
-    const DEBOUNCE_MS = 1000; // 1 second as requested in issue
+    const DEBOUNCE_MS = 300;
 
     // Debounced version of onColorChange
-    const debouncedOnColorChange = useCallback((color: string) => {
-        if (debounceTimer.current) {
-            clearTimeout(debounceTimer.current);
-        }
-        debounceTimer.current = window.setTimeout(() => {
-            onColorChange(color);
-            debounceTimer.current = null;
-        }, DEBOUNCE_MS);
-    }, [onColorChange]);
+    const debouncedOnColorChange = useCallback(
+        (color: string) => {
+            if (debounceTimer.current) {
+                clearTimeout(debounceTimer.current);
+            }
+            debounceTimer.current = window.setTimeout(() => {
+                onColorChange(color);
+                debounceTimer.current = null;
+            }, DEBOUNCE_MS);
+        },
+        [onColorChange]
+    );
 
-    // Immediate call for onBlur/deselect events  
-    const immediateOnColorChange = useCallback((color: string) => {
-        if (debounceTimer.current) {
-            clearTimeout(debounceTimer.current);
-            debounceTimer.current = null;
-        }
-        onColorChange(color);
-    }, [onColorChange]);
+    // Immediate call for onBlur/deselect events
+    const immediateOnColorChange = useCallback(
+        (color: string) => {
+            if (debounceTimer.current) {
+                clearTimeout(debounceTimer.current);
+                debounceTimer.current = null;
+            }
+            onColorChange(color);
+        },
+        [onColorChange]
+    );
 
     // Cleanup timer on unmount
     useEffect(() => {
@@ -315,10 +321,9 @@ export default function ColorPicker({
                                 className="gradient-slider focus-visible:outline-none"
                                 style={
                                     {
-                                        ['--progress']:
-                                            `${(gradientOffset * 100).toFixed(
-                                                2
-                                            )}%`,
+                                        ['--progress']: `${(
+                                            gradientOffset * 100
+                                        ).toFixed(2)}%`,
                                     } as React.CSSProperties
                                 }
                             />
