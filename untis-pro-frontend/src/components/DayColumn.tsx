@@ -246,11 +246,19 @@ const DayColumn: FC<DayColumnProps> = ({
                         defaultLessonColors[subjectType] ??
                         null;
                     const offset = gradientOffsets?.[subjectType] ?? 0.5;
-                    const gradient = effectiveColor
+                    const baseGradient = effectiveColor
                         ? generateGradient(effectiveColor, offset)
                         : getDefaultGradient();
 
-                    const GAP_PCT = 2.25;
+                    // Create tinted gradient for cancelled/irregular lessons using CSS overlays
+                    const gradient = baseGradient;
+                    const statusOverlay = cancelled
+                        ? 'linear-gradient(to right, rgba(239, 68, 68, 0.6), rgba(239, 68, 68, 0.55), rgba(239, 68, 68, 0.6))'
+                        : irregular
+                        ? 'linear-gradient(to right, rgba(16, 185, 129, 0.6), rgba(16, 185, 129, 0.55), rgba(16, 185, 129, 0.6))'
+                        : null;
+
+                    const GAP_PCT = 1.5; // Reduced gap for better space utilization
                     let widthPct =
                         (100 - GAP_PCT * (b.colCount - 1)) / b.colCount;
                     let leftPct = b.colIndex * (widthPct + GAP_PCT);
@@ -290,7 +298,7 @@ const DayColumn: FC<DayColumnProps> = ({
                     lastBottomByCol[colKey] = topPx + heightPx;
 
                     // Reserve space for bottom labels and pad right for indicators
-                    const labelReservePx = cancelled || irregular ? 22 : 0;
+                    const labelReservePx = 0; // No longer reserve space for status labels
                     const MIN_BOTTOM_RESERVE = isMobile ? 4 : 6; // slightly tighter on mobile
                     const reservedBottomPx = Math.max(
                         labelReservePx,
@@ -316,9 +324,14 @@ const DayColumn: FC<DayColumnProps> = ({
                     // which caused FitText to aggressively down‑scale subject/time/teacher text even though the icons
                     // only occupy a small corner on the right. We now only reserve space for the optional room label plus
                     // a small constant (8px) and let the text flow underneath the vertical icon column if needed.
+                    // Reduce padding when lessons are side by side to maximize text space
+                    const sideByySideAdjustment =
+                        b.colCount > 1
+                            ? Math.max(0, roomPadRightPx - 40)
+                            : roomPadRightPx;
                     const contentPadRight = isMobile
                         ? 0 // mobile keeps centered layout
-                        : roomPadRightPx + 8; // exclude indicator width for better available text width
+                        : sideByySideAdjustment + 4; // reduced padding for side-by-side lessons
                     const contentPadLeft = 0;
 
                     // Auto contrast decision based on middle gradient (via) luminance heuristics
@@ -336,23 +349,21 @@ const DayColumn: FC<DayColumnProps> = ({
                     return (
                         <div
                             key={l.id}
-                            className={`absolute rounded-md p-2 sm:p-2 text-[11px] sm:text-xs ring-1 ring-slate-900/10 dark:ring-white/15 overflow-hidden cursor-pointer transform duration-150 hover:shadow-lg hover:brightness-110 hover:saturate-140 hover:contrast-110 backdrop-blur-[1px] ${textColorClass} ${
+                            className={`absolute rounded-md p-2 sm:p-2 text-[11px] sm:text-xs overflow-hidden cursor-pointer transform duration-150 hover:shadow-lg hover:brightness-110 hover:saturate-140 hover:contrast-110 backdrop-blur-[1px] ${textColorClass} ${
                                 cancelled
-                                    ? 'bg-rose-500/90'
+                                    ? 'border-6 border-rose-600 dark:border-rose-500'
                                     : irregular
-                                    ? 'bg-emerald-500/90'
-                                    : ''
+                                    ? 'border-6 border-emerald-500 dark:border-emerald-400'
+                                    : 'ring-1 ring-slate-900/10 dark:ring-white/15'
                             }`}
                             style={{
                                 top: topPx,
                                 height: heightPx,
                                 left: `${leftPct}%`,
                                 width: `${widthPct}%`,
-                                background: cancelled
-                                    ? undefined
-                                    : irregular
-                                    ? undefined
-                                    : (`linear-gradient(to right, ${gradient.from}, ${gradient.via}, ${gradient.to})` as string),
+                                background: statusOverlay
+                                    ? `${statusOverlay}, linear-gradient(to right, ${gradient.from}, ${gradient.via}, ${gradient.to})`
+                                    : `linear-gradient(to right, ${gradient.from}, ${gradient.via}, ${gradient.to})`,
                                 // Larger invisible hit target for touch
                                 paddingTop: isMobile ? 6 : undefined,
                                 paddingBottom: isMobile ? 6 : undefined,
@@ -622,14 +633,19 @@ const DayColumn: FC<DayColumnProps> = ({
                                         <div className="font-semibold leading-tight text-[13px]">
                                             {displaySubject}
                                         </div>
-                                        {canShowTimeFrame && (
-                                            <div className="opacity-90 sm:mt-0 leading-tight text-[12px]">
-                                                <span className="whitespace-nowrap">
-                                                    {fmtHM(b.startMin)}–
-                                                    {fmtHM(b.endMin)}
-                                                </span>
-                                            </div>
-                                        )}
+                                        {/* Show timeframe unless cancelled/irregular AND this is a single (non-overlapping) lesson. */}
+                                        {canShowTimeFrame &&
+                                            !(
+                                                (cancelled || irregular) &&
+                                                b.colCount === 2
+                                            ) && (
+                                                <div className="opacity-90 sm:mt-0 leading-tight text-[12px]">
+                                                    <span className="whitespace-nowrap">
+                                                        {fmtHM(b.startMin)}–
+                                                        {fmtHM(b.endMin)}
+                                                    </span>
+                                                </div>
+                                            )}
                                         {(() => {
                                             if (!l.te || l.te.length === 0) return null;
                                             return (
@@ -655,16 +671,7 @@ const DayColumn: FC<DayColumnProps> = ({
                                         {l.lstext}
                                     </div>
                                 )} */}
-                                {cancelled && (
-                                    <div className="hidden sm:block absolute bottom-1 right-2 text-right text-[10px] font-semibold uppercase tracking-wide">
-                                        Cancelled
-                                    </div>
-                                )}
-                                {irregular && (
-                                    <div className="hidden sm:block absolute bottom-1 right-2 text-right text-[10px] font-semibold uppercase tracking-wide">
-                                        Irregular
-                                    </div>
-                                )}
+                                {/* Status text overlays removed - now shown only in modal */}
                             </div>
                         </div>
                     );
