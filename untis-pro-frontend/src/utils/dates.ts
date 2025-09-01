@@ -49,3 +49,25 @@ export function untisToMinutes(hhmm: number) {
     const m = hhmm % 100;
     return h * 60 + m;
 }
+
+/**
+ * Calculate the ISO week number for a given date
+ * ISO 8601 standard: Week 1 is the first week with at least 4 days in the new year
+ */
+export function getISOWeekNumber(date: Date): number {
+    const target = new Date(date.valueOf());
+    const dayOfWeek = (date.getDay() + 6) % 7; // Monday = 0, Sunday = 6
+    
+    // Find the Thursday in this week (ISO week belongs to the year of its Thursday)
+    target.setDate(target.getDate() - dayOfWeek + 3);
+    
+    // Get January 1st of the target year
+    const jan1 = new Date(target.getFullYear(), 0, 1);
+    
+    // Calculate the number of days between the Thursday and January 1st
+    const diffInMs = target.getTime() - jan1.getTime();
+    const diffInDays = Math.floor(diffInMs / (24 * 60 * 60 * 1000));
+    
+    // Week number = floor(days / 7) + 1
+    return Math.floor(diffInDays / 7) + 1;
+}

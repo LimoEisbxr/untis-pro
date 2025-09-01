@@ -12,7 +12,7 @@ import {
     getDefaultLessonColors,
     getNotifications,
 } from '../api';
-import { addDays, fmtLocal, startOfWeek } from '../utils/dates';
+import { addDays, fmtLocal, startOfWeek, getISOWeekNumber } from '../utils/dates';
 import { useTimetableCache } from '../hooks/useTimetableCache';
 import type {
     TimetableResponse,
@@ -116,6 +116,12 @@ export default function Dashboard({
     );
     const weekEndStr = useMemo(
         () => fmtLocal(addDays(weekStartDate, 6)),
+        [weekStartDate]
+    );
+    
+    // Calculate the calendar week number
+    const calendarWeek = useMemo(
+        () => getISOWeekNumber(weekStartDate),
         [weekStartDate]
     );
 
@@ -752,7 +758,7 @@ export default function Dashboard({
                                     </svg>
                                 </button>
                             </div>
-                            {/* Week picker (week info removed) */}
+                            {/* Week picker with calendar week display */}
                             <div className="flex items-end gap-3 ml-auto mr-5">
                                 <div>
                                     <label className="label sm:text-sm text-[11px]">
@@ -766,6 +772,14 @@ export default function Dashboard({
                                             setStart(e.target.value)
                                         }
                                     />
+                                </div>
+                                <div className="flex flex-col items-center">
+                                    <label className="label sm:text-sm text-[11px] text-center">
+                                        Calendar Week
+                                    </label>
+                                    <div className="flex items-center justify-center h-[42px] px-3 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-sm min-w-[60px]">
+                                        CW {calendarWeek}
+                                    </div>
                                 </div>
                             </div>
                         </div>
