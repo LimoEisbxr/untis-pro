@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import React from 'react';
 
@@ -55,8 +55,8 @@ export default function OnboardingModal({
 
     const ANIM_MS = 200;
 
-    // Modal-specific onboarding steps
-    const lessonModalSteps: OnboardingStep[] = [
+    // Modal-specific onboarding steps wrapped in useMemo for dependency optimization
+    const lessonModalSteps: OnboardingStep[] = useMemo(() => [
         {
             title: "Lesson Details",
             description: "Here you can see detailed information about this lesson, including teacher names, room locations, and any additional notes.",
@@ -83,9 +83,9 @@ export default function OnboardingModal({
                 </svg>
             )
         }
-    ];
+    ], []);
 
-    const settingsModalSteps: OnboardingStep[] = [
+    const settingsModalSteps: OnboardingStep[] = useMemo(() => [
         {
             title: "Profile Settings",
             description: "Customize your display name, sharing preferences, and notification settings. These settings help you personalize your Untis Pro experience.",
@@ -125,7 +125,7 @@ export default function OnboardingModal({
                 </svg>
             )
         }
-    ];
+    ], []);
 
     const steps: OnboardingStep[] = [
         {
