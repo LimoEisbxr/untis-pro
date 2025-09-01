@@ -12,7 +12,12 @@ import {
     getDefaultLessonColors,
     getNotifications,
 } from '../api';
-import { addDays, fmtLocal, startOfWeek, getISOWeekNumber } from '../utils/dates';
+import {
+    addDays,
+    fmtLocal,
+    startOfWeek,
+    getISOWeekNumber,
+} from '../utils/dates';
 import { useTimetableCache } from '../hooks/useTimetableCache';
 import type {
     TimetableResponse,
@@ -118,7 +123,7 @@ export default function Dashboard({
         () => fmtLocal(addDays(weekStartDate, 6)),
         [weekStartDate]
     );
-    
+
     // Calculate the calendar week number
     const calendarWeek = useMemo(
         () => getISOWeekNumber(weekStartDate),
@@ -169,7 +174,14 @@ export default function Dashboard({
         } finally {
             /* no loading flag */
         }
-    }, [getTimetableData, user.id, weekStartDate, token, weekStartStr, weekEndStr]);
+    }, [
+        getTimetableData,
+        user.id,
+        weekStartDate,
+        token,
+        weekStartStr,
+        weekEndStr,
+    ]);
 
     const loadUser = useCallback(
         async (userId: string) => {
@@ -216,7 +228,14 @@ export default function Dashboard({
                 /* no loading flag */
             }
         },
-        [getTimetableData, user.id, weekStartDate, token, weekStartStr, weekEndStr]
+        [
+            getTimetableData,
+            user.id,
+            weekStartDate,
+            token,
+            weekStartStr,
+            weekEndStr,
+        ]
     );
 
     useEffect(() => {
@@ -759,11 +778,16 @@ export default function Dashboard({
                                 </button>
                             </div>
                             {/* Week picker with calendar week display */}
-                            <div className="flex items-end gap-3 ml-auto mr-5">
+                            <div className="flex items-end gap-3 ml-auto">
                                 <div>
-                                    <label className="label sm:text-sm text-[11px]">
-                                        Week
-                                    </label>
+                                    <div className="flex justify-between items-center">
+                                        <label className="label sm:text-sm text-[11px]">
+                                            Week
+                                        </label>
+                                        <label className="label sm:text-sm text-[11px]">
+                                            CW {calendarWeek}
+                                        </label>
+                                    </div>
                                     <input
                                         type="date"
                                         className="input text-sm"
@@ -772,14 +796,6 @@ export default function Dashboard({
                                             setStart(e.target.value)
                                         }
                                     />
-                                </div>
-                                <div className="flex flex-col items-center">
-                                    <label className="label sm:text-sm text-[11px] text-center">
-                                        Calendar Week
-                                    </label>
-                                    <div className="flex items-center justify-center h-[42px] px-3 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-sm min-w-[60px]">
-                                        CW {calendarWeek}
-                                    </div>
                                 </div>
                             </div>
                         </div>
