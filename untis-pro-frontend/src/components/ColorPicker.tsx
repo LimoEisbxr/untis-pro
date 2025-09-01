@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import {
     generateGradient,
     gradientToTailwindClasses,
@@ -49,8 +49,47 @@ export default function ColorPicker({
     // Default collapsed
     const [isExpanded, setIsExpanded] = useState(false);
 
+    // Debouncing logic to prevent rate limit hits
+    const debounceTimer = useRef<number | null>(null);
+    const DEBOUNCE_MS = 300;
+
+    // Debounced version of onColorChange
+    const debouncedOnColorChange = useCallback(
+        (color: string) => {
+            if (debounceTimer.current) {
+                clearTimeout(debounceTimer.current);
+            }
+            debounceTimer.current = window.setTimeout(() => {
+                onColorChange(color);
+                debounceTimer.current = null;
+            }, DEBOUNCE_MS);
+        },
+        [onColorChange]
+    );
+
+    // Immediate call for onBlur/deselect events
+    const immediateOnColorChange = useCallback(
+        (color: string) => {
+            if (debounceTimer.current) {
+                clearTimeout(debounceTimer.current);
+                debounceTimer.current = null;
+            }
+            onColorChange(color);
+        },
+        [onColorChange]
+    );
+
+    // Cleanup timer on unmount
+    useEffect(() => {
+        return () => {
+            if (debounceTimer.current) {
+                clearTimeout(debounceTimer.current);
+            }
+        };
+    }, []);
+
     const handlePresetClick = (color: string) => {
-        onColorChange(color);
+        immediateOnColorChange(color);
     };
 
     const handleCustomColorChange = (
@@ -59,7 +98,13 @@ export default function ColorPicker({
         const color = e.target.value;
         setCustomColor(color);
         if (isValidHexColor(color)) {
-            onColorChange(color);
+            debouncedOnColorChange(color);
+        }
+    };
+
+    const handleCustomColorBlur = () => {
+        if (isValidHexColor(customColor)) {
+            immediateOnColorChange(customColor);
         }
     };
 
@@ -69,7 +114,13 @@ export default function ColorPicker({
         const color = e.target.value;
         setCustomColor(color);
         if (isValidHexColor(color)) {
-            onColorChange(color);
+            debouncedOnColorChange(color);
+        }
+    };
+
+    const handleCustomInputBlur = () => {
+        if (isValidHexColor(customColor)) {
+            immediateOnColorChange(customColor);
         }
     };
 
@@ -270,10 +321,9 @@ export default function ColorPicker({
                                 className="gradient-slider focus-visible:outline-none"
                                 style={
                                     {
-                                        ['--progress']:
-                                            `${(gradientOffset * 100).toFixed(
-                                                2
-                                            )}%`,
+                                        ['--progress']: `${(
+                                            gradientOffset * 100
+                                        ).toFixed(2)}%`,
                                     } as React.CSSProperties
                                 }
                             />
@@ -300,12 +350,14 @@ export default function ColorPicker({
                                         type="color"
                                         value={customColor}
                                         onChange={handleCustomColorChange}
+                                        onBlur={handleCustomColorBlur}
                                         className="w-12 h-8 rounded border border-slate-300 dark:border-slate-600"
                                     />
                                     <input
                                         type="text"
                                         value={customColor}
                                         onChange={handleCustomInputChange}
+                                        onBlur={handleCustomInputBlur}
                                         placeholder="#3b82f6"
                                         className="flex-1 px-2 py-1 text-sm border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
                                     />
