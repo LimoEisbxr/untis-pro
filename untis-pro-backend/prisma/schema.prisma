@@ -120,7 +120,7 @@ model Homework {
     updatedAt DateTime @updatedAt
     
     // WebUntis homework ID
-    untisId   Int      @unique
+    untisId   Int
     
     // User who owns this homework
     userId    String
@@ -137,6 +137,9 @@ model Homework {
     
     // Metadata
     fetchedAt DateTime @default(now())
+    
+    // Composite unique constraint: homework should be unique per user
+    @@unique([userId, untisId])
 }
 
 model Exam {
@@ -145,7 +148,7 @@ model Exam {
     updatedAt DateTime @updatedAt
     
     // WebUntis exam ID
-    untisId   Int      @unique
+    untisId   Int
     
     // User who owns this exam
     userId    String
@@ -166,6 +169,9 @@ model Exam {
     
     // Metadata
     fetchedAt DateTime @default(now())
+    
+    // Composite unique constraint: exam should be unique per user
+    @@unique([userId, untisId])
 }
 
 // DB-backed whitelist rules — username only
