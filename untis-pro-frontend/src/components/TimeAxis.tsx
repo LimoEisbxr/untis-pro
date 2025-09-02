@@ -39,8 +39,9 @@ const TimeAxis: FC<TimeAxisProps> = ({
     // Build unique timestamp labels (dedupe touching boundaries) with a minimum vertical gap.
     const timeLabelPositions = (() => {
         const minGapPx = 15;
-        const toY = (min: number) => Math.round((min - START_MIN) * SCALE) + PAD_TOP;
-        const maxY = Math.round((END_MIN - START_MIN) * SCALE) + PAD_TOP;
+        // Match DayColumn's positioning logic exactly: round (time_offset + header) then add padding
+        const toY = (min: number) => Math.round((min - START_MIN) * SCALE + headerPx) + PAD_TOP - headerPx;
+        const maxY = Math.round((END_MIN - START_MIN) * SCALE + headerPx) + PAD_TOP - headerPx;
         type L = { y: number; label: string };
         const labels: L[] = [];
         let prevEnd: number | null = null;
@@ -102,12 +103,12 @@ const TimeAxis: FC<TimeAxisProps> = ({
             >
                 <div className="mx-1 h-full rounded-md sm:ring-1 sm:ring-slate-900/10 sm:dark:ring-white/10 sm:border sm:border-slate-300/50 sm:dark:border-slate-600/50 shadow-sm overflow-hidden bg-gradient-to-b from-slate-50/85 via-slate-100/80 to-sky-50/70 dark:bg-slate-800/40 dark:bg-none relative">
                     {timeLabelPositions.map((t, i) => {
-                        const extraTop = i === 0 ? 5 : 0; // only nudge first label for breathing space
+                        // Remove extra top offset to ensure perfect alignment
                         return (
                             <div
                                 key={i}
                                 className="absolute left-0 right-0 -translate-y-1/2 text-[11px] leading-none text-slate-500 dark:text-slate-400 select-none text-center"
-                                style={{ top: t.y + headerPx + extraTop }}
+                                style={{ top: t.y + headerPx }}
                             >
                                 {t.label}
                             </div>
@@ -126,8 +127,7 @@ const TimeAxis: FC<TimeAxisProps> = ({
                                     style={{
                                         top:
                                             Math.round(((sMin + eMin) / 2 - START_MIN) *
-                                                SCALE) + PAD_TOP +
-                                            headerPx,
+                                                SCALE + headerPx) + PAD_TOP,
                                         fontSize: 22,
                                         fontWeight: 800,
                                     }}
