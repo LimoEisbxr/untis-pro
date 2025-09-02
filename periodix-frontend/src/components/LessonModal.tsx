@@ -17,6 +17,7 @@ export default function LessonModal({
     onColorChange,
     gradientOffsets,
     onGradientOffsetChange,
+    isOnboardingActive,
 }: {
     lesson: Lesson | null;
     isOpen: boolean;
@@ -32,6 +33,7 @@ export default function LessonModal({
     ) => void;
     gradientOffsets?: Record<string, number>;
     onGradientOffsetChange?: (lessonName: string, offset: number) => void;
+    isOnboardingActive?: boolean;
 }) {
     const [animatingOut, setAnimatingOut] = useState(false);
     const [entered, setEntered] = useState(false);
@@ -120,7 +122,11 @@ export default function LessonModal({
 
     return createPortal(
         <div
-            className={`fixed inset-0 z-[9999] modal-portal flex items-center justify-center p-4 bg-black/50 backdrop-blur-lg backdrop-saturate-150 backdrop-contrast-125 transition-opacity duration-200 ease-out ${
+            className={`fixed inset-0 z-[9999] modal-portal flex items-center justify-center p-4 bg-black/50 ${
+                isOnboardingActive 
+                    ? 'backdrop-blur-sm backdrop-saturate-100 backdrop-contrast-100' 
+                    : 'backdrop-blur-lg backdrop-saturate-150 backdrop-contrast-125'
+            } transition-opacity duration-200 ease-out ${
                 entered ? 'opacity-100' : 'opacity-0'
             }`}
             onClick={handleClose}

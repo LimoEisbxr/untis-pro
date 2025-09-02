@@ -224,6 +224,8 @@ export default function Timetable({
     token,
     viewingUserId,
     onWeekNavigate,
+    onLessonModalStateChange,
+    isOnboardingActive,
 }: {
     data: TimetableResponse | null;
     weekStart: Date;
@@ -239,6 +241,8 @@ export default function Timetable({
     token?: string;
     viewingUserId?: string; // if admin is viewing a student
     onWeekNavigate?: (direction: 'prev' | 'next') => void; // optional external navigation handler
+    onLessonModalStateChange?: (isOpen: boolean) => void; // callback for onboarding
+    isOnboardingActive?: boolean;
     // Extended: allow passing current offset when color set
     // (so initial color creation can persist chosen offset)
     // Keeping backwards compatibility (third param optional)
@@ -399,6 +403,32 @@ export default function Timetable({
     const handleLessonClick = (lesson: Lesson) => {
         setSelectedLesson(lesson);
         setIsModalOpen(true);
+
+        // Notify onboarding if active (global callback)
+        if (
+            typeof (
+                window as Window &
+                    typeof globalThis & {
+                        onboardingLessonModalStateChange?: (
+                            isOpen: boolean
+                        ) => void;
+                    }
+            ).onboardingLessonModalStateChange === 'function'
+        ) {
+            (
+                window as Window &
+                    typeof globalThis & {
+                        onboardingLessonModalStateChange: (
+                            isOpen: boolean
+                        ) => void;
+                    }
+            ).onboardingLessonModalStateChange(true);
+        }
+
+        // Notify parent component (Dashboard) for onboarding
+        if (onLessonModalStateChange) {
+            onLessonModalStateChange(true);
+        }
     };
 
     // Responsive vertical spacing; mobile gets tighter layout
@@ -798,6 +828,32 @@ export default function Timetable({
                 onClose={() => {
                     setIsModalOpen(false);
                     setSelectedLesson(null);
+
+                    // Notify onboarding if active (global callback)
+                    if (
+                        typeof (
+                            window as Window &
+                                typeof globalThis & {
+                                    onboardingLessonModalStateChange?: (
+                                        isOpen: boolean
+                                    ) => void;
+                                }
+                        ).onboardingLessonModalStateChange === 'function'
+                    ) {
+                        (
+                            window as Window &
+                                typeof globalThis & {
+                                    onboardingLessonModalStateChange: (
+                                        isOpen: boolean
+                                    ) => void;
+                                }
+                        ).onboardingLessonModalStateChange(false);
+                    }
+
+                    // Notify parent component (Dashboard) for onboarding
+                    if (onLessonModalStateChange) {
+                        onLessonModalStateChange(false);
+                    }
                 }}
                 isDeveloperMode={isDeveloperMode}
                 lessonColors={lessonColors}
@@ -806,6 +862,7 @@ export default function Timetable({
                 onColorChange={onColorChange}
                 gradientOffsets={gradientOffsets}
                 onGradientOffsetChange={updateGradientOffset}
+                isOnboardingActive={isOnboardingActive}
             />
         </div>
     );
