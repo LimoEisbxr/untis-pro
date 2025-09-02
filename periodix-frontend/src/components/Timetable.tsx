@@ -276,7 +276,7 @@ export default function Timetable({
     const [isDeveloperMode, setIsDeveloperMode] = useState<boolean>(() => {
         if (typeof window === 'undefined') return false;
         try {
-            return localStorage.getItem('untisProDevActive') === '1';
+            return localStorage.getItem('PeriodixDevActive') === '1';
         } catch {
             return false;
         }
@@ -286,7 +286,7 @@ export default function Timetable({
     useEffect(() => {
         try {
             localStorage.setItem(
-                'untisProDevActive',
+                'PeriodixDevActive',
                 isDeveloperMode ? '1' : '0'
             );
         } catch {

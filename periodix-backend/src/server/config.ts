@@ -11,11 +11,11 @@ const __dirname = path.dirname(__filename); // eslint-disable-line @typescript-e
  * producing harder-to-debug downstream errors when contacting WebUntis.
  */
 function requireEnv(name: string): string {
-	const v = process.env[name];
-	if (!v) {
-		throw new Error(`Missing required environment variable: ${name}`);
-	}
-	return v;
+    const v = process.env[name];
+    if (!v) {
+        throw new Error(`Missing required environment variable: ${name}`);
+    }
+    return v;
 }
 
 // These are required for WebUntis interactions
@@ -23,8 +23,9 @@ export const UNTIS_DEFAULT_SCHOOL: string = requireEnv('UNTIS_DEFAULT_SCHOOL');
 export const UNTIS_HOST: string = requireEnv('UNTIS_HOST');
 
 // Admin credentials are optional; default to empty strings
-export const ADMIN_USERNAME: string = process.env.UNTIS_ADMIN_USERNAME || '';
-export const ADMIN_PASSWORD: string = process.env.UNTIS_ADMIN_PASSWORD || '';
+export const ADMIN_USERNAME: string = process.env.PERIODIX_ADMIN_USERNAME || '';
+export const ADMIN_PASSWORD: string = process.env.PERIODIX_ADMIN_PASSWORD || '';
 
 // Whitelist configuration for closed beta (DB-backed)
-export const WHITELIST_ENABLED: boolean = process.env.WHITELIST_ENABLED === 'true';
+export const WHITELIST_ENABLED: boolean =
+    process.env.WHITELIST_ENABLED === 'true';

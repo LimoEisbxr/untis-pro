@@ -75,11 +75,11 @@ Navigate to Settings → Notification Preferences:
 
     ```bash
     # Backend
-    cd untis-pro-backend
+    cd periodix-backend
     npm install
 
     # Frontend
-    cd untis-pro-frontend
+    cd periodix-frontend
     npm install
     ```
 

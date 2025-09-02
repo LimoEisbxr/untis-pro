@@ -132,7 +132,7 @@ app.use(express.json());
 app.use(morgan('dev'));
 
 app.get('/health', (_req, res) => {
-    res.json({ ok: true, service: 'untis-pro-backend', time: new Date() });
+    res.json({ ok: true, service: 'periodix-backend', time: new Date() });
 });
 
 app.use('/api/auth', authRoutes);

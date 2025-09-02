@@ -4,13 +4,15 @@ import webpush from 'web-push';
 // Initialize web-push with VAPID keys
 const vapidPublicKey = process.env.VAPID_PUBLIC_KEY;
 const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY;
-const vapidSubject = process.env.VAPID_SUBJECT || 'mailto:admin@untis-pro.com';
+const vapidSubject = process.env.VAPID_SUBJECT || 'mailto:admin@periodix.de';
 
 if (vapidPublicKey && vapidPrivateKey) {
     webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
     console.log('Web Push configured with VAPID keys');
 } else {
-    console.warn('VAPID keys not configured - push notifications will not work');
+    console.warn(
+        'VAPID keys not configured - push notifications will not work'
+    );
 }
 
 export interface NotificationData {
@@ -74,7 +76,12 @@ export class NotificationService {
             }
 
             // Check if notification type is enabled
-            if (!this.isNotificationTypeEnabled(data.type, user.notificationSettings)) {
+            if (
+                !this.isNotificationTypeEnabled(
+                    data.type,
+                    user.notificationSettings
+                )
+            ) {
                 return;
             }
 
@@ -85,7 +92,9 @@ export class NotificationService {
 
             // Only send push notifications if VAPID keys are configured
             if (!vapidPublicKey || !vapidPrivateKey) {
-                console.warn('VAPID keys not configured - skipping push notification');
+                console.warn(
+                    'VAPID keys not configured - skipping push notification'
+                );
                 return;
             }
 
@@ -94,7 +103,7 @@ export class NotificationService {
                 body: data.message,
                 icon: '/icon-192.png',
                 badge: '/icon-192.png',
-                tag: `untis-pro-${data.type}`,
+                tag: `periodix-${data.type}`,
                 data: {
                     type: data.type,
                     ...data.data,
@@ -103,13 +112,13 @@ export class NotificationService {
                     {
                         action: 'view',
                         title: 'View',
-                        icon: '/icon-192.png'
+                        icon: '/icon-192.png',
                     },
                     {
                         action: 'dismiss',
-                        title: 'Dismiss'
-                    }
-                ]
+                        title: 'Dismiss',
+                    },
+                ],
             });
 
             // Send push notification to all user's devices
@@ -124,17 +133,27 @@ export class NotificationService {
                     };
 
                     await webpush.sendNotification(pushSubscription, payload);
-                    console.log(`Push notification sent to device: ${sub.endpoint.substring(0, 50)}...`);
+                    console.log(
+                        `Push notification sent to device: ${sub.endpoint.substring(
+                            0,
+                            50
+                        )}...`
+                    );
                 } catch (error: any) {
                     console.error('Failed to send push to device:', error);
-                    
+
                     // If subscription is invalid, mark it as inactive
                     if (error.statusCode === 410 || error.statusCode === 413) {
                         await (prisma as any).notificationSubscription.update({
                             where: { id: sub.id },
                             data: { active: false },
                         });
-                        console.log(`Marked subscription as inactive: ${sub.endpoint.substring(0, 50)}...`);
+                        console.log(
+                            `Marked subscription as inactive: ${sub.endpoint.substring(
+                                0,
+                                50
+                            )}...`
+                        );
                     }
                 }
             });
@@ -152,7 +171,9 @@ export class NotificationService {
                 data: { sent: true },
             });
 
-            console.log(`Push notification sent to ${subscriptions.length} devices for user ${data.userId}`);
+            console.log(
+                `Push notification sent to ${subscriptions.length} devices for user ${data.userId}`
+            );
         } catch (error) {
             console.error('Failed to send push notification:', error);
         }
@@ -175,7 +196,10 @@ export class NotificationService {
     }
 
     // Notify user managers about new access requests
-    async notifyAccessRequest(username: string, message?: string): Promise<void> {
+    async notifyAccessRequest(
+        username: string,
+        message?: string
+    ): Promise<void> {
         try {
             const userManagers = await (prisma as any).user.findMany({
                 where: { isUserManager: true },
@@ -183,14 +207,21 @@ export class NotificationService {
             });
 
             for (const manager of userManagers) {
-                if (manager.notificationSettings?.accessRequestsEnabled !== false) {
+                if (
+                    manager.notificationSettings?.accessRequestsEnabled !==
+                    false
+                ) {
                     await this.createNotification({
                         type: 'access_request',
                         title: 'New Access Request',
-                        message: `${username} has requested access${message ? `: ${message}` : ''}`,
+                        message: `${username} has requested access${
+                            message ? `: ${message}` : ''
+                        }`,
                         userId: manager.id,
                         data: { username, message },
-                        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+                        expiresAt: new Date(
+                            Date.now() + 7 * 24 * 60 * 60 * 1000
+                        ), // 7 days
                     });
                 }
             }
@@ -202,7 +233,9 @@ export class NotificationService {
     // Check for timetable changes and notify users
     async checkTimetableChanges(): Promise<void> {
         try {
-            const adminSettings = await (prisma as any).adminNotificationSettings.findFirst();
+            const adminSettings = await (
+                prisma as any
+            ).adminNotificationSettings.findFirst();
             if (!adminSettings?.enableTimetableNotifications) {
                 return;
             }
@@ -253,36 +286,54 @@ export class NotificationService {
 
             // Get current date info
             const today = new Date();
-            const todayString = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
-            
+            const todayString =
+                today.getFullYear() * 10000 +
+                (today.getMonth() + 1) * 100 +
+                today.getDate();
+
             // Calculate week boundaries (assuming week starts on Monday)
             const startOfWeek = new Date(today);
             const dayOfWeek = startOfWeek.getDay();
             const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Handle Sunday (0) as 6 days from Monday
             startOfWeek.setDate(today.getDate() - daysFromMonday);
-            const startOfWeekString = startOfWeek.getFullYear() * 10000 + (startOfWeek.getMonth() + 1) * 100 + startOfWeek.getDate();
-            
+            const startOfWeekString =
+                startOfWeek.getFullYear() * 10000 +
+                (startOfWeek.getMonth() + 1) * 100 +
+                startOfWeek.getDate();
+
             const endOfWeek = new Date(startOfWeek);
             endOfWeek.setDate(startOfWeek.getDate() + 6);
-            const endOfWeekString = endOfWeek.getFullYear() * 10000 + (endOfWeek.getMonth() + 1) * 100 + endOfWeek.getDate();
+            const endOfWeekString =
+                endOfWeek.getFullYear() * 10000 +
+                (endOfWeek.getMonth() + 1) * 100 +
+                endOfWeek.getDate();
 
             for (const lesson of lessons) {
                 // Check cancelled lessons based on user's time scope preference
-                if (lesson.code === 'cancelled' && user.notificationSettings?.cancelledLessonsEnabled) {
-                    const scope = user.notificationSettings?.cancelledLessonsTimeScope || 'day';
+                if (
+                    lesson.code === 'cancelled' &&
+                    user.notificationSettings?.cancelledLessonsEnabled
+                ) {
+                    const scope =
+                        user.notificationSettings?.cancelledLessonsTimeScope ||
+                        'day';
                     let shouldNotify = false;
 
                     if (scope === 'day') {
                         shouldNotify = lesson.date === todayString;
                     } else if (scope === 'week') {
-                        shouldNotify = lesson.date >= startOfWeekString && lesson.date <= endOfWeekString;
+                        shouldNotify =
+                            lesson.date >= startOfWeekString &&
+                            lesson.date <= endOfWeekString;
                     }
 
                     if (shouldNotify) {
                         await this.createNotification({
                             type: 'cancelled_lesson',
                             title: 'Lesson Cancelled',
-                            message: `${lesson.su?.[0]?.name || 'Lesson'} has been cancelled`,
+                            message: `${
+                                lesson.su?.[0]?.name || 'Lesson'
+                            } has been cancelled`,
                             userId: user.id,
                             data: lesson,
                         });
@@ -290,21 +341,30 @@ export class NotificationService {
                 }
 
                 // Check irregular lessons based on user's time scope preference
-                if (lesson.code === 'irregular' && user.notificationSettings?.irregularLessonsEnabled) {
-                    const scope = user.notificationSettings?.irregularLessonsTimeScope || 'day';
+                if (
+                    lesson.code === 'irregular' &&
+                    user.notificationSettings?.irregularLessonsEnabled
+                ) {
+                    const scope =
+                        user.notificationSettings?.irregularLessonsTimeScope ||
+                        'day';
                     let shouldNotify = false;
 
                     if (scope === 'day') {
                         shouldNotify = lesson.date === todayString;
                     } else if (scope === 'week') {
-                        shouldNotify = lesson.date >= startOfWeekString && lesson.date <= endOfWeekString;
+                        shouldNotify =
+                            lesson.date >= startOfWeekString &&
+                            lesson.date <= endOfWeekString;
                     }
 
                     if (shouldNotify) {
                         await this.createNotification({
                             type: 'irregular_lesson',
                             title: 'Irregular Lesson',
-                            message: `${lesson.su?.[0]?.name || 'Lesson'} has irregular scheduling`,
+                            message: `${
+                                lesson.su?.[0]?.name || 'Lesson'
+                            } has irregular scheduling`,
                             userId: user.id,
                             data: lesson,
                         });
@@ -312,34 +372,53 @@ export class NotificationService {
                 }
 
                 // Check for room/teacher changes (also count as irregular)
-                const hasTeacherChanges = lesson.te?.some((t: any) => t.orgname) || false;
-                const hasRoomChanges = lesson.ro?.some((r: any) => r.orgname) || false;
-                
-                if ((hasTeacherChanges || hasRoomChanges) && user.notificationSettings?.irregularLessonsEnabled) {
-                    const scope = user.notificationSettings?.irregularLessonsTimeScope || 'day';
+                const hasTeacherChanges =
+                    lesson.te?.some((t: any) => t.orgname) || false;
+                const hasRoomChanges =
+                    lesson.ro?.some((r: any) => r.orgname) || false;
+
+                if (
+                    (hasTeacherChanges || hasRoomChanges) &&
+                    user.notificationSettings?.irregularLessonsEnabled
+                ) {
+                    const scope =
+                        user.notificationSettings?.irregularLessonsTimeScope ||
+                        'day';
                     let shouldNotify = false;
 
                     if (scope === 'day') {
                         shouldNotify = lesson.date === todayString;
                     } else if (scope === 'week') {
-                        shouldNotify = lesson.date >= startOfWeekString && lesson.date <= endOfWeekString;
+                        shouldNotify =
+                            lesson.date >= startOfWeekString &&
+                            lesson.date <= endOfWeekString;
                     }
 
                     if (shouldNotify) {
                         const changedItems = [];
                         if (hasTeacherChanges) {
-                            const teacherChanges = lesson.te?.filter((t: any) => t.orgname).map((t: any) => `${t.orgname} → ${t.name}`);
-                            changedItems.push(`Teacher: ${teacherChanges?.join(', ')}`);
+                            const teacherChanges = lesson.te
+                                ?.filter((t: any) => t.orgname)
+                                .map((t: any) => `${t.orgname} → ${t.name}`);
+                            changedItems.push(
+                                `Teacher: ${teacherChanges?.join(', ')}`
+                            );
                         }
                         if (hasRoomChanges) {
-                            const roomChanges = lesson.ro?.filter((r: any) => r.orgname).map((r: any) => `${r.orgname} → ${r.name}`);
-                            changedItems.push(`Room: ${roomChanges?.join(', ')}`);
+                            const roomChanges = lesson.ro
+                                ?.filter((r: any) => r.orgname)
+                                .map((r: any) => `${r.orgname} → ${r.name}`);
+                            changedItems.push(
+                                `Room: ${roomChanges?.join(', ')}`
+                            );
                         }
 
                         await this.createNotification({
                             type: 'room_teacher_change',
                             title: 'Room/Teacher Change',
-                            message: `${lesson.su?.[0]?.name || 'Lesson'}: ${changedItems.join(', ')}`,
+                            message: `${
+                                lesson.su?.[0]?.name || 'Lesson'
+                            }: ${changedItems.join(', ')}`,
                             userId: user.id,
                             data: lesson,
                         });
@@ -347,7 +426,10 @@ export class NotificationService {
                 }
             }
         } catch (error) {
-            console.error(`Failed to check timetable changes for user ${user.id}:`, error);
+            console.error(
+                `Failed to check timetable changes for user ${user.id}:`,
+                error
+            );
         }
     }
 
@@ -360,14 +442,18 @@ export class NotificationService {
         console.log('Starting notification service...');
 
         // Get fetch interval from admin settings
-        const adminSettings = await (prisma as any).adminNotificationSettings.findFirst();
+        const adminSettings = await (
+            prisma as any
+        ).adminNotificationSettings.findFirst();
         const intervalMinutes = adminSettings?.timetableFetchInterval || 30;
 
         this.intervalId = setInterval(async () => {
             await this.checkTimetableChanges();
         }, intervalMinutes * 60 * 1000); // Convert minutes to milliseconds
 
-        console.log(`Notification service started with ${intervalMinutes} minute interval`);
+        console.log(
+            `Notification service started with ${intervalMinutes} minute interval`
+        );
     }
 
     // Stop the background notification service

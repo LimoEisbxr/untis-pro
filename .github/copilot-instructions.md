@@ -22,13 +22,13 @@ Always reference these instructions first and fallback to search or bash command
 
     - Takes ~7 seconds including image pull
     - Database runs on localhost:5432
-    - Uses postgres/postgres credentials with untis_pro database
+    - Uses postgres/postgres credentials with periodix database
 
 2. **Backend setup**:
 
     ```bash
-    cp .env.example untis-pro-backend/.env
-    cd untis-pro-backend
+    cp .env.example periodix-backend/.env
+    cd periodix-backend
     npm install  # Takes ~21 seconds
     ```
 
@@ -47,7 +47,7 @@ Always reference these instructions first and fallback to search or bash command
 
 3. **Frontend setup**:
     ```bash
-    cd untis-pro-frontend
+    cd periodix-frontend
     npm install  # Takes ~24 seconds
     npm run build  # Takes ~4 seconds. NEVER CANCEL. Set timeout to 30+ seconds.
     npm run lint  # Takes ~2 seconds
@@ -55,8 +55,8 @@ Always reference these instructions first and fallback to search or bash command
 
 ### Development Servers
 
--   **Frontend**: `npm run dev` in untis-pro-frontend/ - Runs on http://localhost:5173
--   **Backend**: `npm run dev` in untis-pro-backend/ - Runs on http://localhost:3001 (requires functional Prisma setup)
+-   **Frontend**: `npm run dev` in periodix-frontend/ - Runs on http://localhost:5173
+-   **Backend**: `npm run dev` in periodix-backend/ - Runs on http://localhost:3001 (requires functional Prisma setup)
 
 ### Docker Compose (Alternative Deployment)
 
@@ -78,7 +78,7 @@ When working, the full stack runs on:
 
 **ALWAYS** test the frontend after making changes:
 
-1. Start the development server: `cd untis-pro-frontend && npm run dev`
+1. Start the development server: `cd periodix-frontend && npm run dev`
 2. Navigate to http://localhost:5173
 3. **Key scenarios to test**:
     - Login/registration form displays correctly
@@ -92,12 +92,12 @@ Always run these commands before committing:
 
 ```bash
 # Frontend
-cd untis-pro-frontend
+cd periodix-frontend
 npm run lint      # Takes ~2 seconds
 npm run build     # Takes ~4 seconds
 
 # Backend (when Prisma is working)
-cd untis-pro-backend
+cd periodix-backend
 npm run build     # Takes ~2 seconds
 ```
 
@@ -136,12 +136,12 @@ All measurements include 50% safety buffer:
 /
 ├── .env.example                 # Environment template
 ├── docker-compose.yml          # Full stack deployment
-├── untis-pro-backend/          # Express.js + Prisma backend
+├── periodix-backend/          # Express.js + Prisma backend
 │   ├── src/                    # TypeScript source
 │   ├── prisma/schema.prisma    # Database schema
 │   ├── package.json            # Backend dependencies
 │   └── tsconfig.json          # TypeScript config
-└── untis-pro-frontend/         # React + Vite frontend
+└── periodix-frontend/         # React + Vite frontend
     ├── src/                    # React components
     ├── package.json            # Frontend dependencies
     ├── vite.config.ts          # Vite configuration
@@ -151,11 +151,11 @@ All measurements include 50% safety buffer:
 
 ### Key Files to Monitor
 
--   **Backend API routes**: `untis-pro-backend/src/routes/`
--   **Frontend components**: `untis-pro-frontend/src/components/`
--   **Database schema**: `untis-pro-backend/prisma/schema.prisma`
--   **Rate limiting**: `untis-pro-backend/src/server/untisRateLimiter.ts`
--   **Authentication**: `untis-pro-backend/src/routes/auth.js`
+-   **Backend API routes**: `periodix-backend/src/routes/`
+-   **Frontend components**: `periodix-frontend/src/components/`
+-   **Database schema**: `periodix-backend/prisma/schema.prisma`
+-   **Rate limiting**: `periodix-backend/src/server/untisRateLimiter.ts`
+-   **Authentication**: `periodix-backend/src/routes/auth.js`
 
 ### API Endpoints
 

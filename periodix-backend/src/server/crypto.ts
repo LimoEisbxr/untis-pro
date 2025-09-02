@@ -3,9 +3,11 @@ import argon2 from 'argon2';
 
 // Provides hashing and symmetric encryption helpers.
 
-const MASTER_KEY_HEX = process.env.UNTIS_MASTER_KEY || '';
+const MASTER_KEY_HEX = process.env.PERIODIX_MASTER_KEY || '';
 if (!MASTER_KEY_HEX) {
-    console.warn('[crypto] UNTIS_MASTER_KEY not set; using insecure dev key');
+    console.warn(
+        '[crypto] PERIODIX_MASTER_KEY not set; using insecure dev key'
+    );
 }
 // Derive 32-byte key from provided hex or fallback
 const masterKey = MASTER_KEY_HEX

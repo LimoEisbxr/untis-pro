@@ -29,8 +29,8 @@ The easiest way to run Periodix is using Docker Compose, which sets up the entir
 1. **Clone and setup environment**:
 
     ```bash
-    git clone https://github.com/LimoEisbxr/untis-pro.git
-    cd untis-pro
+    git clone https://github.com/LimoEisbxr/periodix.git
+    cd periodix
     cp .env.example .env
     ```
 
@@ -39,7 +39,7 @@ The easiest way to run Periodix is using Docker Compose, which sets up the entir
     ```bash
     # Edit .env file - at minimum set these:
     JWT_SECRET="your-strong-random-secret-here"
-    UNTIS_MASTER_KEY="64-character-hex-string-here"
+    PERIODIX_MASTER_KEY="64-character-hex-string-here"
     ```
 
 3. **Start the application**:
@@ -72,7 +72,7 @@ JWT_SECRET="REPLACE_WITH_STRONG_RANDOM_SECRET"
 
 # Master key for encrypting stored Untis credentials (64 hex characters)
 # Generate with: openssl rand -hex 32
-UNTIS_MASTER_KEY="REPLACE_WITH_64_CHARACTER_HEX_STRING"
+PERIODIX_MASTER_KEY="REPLACE_WITH_64_CHARACTER_HEX_STRING"
 ```
 
 ### 🌐 WebUntis Integration
@@ -90,8 +90,8 @@ UNTIS_HOST="your-webuntis-server.com"
 ```bash
 # Admin credentials for user management
 # Users logging in with these credentials get admin privileges
-UNTIS_ADMIN_USERNAME="admin"
-UNTIS_ADMIN_PASSWORD="secure-admin-password"
+PERIODIX_ADMIN_USERNAME="admin"
+PERIODIX_ADMIN_PASSWORD="secure-admin-password"
 ```
 
 ### 🛡️ Access Control (Optional)
@@ -127,7 +127,7 @@ VITE_ENABLE_DEVELOPER_MODE=false
 ### ⚠️ Security Notes
 
 -   **Never use default secrets in production**
--   **Generate strong random values** for JWT_SECRET and UNTIS_MASTER_KEY
+-   **Generate strong random values** for JWT_SECRET and PERIODIX_MASTER_KEY
 -   **Change default database credentials** for production deployments
 -   **Use HTTPS** with proper SSL certificates in production
 -   **Review CORS settings** for your domain
@@ -156,7 +156,7 @@ For development with hot reloading and debugging:
     cp .env.example .env
     # Edit .env with your configuration
 
-    cd untis-pro-backend
+    cd periodix-backend
     npm install
     npx prisma generate
     npx prisma migrate dev --name init
@@ -166,7 +166,7 @@ For development with hot reloading and debugging:
 3. **Frontend setup**:
 
     ```bash
-    cd untis-pro-frontend
+    cd periodix-frontend
     npm install
     npm run dev
     ```
@@ -247,15 +247,15 @@ Timetable endpoints support date filtering:
 ### Monorepo Structure
 
 ```
-untis-pro/
+periodix/
 ├── .env.example              # Environment template
 ├── docker-compose.yml       # Full stack deployment
-├── untis-pro-backend/       # Express.js + Prisma backend
+├── periodix-backend/       # Express.js + Prisma backend
 │   ├── src/routes/          # API route handlers
 │   ├── src/server/          # Server configuration
 │   ├── prisma/schema.prisma # Database schema
 │   └── Dockerfile           # Backend container
-├── untis-pro-frontend/      # React + Vite frontend
+├── periodix-frontend/      # React + Vite frontend
 │   ├── src/components/      # React components
 │   ├── src/api.ts          # API client
 │   └── Dockerfile          # Frontend container (Nginx)

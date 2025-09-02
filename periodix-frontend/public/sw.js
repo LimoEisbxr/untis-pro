@@ -1,5 +1,5 @@
 // Enhanced service worker for PWA with notification support
-const CACHE_NAME = 'untis-pro-shell-v2';
+const CACHE_NAME = 'periodix-shell-v2';
 const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest'];
 
 self.addEventListener('install', (event) => {
@@ -35,7 +35,7 @@ self.addEventListener('push', (event) => {
         body: 'You have a new notification',
         icon: '/icon-192.png',
         badge: '/icon-192.png',
-        tag: 'untis-pro-notification',
+        tag: 'periodix-notification',
         requireInteraction: false,
     };
 
