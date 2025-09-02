@@ -235,6 +235,8 @@ const DayColumn: FC<DayColumnProps> = ({
 
                     const cancelled = l.code === 'cancelled';
                     const irregular = l.code === 'irregular';
+                    // Determine if this lesson represents a merged (double / multi) lesson
+                    const isMerged = isLessonMerged(l);
                     const hasChanges = hasLessonChanges(l);
                     const subject = l.su?.[0]?.name ?? l.activityType ?? '—';
                     const subjectType = extractSubjectType(subject);
@@ -329,15 +331,17 @@ const DayColumn: FC<DayColumnProps> = ({
                     // Second threshold for very compact layout: move teacher to same row as subject
                     const MIN_COMPACT_DISPLAY_HEIGHT = isMobile ? 45 : 45;
                     // Separate threshold for cancelled/irregular lessons (they can use compact layout more aggressively)
-                    const MIN_COMPACT_DISPLAY_HEIGHT_CANCELLED_IRREGULAR = isMobile ? 40 : 40;
+                    const MIN_COMPACT_DISPLAY_HEIGHT_CANCELLED_IRREGULAR =
+                        isMobile ? 55 : 55;
                     const availableSpace = heightPx - reservedBottomPx;
                     const canShowTimeFrame =
                         !isMobile && availableSpace >= MIN_TIME_DISPLAY_HEIGHT;
-                    
+
                     // Use different compact layout thresholds for cancelled/irregular vs normal lessons
-                    const compactThreshold = (cancelled || irregular) 
-                        ? MIN_COMPACT_DISPLAY_HEIGHT_CANCELLED_IRREGULAR 
-                        : MIN_COMPACT_DISPLAY_HEIGHT;
+                    const compactThreshold =
+                        cancelled || irregular
+                            ? MIN_COMPACT_DISPLAY_HEIGHT_CANCELLED_IRREGULAR
+                            : MIN_COMPACT_DISPLAY_HEIGHT;
                     const shouldUseCompactLayout =
                         !isMobile && availableSpace <= compactThreshold;
 
@@ -794,14 +798,25 @@ const DayColumn: FC<DayColumnProps> = ({
                                                 >
                                                     {displaySubject}
                                                 </div>
-                                                {/* Show timeframe unless lesson is cancelled or irregular. */}
+                                                {/* Timeframe:
+                                                    - For normal lessons: shown (when canShowTimeFrame true)
+                                                    - Previously hidden for cancelled / irregular lessons.
+                                                    - Request: show it again for merged cancelled / irregular lessons.
+                                                      If cancelled, it should be crossed out; irregular stays normal.
+                                                */}
                                                 {canShowTimeFrame &&
-                                                    !(
+                                                    // normal lesson
+                                                    (!(
                                                         cancelled || irregular
-                                                    ) && (
+                                                    ) ||
+                                                        // merged cancelled / irregular lesson
+                                                        ((cancelled ||
+                                                            irregular) &&
+                                                            isMerged)) && (
                                                         <div
                                                             className={`opacity-90 sm:mt-0 leading-tight text-[12px] ${
-                                                                cancelled
+                                                                cancelled &&
+                                                                isMerged
                                                                     ? 'lesson-cancelled-time'
                                                                     : ''
                                                             }`}
