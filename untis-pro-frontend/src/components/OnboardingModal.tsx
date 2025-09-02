@@ -274,8 +274,11 @@ export default function OnboardingModal({
             setTimeout(() => {
                 if (currentStep < steps.length - 1) {
                     setCurrentStep(currentStep + 1);
+                } else {
+                    // Don't auto-advance on the last step - wait for user action
+                    return;
                 }
-            }, 100);
+            }, 200); // Increased delay to ensure proper cleanup
         }
     }, [isLessonModalOpen, currentStepData, hasInteracted, inModalOnboarding, modalOnboardingSteps, lessonModalSteps, currentStep, steps.length]);
 
@@ -298,8 +301,11 @@ export default function OnboardingModal({
             setTimeout(() => {
                 if (currentStep < steps.length - 1) {
                     setCurrentStep(currentStep + 1);
+                } else {
+                    // Don't auto-advance on the last step - wait for user action
+                    return;
                 }
-            }, 100);
+            }, 200); // Increased delay to ensure proper cleanup
         }
     }, [isSettingsModalOpen, currentStepData, hasInteracted, inModalOnboarding, modalOnboardingSteps, settingsModalSteps, currentStep, steps.length]);
 
@@ -311,8 +317,8 @@ export default function OnboardingModal({
             setHasInteracted(true);
         }
         
-        // When lesson modal closes after being opened, mark interaction as complete
-        if (!isLessonModalOpen && hasInteracted) {
+        // When lesson modal closes after being opened during interactive step, advance
+        if (!isLessonModalOpen && hasInteracted && !inModalOnboarding) {
             setWaitingForInteraction(false);
             setHasInteracted(false);
             // Check if this is the last step
@@ -322,7 +328,7 @@ export default function OnboardingModal({
             }
             setShouldAdvanceStep(true);
         }
-    }, [waitingForInteraction, hasInteracted, currentStepData, currentStep, steps.length]);
+    }, [waitingForInteraction, hasInteracted, currentStepData, currentStep, steps.length, inModalOnboarding]);
 
     // Expose the handler via a global method that can be called by Timetable
     useEffect(() => {
@@ -514,13 +520,19 @@ export default function OnboardingModal({
             if (modalStepIndex < modalOnboardingSteps.length - 1) {
                 setModalStepIndex(modalStepIndex + 1);
             } else {
-                // End modal onboarding and continue with main tour
+                // End modal onboarding and return to main tour
+                // Force immediate transition back to main tour
                 setInModalOnboarding(false);
                 setModalOnboardingSteps([]);
                 setModalStepIndex(0);
-                // Don't advance the main tour here - let the modal close naturally
-                // which will trigger the continuation logic in the useEffect hooks
-                return;
+                
+                // The modal should remain open and the next step should be the main tour continuation
+                // Don't rely on modal close events - directly handle the transition
+                if (currentStep < steps.length - 1) {
+                    setCurrentStep(currentStep + 1);
+                } else {
+                    handleComplete();
+                }
             }
             return;
         }
@@ -605,6 +617,13 @@ export default function OnboardingModal({
             } ${
                 isVisible ? 'opacity-100' : 'opacity-0'
             }`}
+            onMouseDown={(e) => {
+                // Block all mouse events during interactive steps and modal onboarding
+                if (waitingForInteraction || inModalOnboarding) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
+            }}
         >
             {/* Backdrop with cutout for highlighted element */}
             <div 
@@ -613,7 +632,15 @@ export default function OnboardingModal({
                         ? 'bg-black/20' 
                         : 'backdrop-blur-sm bg-black/60'
                 }`}
-                onClick={waitingForInteraction || inModalOnboarding ? undefined : onClose}
+                onClick={(e) => {
+                    // Prevent all backdrop clicks during interactive steps and modal onboarding
+                    if (waitingForInteraction || inModalOnboarding) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        return;
+                    }
+                    onClose();
+                }}
                 style={{
                     maskImage: highlightedElement 
                         ? `radial-gradient(ellipse at center, transparent 0%, transparent 40%, black 70%)` 
