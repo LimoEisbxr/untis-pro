@@ -647,6 +647,45 @@ export default function Dashboard({
             <main className="mx-auto max-w-screen-2xl p-4">
                 <section className="card p-4">
                     <div className="space-y-2 sm:space-y-4">
+                        {/* Week navigation buttons (desktop only) - separate row */}
+                        <div className="hidden sm:flex mr-auto">
+                            <div className="flex gap-2">
+                                <button
+                                    className="btn-secondary px-8 py-3 text-base font-medium"
+                                    onClick={() => {
+                                        const prevWeek = fmtLocal(
+                                            addDays(new Date(start), -7)
+                                        );
+                                        setStart(prevWeek);
+                                    }}
+                                    title="Previous week"
+                                >
+                                    ‹ Prev
+                                </button>
+                                <button
+                                    className="btn-secondary px-8 py-3 text-base font-medium"
+                                    onClick={() => {
+                                        setStart(fmtLocal(new Date()));
+                                    }}
+                                    title="Current week"
+                                >
+                                    This Week
+                                </button>
+                                <button
+                                    className="btn-secondary px-8 py-3 text-base font-medium"
+                                    onClick={() => {
+                                        const nextWeek = fmtLocal(
+                                            addDays(new Date(start), 7)
+                                        );
+                                        setStart(nextWeek);
+                                    }}
+                                    title="Next week"
+                                >
+                                    Next ›
+                                </button>
+                            </div>
+                        </div>
+
                         {/* Search (desktop), mobile icons (search+home), week picker */}
                         <div className="flex flex-wrap items-end gap-3">
                             {/* Desktop search */}
