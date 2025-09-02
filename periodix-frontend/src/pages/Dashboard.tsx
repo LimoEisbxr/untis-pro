@@ -100,18 +100,26 @@ export default function Dashboard({
     );
 
     // Function to get cached timetable data for adjacent weeks
-    const getAdjacentWeekData = useCallback((direction: 'prev' | 'next'): TimetableResponse | null => {
-        const targetDate = direction === 'prev' 
-            ? addDays(weekStartDate, -7) 
-            : addDays(weekStartDate, 7);
-        
-        const targetWeekStartStr = fmtLocal(targetDate);
-        const targetWeekEndStr = fmtLocal(addDays(targetDate, 6));
-        const targetUserId = selectedUser?.id || user.id;
-        
-        // Get cached data for the target week
-        return getCachedData(targetUserId, targetWeekStartStr, targetWeekEndStr);
-    }, [weekStartDate, selectedUser?.id, user.id, getCachedData]);
+    const getAdjacentWeekData = useCallback(
+        (direction: 'prev' | 'next'): TimetableResponse | null => {
+            const targetDate =
+                direction === 'prev'
+                    ? addDays(weekStartDate, -7)
+                    : addDays(weekStartDate, 7);
+
+            const targetWeekStartStr = fmtLocal(targetDate);
+            const targetWeekEndStr = fmtLocal(addDays(targetDate, 6));
+            const targetUserId = selectedUser?.id || user.id;
+
+            // Get cached data for the target week
+            return getCachedData(
+                targetUserId,
+                targetWeekStartStr,
+                targetWeekEndStr
+            );
+        },
+        [weekStartDate, selectedUser?.id, user.id, getCachedData]
+    );
     // Short auto-retry countdown for rate limit (429)
     const [retrySeconds, setRetrySeconds] = useState<number | null>(null);
     // Settings modal state
@@ -430,7 +438,9 @@ export default function Dashboard({
 
     // Check if user should see onboarding
     useEffect(() => {
-        const hasSeenOnboarding = localStorage.getItem('untis-pro-onboarding-completed');
+        const hasSeenOnboarding = localStorage.getItem(
+            'periodix-onboarding-completed'
+        );
         if (!hasSeenOnboarding) {
             // Delay showing onboarding slightly to let the dashboard load
             const timer = setTimeout(() => {
@@ -510,15 +520,18 @@ export default function Dashboard({
     }, [queryText, token]);
 
     const handleOnboardingComplete = () => {
-        localStorage.setItem('untis-pro-onboarding-completed', 'true');
+        localStorage.setItem('periodix-onboarding-completed', 'true');
         setIsOnboardingOpen(false);
     };
 
     // Development helper - expose function to reset onboarding
     useEffect(() => {
         if (typeof window !== 'undefined') {
-            (window as Window & typeof globalThis & { resetOnboarding?: () => void }).resetOnboarding = () => {
-                localStorage.removeItem('untis-pro-onboarding-completed');
+            (
+                window as Window &
+                    typeof globalThis & { resetOnboarding?: () => void }
+            ).resetOnboarding = () => {
+                localStorage.removeItem('periodix-onboarding-completed');
                 setIsOnboardingOpen(true);
                 console.log('Onboarding reset - modal will show');
             };
