@@ -403,12 +403,28 @@ export default function Timetable({
     const handleLessonClick = (lesson: Lesson) => {
         setSelectedLesson(lesson);
         setIsModalOpen(true);
-        
+
         // Notify onboarding if active (global callback)
-        if (typeof (window as Window & typeof globalThis & { onboardingLessonModalStateChange?: (isOpen: boolean) => void }).onboardingLessonModalStateChange === 'function') {
-            (window as Window & typeof globalThis & { onboardingLessonModalStateChange: (isOpen: boolean) => void }).onboardingLessonModalStateChange(true);
+        if (
+            typeof (
+                window as Window &
+                    typeof globalThis & {
+                        onboardingLessonModalStateChange?: (
+                            isOpen: boolean
+                        ) => void;
+                    }
+            ).onboardingLessonModalStateChange === 'function'
+        ) {
+            (
+                window as Window &
+                    typeof globalThis & {
+                        onboardingLessonModalStateChange: (
+                            isOpen: boolean
+                        ) => void;
+                    }
+            ).onboardingLessonModalStateChange(true);
         }
-        
+
         // Notify parent component (Dashboard) for onboarding
         if (onLessonModalStateChange) {
             onLessonModalStateChange(true);
@@ -812,12 +828,28 @@ export default function Timetable({
                 onClose={() => {
                     setIsModalOpen(false);
                     setSelectedLesson(null);
-                    
+
                     // Notify onboarding if active (global callback)
-                    if (typeof (window as Window & typeof globalThis & { onboardingLessonModalStateChange?: (isOpen: boolean) => void }).onboardingLessonModalStateChange === 'function') {
-                        (window as Window & typeof globalThis & { onboardingLessonModalStateChange: (isOpen: boolean) => void }).onboardingLessonModalStateChange(false);
+                    if (
+                        typeof (
+                            window as Window &
+                                typeof globalThis & {
+                                    onboardingLessonModalStateChange?: (
+                                        isOpen: boolean
+                                    ) => void;
+                                }
+                        ).onboardingLessonModalStateChange === 'function'
+                    ) {
+                        (
+                            window as Window &
+                                typeof globalThis & {
+                                    onboardingLessonModalStateChange: (
+                                        isOpen: boolean
+                                    ) => void;
+                                }
+                        ).onboardingLessonModalStateChange(false);
                     }
-                    
+
                     // Notify parent component (Dashboard) for onboarding
                     if (onLessonModalStateChange) {
                         onLessonModalStateChange(false);
