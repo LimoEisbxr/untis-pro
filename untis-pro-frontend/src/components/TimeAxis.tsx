@@ -57,7 +57,20 @@ const TimeAxis: FC<TimeAxisProps> = ({
             if (i === 0 || prevEnd === null || s !== prevEnd) {
                 labels.push({ y: toStartY(s), label: fmtHM(s) });
             }
-            labels.push({ y: toEndY(e), label: fmtHM(e) });
+            
+            // Check if this end time is also a start time of the next lesson
+            const isEndAlsoStart = i < DEFAULT_PERIODS.length - 1 && 
+                                   untisToMinutes(DEFAULT_PERIODS[i + 1].start) === e;
+            
+            if (isEndAlsoStart) {
+                // Center between start and end positions when end time is also a start time
+                const startY = toStartY(e);
+                const endY = toEndY(e);
+                const centeredY = (startY + endY) / 2;
+                labels.push({ y: centeredY, label: fmtHM(e) });
+            } else {
+                labels.push({ y: toEndY(e), label: fmtHM(e) });
+            }
             prevEnd = e;
         }
         labels.sort((a, b) => a.y - b.y);
