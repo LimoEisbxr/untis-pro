@@ -39,9 +39,9 @@ const TimeAxis: FC<TimeAxisProps> = ({
     // Build unique timestamp labels (dedupe touching boundaries) with a minimum vertical gap.
     const timeLabelPositions = (() => {
         const minGapPx = 15;
-        // Match DayColumn's positioning logic exactly: round (time_offset + header) then add padding
-        const toY = (min: number) => Math.round((min - START_MIN) * SCALE + headerPx) + PAD_TOP - headerPx;
-        const maxY = Math.round((END_MIN - START_MIN) * SCALE + headerPx) + PAD_TOP - headerPx;
+        // Simple positioning with PAD_TOP offset to match DayColumn alignment
+        const toY = (min: number) => (min - START_MIN) * SCALE + PAD_TOP;
+        const maxY = (END_MIN - START_MIN) * SCALE + PAD_TOP;
         type L = { y: number; label: string };
         const labels: L[] = [];
         let prevEnd: number | null = null;
@@ -126,8 +126,8 @@ const TimeAxis: FC<TimeAxisProps> = ({
                                     className="absolute left-0 right-0 -translate-y-1/2 select-none text-slate-400 dark:text-slate-500 text-center"
                                     style={{
                                         top:
-                                            Math.round(((sMin + eMin) / 2 - START_MIN) *
-                                                SCALE + headerPx) + PAD_TOP,
+                                            ((sMin + eMin) / 2 - START_MIN) *
+                                                SCALE + headerPx + PAD_TOP,
                                         fontSize: 22,
                                         fontWeight: 800,
                                     }}
