@@ -103,6 +103,7 @@ export default function LessonModal({
     const subject = lesson.su?.[0]?.name ?? lesson.activityType ?? '—';
     const subjectType = extractSubjectType(subject);
     const subjectLong = lesson.su?.[0]?.longname ?? subject;
+    const cancelled = lesson.code === 'cancelled';
     
     // Use helper functions to get teacher and room display info
     const teacherInfo = getTeacherDisplayText(lesson);
@@ -231,11 +232,11 @@ export default function LessonModal({
                                     <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-2">
                                         Subject
                                     </h3>
-                                    <p className="text-slate-900 dark:text-slate-100">
+                                    <p className={`text-slate-900 dark:text-slate-100 ${cancelled ? 'lesson-cancelled-subject' : ''}`}>
                                         {subjectLong}
                                     </p>
                                     {subjectLong !== subject && (
-                                        <p className="text-sm text-slate-600 dark:text-slate-400">
+                                        <p className={`text-sm text-slate-600 dark:text-slate-400 ${cancelled ? 'lesson-cancelled' : ''}`}>
                                             ({subject})
                                         </p>
                                     )}
@@ -244,7 +245,7 @@ export default function LessonModal({
                                     <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-2">
                                         Time
                                     </h3>
-                                    <p className="text-slate-900 dark:text-slate-100">
+                                    <p className={`text-slate-900 dark:text-slate-100 ${cancelled ? 'lesson-cancelled-time' : ''}`}>
                                         {startTime} - {endTime}
                                     </p>
                                 </div>
@@ -254,7 +255,7 @@ export default function LessonModal({
                                             Teacher
                                         </h3>
                                         <div className="space-y-1">
-                                            <p className="text-slate-900 dark:text-slate-100">
+                                            <p className={`text-slate-900 dark:text-slate-100 ${cancelled ? 'lesson-cancelled-teacher' : ''}`}>
                                                 {teacherInfo.hasChanges ? (
                                                     <span className="change-highlight">
                                                         {teacherLong && teacherLong !== teacher ? `${teacherLong} (${teacher})` : teacherLong || teacher}
@@ -264,7 +265,7 @@ export default function LessonModal({
                                                 )}
                                             </p>
                                             {teacherInfo.hasChanges && teacherInfo.original && (
-                                                <p className="text-sm change-original">
+                                                <p className={`text-sm change-original ${cancelled ? 'lesson-cancelled' : ''}`}>
                                                     Original: {teacherInfo.original}
                                                 </p>
                                             )}
@@ -277,7 +278,7 @@ export default function LessonModal({
                                             Room
                                         </h3>
                                         <div className="space-y-1">
-                                            <p className="text-slate-900 dark:text-slate-100">
+                                            <p className={`text-slate-900 dark:text-slate-100 ${cancelled ? 'lesson-cancelled-room' : ''}`}>
                                                 {roomInfo.hasChanges ? (
                                                     <span className="change-highlight">
                                                         {roomLong && roomLong !== room ? `${roomLong} (${room})` : roomLong || room}
@@ -287,7 +288,7 @@ export default function LessonModal({
                                                 )}
                                             </p>
                                             {roomInfo.hasChanges && roomInfo.original && (
-                                                <p className="text-sm change-original">
+                                                <p className={`text-sm change-original ${cancelled ? 'lesson-cancelled' : ''}`}>
                                                     Original: {roomInfo.original}
                                                 </p>
                                             )}
@@ -336,7 +337,7 @@ export default function LessonModal({
                                                 </svg>
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <p className="text-sm text-blue-900 dark:text-blue-100 whitespace-pre-wrap">
+                                                <p className={`text-sm text-blue-900 dark:text-blue-100 whitespace-pre-wrap ${cancelled ? 'lesson-cancelled' : ''}`}>
                                                     {lesson.info}
                                                 </p>
                                             </div>
@@ -362,7 +363,7 @@ export default function LessonModal({
                                                 </svg>
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <p className="text-sm text-indigo-900 dark:text-indigo-100 whitespace-pre-wrap">
+                                                <p className={`text-sm text-indigo-900 dark:text-indigo-100 whitespace-pre-wrap ${cancelled ? 'lesson-cancelled' : ''}`}>
                                                     {lesson.lstext}
                                                 </p>
                                             </div>
