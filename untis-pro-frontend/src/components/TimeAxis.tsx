@@ -1,4 +1,5 @@
 import type { FC } from 'react';
+import { useEffect, useState } from 'react';
 import { DEFAULT_PERIODS } from '../utils/periods';
 import { fmtHM, untisToMinutes } from '../utils/dates';
 
@@ -22,11 +23,30 @@ const TimeAxis: FC<TimeAxisProps> = ({
     const timesHeight = (END_MIN - START_MIN) * SCALE;
     const headerPx = internalHeaderPx ?? DAY_HEADER_PX;
 
+    // Detect mobile (tailwind sm breakpoint <640px) to match DayColumn's padding behavior
+    const [isMobile, setIsMobile] = useState<boolean>(false);
+    useEffect(() => {
+        const mq = window.matchMedia('(max-width: 639px)');
+        const update = () => setIsMobile(mq.matches);
+        update();
+        mq.addEventListener('change', update);
+        return () => mq.removeEventListener('change', update);
+    }, []);
+
+    // Use the same padding as DayColumn to ensure alignment
+    const PAD_TOP = isMobile ? 2 : 4;
+
     // Build unique timestamp labels (dedupe touching boundaries) with a minimum vertical gap.
     const timeLabelPositions = (() => {
         const minGapPx = 15;
-        const toY = (min: number) => (min - START_MIN) * SCALE;
-        const maxY = (END_MIN - START_MIN) * SCALE;
+        // Position calculation matching DayColumn logic
+        // For lesson starts: align with lesson block top
+        const toStartY = (min: number) => Math.round((min - START_MIN) * SCALE + headerPx) + PAD_TOP;
+        // For lesson ends: align with lesson block bottom (accounting for padding and gap budget)
+        const PAD_BOTTOM = isMobile ? 2 : 4;
+        const GAP_BUDGET = isMobile ? 1 : 2;
+        const toEndY = (min: number) => Math.round((min - START_MIN) * SCALE + headerPx) - PAD_BOTTOM - GAP_BUDGET;
+        const maxY = Math.round((END_MIN - START_MIN) * SCALE + headerPx) + PAD_TOP;
         type L = { y: number; label: string };
         const labels: L[] = [];
         let prevEnd: number | null = null;
@@ -35,9 +55,22 @@ const TimeAxis: FC<TimeAxisProps> = ({
             const s = untisToMinutes(p.start);
             const e = untisToMinutes(p.end);
             if (i === 0 || prevEnd === null || s !== prevEnd) {
-                labels.push({ y: toY(s), label: fmtHM(s) });
+                labels.push({ y: toStartY(s), label: fmtHM(s) });
             }
-            labels.push({ y: toY(e), label: fmtHM(e) });
+            
+            // Check if this end time is also a start time of the next lesson
+            const isEndAlsoStart = i < DEFAULT_PERIODS.length - 1 && 
+                                   untisToMinutes(DEFAULT_PERIODS[i + 1].start) === e;
+            
+            if (isEndAlsoStart) {
+                // Center between start and end positions when end time is also a start time
+                const startY = toStartY(e);
+                const endY = toEndY(e);
+                const centeredY = (startY + endY) / 2;
+                labels.push({ y: centeredY, label: fmtHM(e) });
+            } else {
+                labels.push({ y: toEndY(e), label: fmtHM(e) });
+            }
             prevEnd = e;
         }
         labels.sort((a, b) => a.y - b.y);
@@ -88,12 +121,12 @@ const TimeAxis: FC<TimeAxisProps> = ({
             >
                 <div className="mx-1 h-full rounded-md sm:ring-1 sm:ring-slate-900/10 sm:dark:ring-white/10 sm:border sm:border-slate-300/50 sm:dark:border-slate-600/50 shadow-sm overflow-hidden bg-gradient-to-b from-slate-50/85 via-slate-100/80 to-sky-50/70 dark:bg-slate-800/40 dark:bg-none relative">
                     {timeLabelPositions.map((t, i) => {
-                        const extraTop = i === 0 ? 5 : 0; // only nudge first label for breathing space
+                        // Position labels directly without adding headerPx since it's already included in toY calculation
                         return (
                             <div
                                 key={i}
                                 className="absolute left-0 right-0 -translate-y-1/2 text-[11px] leading-none text-slate-500 dark:text-slate-400 select-none text-center"
-                                style={{ top: t.y + headerPx + extraTop }}
+                                style={{ top: t.y }}
                             >
                                 {t.label}
                             </div>
@@ -102,6 +135,12 @@ const TimeAxis: FC<TimeAxisProps> = ({
                     {DEFAULT_PERIODS.map((p) => {
                         const sMin = untisToMinutes(p.start);
                         const eMin = untisToMinutes(p.end);
+                        // Calculate center based on actual lesson block positioning (not just time midpoint)
+                        const PAD_BOTTOM = isMobile ? 2 : 4;
+                        const GAP_BUDGET = isMobile ? 1 : 2;
+                        const lessonTop = Math.round((sMin - START_MIN) * SCALE + headerPx) + PAD_TOP;
+                        const lessonBottom = Math.round((eMin - START_MIN) * SCALE + headerPx) - PAD_BOTTOM - GAP_BUDGET;
+                        const centerY = (lessonTop + lessonBottom) / 2;
                         return (
                             <div
                                 key={p.number}
@@ -110,10 +149,7 @@ const TimeAxis: FC<TimeAxisProps> = ({
                                 <div
                                     className="absolute left-0 right-0 -translate-y-1/2 select-none text-slate-400 dark:text-slate-500 text-center"
                                     style={{
-                                        top:
-                                            ((sMin + eMin) / 2 - START_MIN) *
-                                                SCALE +
-                                            headerPx,
+                                        top: centerY,
                                         fontSize: 22,
                                         fontWeight: 800,
                                     }}
