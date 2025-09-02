@@ -681,16 +681,88 @@ export default function Timetable({
                             className="pointer-events-none absolute -translate-y-1/2 z-40"
                             style={{
                                 top: nowY,
-                                left: `calc(${axisWidth}px + 0.75rem)`, // axis width + gap (sm gap handled by responsive CSS)
-                                right: '0.75rem',
+                                left: `calc(${axisWidth}px + 0.25rem)`, // axis width + gap (responsive gap handled by CSS)
+                                right: '0.25rem',
                             }}
                         >
-                            <div className="flex items-center">
-                                <div className="relative w-full">
-                                    <div className="h-[2px] w-full bg-gradient-to-r from-rose-500 via-fuchsia-500 to-pink-500 shadow-[0_0_0_1px_rgba(244,63,94,0.35)]" />
-                                    <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 h-3 w-3 rounded-full bg-rose-500 ring-2 ring-white/80 dark:ring-slate-900/60 shadow-md" />
-                                    <div className="absolute left-0 -top-5 -translate-x-1/2 whitespace-nowrap">
-                                        <span className="rounded-full bg-rose-500/90 px-2 py-[2px] text-[10px] font-semibold text-white shadow">
+                            <div className="relative w-full">
+                                {/* Base thin line spanning full width with subtle glow - centered to align with thick overlay */}
+                                <div className="h-[1px] w-full bg-gradient-to-r from-rose-500 via-fuchsia-500 to-pink-500 shadow-[0_0_4px_rgba(244,63,94,0.4)] -translate-y-1/2" />
+
+                                {/* Seamless thicker overlay for current day with tapered edges */}
+                                <div
+                                    className="absolute top-0 h-[3px] -translate-y-1/2"
+                                    style={{
+                                        left: `${
+                                            (days.findIndex(
+                                                (d) => fmtLocal(d) === todayISO
+                                            ) /
+                                                5) *
+                                            100
+                                        }%`,
+                                        width: '20%',
+                                        background: `linear-gradient(to right, 
+                                            transparent 0%, 
+                                            rgba(244,63,94,0.3) 2%, 
+                                            rgb(244,63,94) 8%, 
+                                            rgb(217,70,239) 50%, 
+                                            rgb(236,72,153) 92%, 
+                                            rgba(236,72,153,0.3) 98%, 
+                                            transparent 100%
+                                        )`,
+                                        filter: 'drop-shadow(0 0 6px rgba(244,63,94,0.6))',
+                                    }}
+                                />
+
+                                {/* Additional glow effect for seamless blending */}
+                                <div
+                                    className="absolute top-0 h-[5px] -translate-y-1/2 opacity-40"
+                                    style={{
+                                        left: `${
+                                            (days.findIndex(
+                                                (d) => fmtLocal(d) === todayISO
+                                            ) /
+                                                5) *
+                                            100
+                                        }%`,
+                                        width: '20%',
+                                        background: `linear-gradient(to right, 
+                                            transparent 0%, 
+                                            rgba(244,63,94,0.1) 5%, 
+                                            rgba(244,63,94,0.6) 50%, 
+                                            rgba(244,63,94,0.1) 95%, 
+                                            transparent 100%
+                                        )`,
+                                        filter: 'blur(1px)',
+                                    }}
+                                />
+
+                                {/* Time indicator dot and label positioned for current day */}
+                                <div
+                                    className="absolute top-1/2 -translate-y-1/2"
+                                    style={{
+                                        left: `${
+                                            (days.findIndex(
+                                                (d) => fmtLocal(d) === todayISO
+                                            ) /
+                                                5) *
+                                            100
+                                        }%`,
+                                    }}
+                                >
+                                    {/* <div
+                                        className="h-2 w-2 rounded-full bg-rose-500 ring-2 ring-white/80 dark:ring-slate-900/60 shadow-lg -translate-x-1/2"
+                                        style={{
+                                            filter: 'drop-shadow(0 0 4px rgba(244,63,94,0.8))',
+                                        }}
+                                    /> */}
+                                    <div className="absolute -top-[15px] -translate-x-1/2 whitespace-nowrap">
+                                        <span
+                                            className="rounded-full bg-rose-500/95 px-1 py-[1px] text-[10px] font-semibold text-white shadow-lg"
+                                            style={{
+                                                filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))',
+                                            }}
+                                        >
                                             {fmtHM(nowMin)}
                                         </span>
                                     </div>

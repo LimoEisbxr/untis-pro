@@ -20,8 +20,8 @@ export type Lesson = {
     startTime: number; // Untis HHmm integer, e.g., 740 => 07:40
     endTime: number; // Untis HHmm integer, e.g., 825 => 08:25
     su?: Array<{ id: number; name: string; longname?: string }>;
-    te?: Array<{ id: number; name: string; longname?: string }>;
-    ro?: Array<{ id: number; name: string; longname?: string }>;
+    te?: Array<{ id: number; name: string; longname?: string; orgname?: string }>;
+    ro?: Array<{ id: number; name: string; longname?: string; orgname?: string }>;
     code?: string; // e.g. 'cancelled'
     activityType?: string;
     info?: string; // Additional lesson information
@@ -83,6 +83,8 @@ export type NotificationSettings = {
     accessRequestsEnabled: boolean;
     irregularLessonsEnabled: boolean;
     cancelledLessonsEnabled: boolean;
+    cancelledLessonsTimeScope: 'day' | 'week';
+    irregularLessonsTimeScope: 'day' | 'week';
     devicePreferences?: Record<string, Record<string, unknown>>;
     createdAt: string;
     updatedAt: string;

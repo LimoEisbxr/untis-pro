@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Compact Layout Testing</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Lesson border styles for cancelled/irregular lessons */
+        .lesson-cancelled-subject {
+            text-decoration: line-through;
+            opacity: 0.7;
+        }
+        .lesson-cancelled-teacher {
+            text-decoration: line-through;
+            opacity: 0.7;
+        }
+        .lesson-cancelled-time {
+            text-decoration: line-through;
+            opacity: 0.7;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-slate-50 via-slate-100 to-sky-50 min-h-screen p-8">
+    <div class="max-w-6xl mx-auto">
+        <h1 class="text-3xl font-bold text-slate-800 mb-2">Compact Layout Testing</h1>
+        <p class="text-slate-600 mb-8">This page demonstrates the new compact layout thresholds for desktop lesson blocks.</p>
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
+            <!-- Normal Layout (>55px height) -->
+            <div class="bg-white rounded-lg p-6 shadow-sm border border-slate-200">
+                <h2 class="text-xl font-semibold text-blue-600 mb-4">Normal Layout (>55px height)</h2>
+                <p class="text-slate-600 mb-4 text-sm">Full height with subject, time, and teacher in separate rows</p>
+                
+                <!-- Mathematics lesson - normal height -->
+                <div class="relative rounded-md p-2 text-xs ring-1 ring-slate-900/10 shadow-lg bg-gradient-to-r from-blue-400 to-blue-600 text-white cursor-pointer mb-4" style="height: 70px;">
+                    <div class="absolute top-1 right-1 flex flex-col items-end gap-1">
+                        <div class="text-[11px] leading-tight whitespace-nowrap drop-shadow-sm text-white">Room 101</div>
+                    </div>
+                    <div class="flex flex-col h-full" style="padding-bottom: 6px; padding-right: 88px; padding-left: 0;">
+                        <div class="font-semibold leading-tight text-[13px]">Mathematics</div>
+                        <div class="opacity-90 mt-0 leading-tight text-[12px]">
+                            <span class="whitespace-nowrap">08:00–08:50</span>
+                        </div>
+                        <div class="leading-tight text-[12px] flex flex-wrap gap-x-1">
+                            <span>Dr. Smith</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Compact Layout (35-55px height) -->
+            <div class="bg-white rounded-lg p-6 shadow-sm border border-slate-200">
+                <h2 class="text-xl font-semibold text-green-600 mb-4">Compact Layout (35-55px height)</h2>
+                <p class="text-slate-600 mb-4 text-sm">Subject and teacher on same line, no time display</p>
+                
+                <!-- Physics lesson - compact height -->
+                <div class="relative rounded-md p-2 text-xs ring-1 ring-slate-900/10 shadow-lg bg-gradient-to-r from-green-400 to-green-600 text-white cursor-pointer mb-4" style="height: 45px;">
+                    <div class="absolute top-1 right-1 flex flex-col items-end gap-1">
+                        <div class="text-[11px] leading-tight whitespace-nowrap drop-shadow-sm text-white">Room 203</div>
+                    </div>
+                    <div class="flex flex-col h-full" style="padding-bottom: 6px; padding-right: 88px; padding-left: 0;">
+                        <!-- Compact layout: subject and teacher on same line -->
+                        <div class="flex flex-wrap items-baseline gap-x-2">
+                            <div class="font-semibold leading-tight text-[13px]">Physics</div>
+                            <div class="leading-tight text-[12px] flex flex-wrap gap-x-1">
+                                <span>Dr. Brown</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Very Small (<35px height) -->
+            <div class="bg-white rounded-lg p-6 shadow-sm border border-slate-200">
+                <h2 class="text-xl font-semibold text-purple-600 mb-4">Very Small (<35px height)</h2>
+                <p class="text-slate-600 mb-4 text-sm">Falls back to minimum layout (subject only)</p>
+                
+                <!-- Chemistry lesson - very small height -->
+                <div class="relative rounded-md p-2 text-xs ring-1 ring-slate-900/10 shadow-lg bg-gradient-to-r from-purple-400 to-purple-600 text-white cursor-pointer mb-4" style="height: 30px;">
+                    <div class="absolute top-1 right-1 flex flex-col items-end gap-1">
+                        <div class="text-[11px] leading-tight whitespace-nowrap drop-shadow-sm text-white">Lab A</div>
+                    </div>
+                    <div class="flex flex-col h-full" style="padding-bottom: 6px; padding-right: 88px; padding-left: 0;">
+                        <div class="font-semibold leading-tight text-[13px]">Chemistry</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cancelled/Irregular Lessons Section -->
+        <div class="bg-white rounded-lg p-6 shadow-sm border border-slate-200 mb-8">
+            <h2 class="text-xl font-semibold text-slate-800 mb-4">Cancelled/Irregular Lessons - Special Thresholds</h2>
+            <p class="text-slate-600 mb-4">Cancelled and irregular lessons use a more aggressive compact layout threshold (40px vs 45px for normal lessons)</p>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <!-- Cancelled lesson - compact at 42px (would be normal for regular lessons) -->
+                <div>
+                    <h3 class="text-lg font-medium text-red-600 mb-2">Cancelled Lesson (42px height)</h3>
+                    <p class="text-slate-600 mb-3 text-sm">Uses compact layout due to lower threshold (40px) for cancelled lessons</p>
+                    
+                    <div class="relative rounded-md p-2 text-xs border-2 border-rose-600 shadow-lg bg-gradient-to-r from-blue-400 to-blue-600 text-white cursor-pointer" style="height: 42px; background: linear-gradient(to right, rgba(239, 68, 68, 0.6), rgba(239, 68, 68, 0.55), rgba(239, 68, 68, 0.6)), linear-gradient(to right, rgb(96, 165, 250), rgb(37, 99, 235));">
+                        <div class="absolute top-1 right-1 flex flex-col items-end gap-1">
+                            <div class="text-[11px] leading-tight whitespace-nowrap drop-shadow-sm text-white">Room 105</div>
+                        </div>
+                        <div class="flex flex-col h-full" style="padding-bottom: 6px; padding-right: 88px; padding-left: 0;">
+                            <!-- Compact layout: subject and teacher on same line -->
+                            <div class="flex flex-wrap items-baseline gap-x-2">
+                                <div class="font-semibold leading-tight text-[13px] lesson-cancelled-subject">History</div>
+                                <div class="leading-tight text-[12px] lesson-cancelled-teacher flex flex-wrap gap-x-1">
+                                    <span>Ms. Johnson</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Irregular lesson - compact at 42px -->
+                <div>
+                    <h3 class="text-lg font-medium text-emerald-600 mb-2">Irregular Lesson (42px height)</h3>
+                    <p class="text-slate-600 mb-3 text-sm">Uses compact layout due to lower threshold (40px) for irregular lessons</p>
+                    
+                    <div class="relative rounded-md p-2 text-xs border-2 border-emerald-500 shadow-lg bg-gradient-to-r from-orange-400 to-orange-600 text-white cursor-pointer" style="height: 42px; background: linear-gradient(to right, rgba(16, 185, 129, 0.6), rgba(16, 185, 129, 0.55), rgba(16, 185, 129, 0.6)), linear-gradient(to right, rgb(251, 146, 60), rgb(234, 88, 12));">
+                        <div class="absolute top-1 right-1 flex flex-col items-end gap-1">
+                            <div class="text-[11px] leading-tight whitespace-nowrap drop-shadow-sm text-white">Gym</div>
+                        </div>
+                        <div class="flex flex-col h-full" style="padding-bottom: 6px; padding-right: 88px; padding-left: 0;">
+                            <!-- Compact layout: subject and teacher on same line -->
+                            <div class="flex flex-wrap items-baseline gap-x-2">
+                                <div class="font-semibold leading-tight text-[13px]">Physical Ed</div>
+                                <div class="leading-tight text-[12px] flex flex-wrap gap-x-1">
+                                    <span>Coach Wilson</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Layout Thresholds Explanation -->
+        <div class="bg-white rounded-lg p-6 shadow-sm border border-slate-200">
+            <h2 class="text-xl font-semibold text-slate-800 mb-4">Layout Thresholds</h2>
+            
+            <div class="space-y-4">
+                <div class="flex items-center p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div class="w-4 h-4 bg-blue-500 rounded-full mr-3"></div>
+                    <div>
+                        <div class="font-medium text-blue-800">Normal Layout (>55px height)</div>
+                        <div class="text-blue-700 text-sm">Subject → Time → Teacher (separate rows)</div>
+                    </div>
+                </div>
+                
+                <div class="space-y-2">
+                    <div class="flex items-center p-3 bg-green-50 border border-green-200 rounded-lg">
+                        <div class="w-4 h-4 bg-green-500 rounded-full mr-3"></div>
+                        <div>
+                            <div class="font-medium text-green-800">Compact Layout (35-55px height) - Normal Lessons</div>
+                            <div class="text-green-700 text-sm">Subject + Teacher (inline with gap), no time display</div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
+                        <div class="w-4 h-4 bg-emerald-500 rounded-full mr-3"></div>
+                        <div>
+                            <div class="font-medium text-emerald-800">Compact Layout (40-55px height) - Cancelled/Irregular Lessons</div>
+                            <div class="text-emerald-700 text-sm">Subject + Teacher (inline with gap), lower threshold for special lessons</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex items-center p-3 bg-purple-50 border border-purple-200 rounded-lg">
+                    <div class="w-4 h-4 bg-purple-500 rounded-full mr-3"></div>
+                    <div>
+                        <div class="font-medium text-purple-800">Minimal Layout (<35px height)</div>
+                        <div class="text-purple-700 text-sm">Subject only (existing fallback behavior)</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -13,7 +13,12 @@ import {
     getDefaultLessonColors,
     getNotifications,
 } from '../api';
-import { addDays, fmtLocal, startOfWeek } from '../utils/dates';
+import {
+    addDays,
+    fmtLocal,
+    startOfWeek,
+    getISOWeekNumber,
+} from '../utils/dates';
 import { useTimetableCache } from '../hooks/useTimetableCache';
 import type {
     TimetableResponse,
@@ -42,6 +47,7 @@ export default function Dashboard({
     const [start, setStart] = useState<string>(() => fmtLocal(new Date()));
     const [mine, setMine] = useState<TimetableResponse | null>(null);
     const [loadError, setLoadError] = useState<string | null>(null);
+    const [colorError, setColorError] = useState<string | null>(null);
     const [queryText, setQueryText] = useState('');
     const [results, setResults] = useState<
         Array<{ id: string; username: string; displayName: string | null }>
@@ -124,6 +130,12 @@ export default function Dashboard({
         [weekStartDate]
     );
 
+    // Calculate the calendar week number
+    const calendarWeek = useMemo(
+        () => getISOWeekNumber(weekStartDate),
+        [weekStartDate]
+    );
+
     const loadMine = useCallback(async () => {
         setLoadError(null);
         try {
@@ -168,7 +180,14 @@ export default function Dashboard({
         } finally {
             /* no loading flag */
         }
-    }, [getTimetableData, user.id, weekStartDate, token, weekStartStr, weekEndStr]);
+    }, [
+        getTimetableData,
+        user.id,
+        weekStartDate,
+        token,
+        weekStartStr,
+        weekEndStr,
+    ]);
 
     const loadUser = useCallback(
         async (userId: string) => {
@@ -215,7 +234,14 @@ export default function Dashboard({
                 /* no loading flag */
             }
         },
-        [getTimetableData, user.id, weekStartDate, token, weekStartStr, weekEndStr]
+        [
+            getTimetableData,
+            user.id,
+            weekStartDate,
+            token,
+            weekStartStr,
+            weekEndStr,
+        ]
     );
 
     useEffect(() => {
@@ -251,6 +277,9 @@ export default function Dashboard({
     // Handle lesson color changes
     const handleColorChange = useCallback(
         async (lessonName: string, color: string | null, offset?: number) => {
+            // Clear any previous color error when starting a new change
+            setColorError(null);
+
             try {
                 const viewingUserId = selectedUser?.id;
                 if (color) {
@@ -315,7 +344,52 @@ export default function Dashboard({
                 }
             } catch (error) {
                 console.error('Failed to update lesson color:', error);
-                // TODO: Show error message to user
+
+                // Parse error message for user-friendly display
+                let userMessage =
+                    'Failed to update lesson color. Please try again.';
+
+                try {
+                    const errorMessage =
+                        error instanceof Error ? error.message : String(error);
+                    const parsed = JSON.parse(errorMessage);
+
+                    // Handle rate limiting errors specifically
+                    if (parsed.status === 429) {
+                        const errorText = parsed.error || errorMessage;
+                        if (errorText.includes('Too many color requests')) {
+                            userMessage =
+                                'Too many color changes. Please wait a moment before trying again.';
+                        } else if (
+                            errorText.includes('Too many WebUntis requests')
+                        ) {
+                            userMessage =
+                                'Rate limit reached. Please wait a few seconds before changing colors.';
+                        } else {
+                            userMessage =
+                                'Too many requests. Please slow down and try again in a moment.';
+                        }
+                    } else if (parsed.error) {
+                        userMessage = parsed.error;
+                    }
+                } catch {
+                    // If error parsing fails, check for common rate limit messages in raw error
+                    const errorText =
+                        error instanceof Error ? error.message : String(error);
+                    if (
+                        errorText.includes('rate limit') ||
+                        errorText.includes('too many')
+                    ) {
+                        userMessage =
+                            'Rate limit reached. Please wait before changing colors again.';
+                    }
+                }
+
+                // Show error to user
+                setColorError(userMessage);
+
+                // Auto-clear error after 5 seconds
+                setTimeout(() => setColorError(null), 5000);
             }
         },
         [token, selectedUser?.id, user.isAdmin]
@@ -356,6 +430,15 @@ export default function Dashboard({
         const q = queryText.trim();
         if (!q) {
             // Clear everything when field emptied
+            setResults([]);
+            lastResultsRef.current = [];
+            setSearchLoading(false);
+            setSearchError(null);
+            abortRef.current?.abort();
+            return;
+        }
+        if (q.length < 2) {
+            // Don't search with less than 2 characters - clear results and loading state
             setResults([]);
             lastResultsRef.current = [];
             setSearchLoading(false);
@@ -776,12 +859,17 @@ export default function Dashboard({
                                     </svg>
                                 </button>
                             </div>
-                            {/* Week picker (week info removed) */}
+                            {/* Week picker with calendar week display */}
                             <div className="flex items-end gap-3 ml-auto mr-5">
                                 <div>
-                                    <label className="label sm:text-sm text-[11px]">
-                                        Week
-                                    </label>
+                                    <div className="flex justify-between items-center">
+                                        <label className="label sm:text-sm text-[11px]">
+                                            Week
+                                        </label>
+                                        <label className="label sm:text-sm text-[11px]">
+                                            CW {calendarWeek}
+                                        </label>
+                                    </div>
                                     <input
                                         type="date"
                                         className="input text-sm"
@@ -816,6 +904,29 @@ export default function Dashboard({
                                 })()}
                             </div>
                         ) : null}
+
+                        {/* Color change error message */}
+                        {colorError && (
+                            <div className="mb-3 rounded-md border border-rose-300 bg-rose-50 p-3 text-rose-800 dark:border-rose-700 dark:bg-rose-900/40 dark:text-rose-200">
+                                <div className="flex items-start gap-2">
+                                    <svg
+                                        className="w-5 h-5 mt-0.5 flex-shrink-0"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={2}
+                                            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
+                                        />
+                                    </svg>
+                                    <span>{colorError}</span>
+                                </div>
+                            </div>
+                        )}
+
                         <Timetable
                             data={mine}
                             weekStart={weekStartDate}

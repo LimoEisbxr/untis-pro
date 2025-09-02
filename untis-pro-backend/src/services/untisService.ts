@@ -541,7 +541,7 @@ async function storeHomeworkData(
                 hw.subject?.name ||
                 '';
             await (prisma as any).homework.upsert({
-                where: { untisId: hw.id },
+                where: { userId_untisId: { userId, untisId: hw.id } },
                 update: {
                     lessonId: hw.lessonId,
                     // Store due date; Untis returns both date (assigned) and dueDate
@@ -583,7 +583,7 @@ async function storeExamData(userId: string, examData: any[]) {
     for (const exam of examData) {
         try {
             await (prisma as any).exam.upsert({
-                where: { untisId: exam.id },
+                where: { userId_untisId: { userId, untisId: exam.id } },
                 update: {
                     date: exam.date,
                     startTime: exam.startTime,
@@ -657,17 +657,55 @@ async function enrichLessonsWithHomeworkAndExams(
         return idsToCheck.some((v) => v === hw.lessonId);
     };
 
+    const subjectMatches = (hwSubject: string, lessonSubject: string) => {
+        if (!hwSubject || !lessonSubject) return false;
+        // Normalize subject names for comparison (case insensitive, trim whitespace)
+        return hwSubject.toLowerCase().trim() === lessonSubject.toLowerCase().trim();
+    };
+
+    // Helper to check if homework date is within a reasonable range of lesson date
+    const dateWithinRange = (hwDate: number, lessonDate: number, dayRange: number = 7) => {
+        if (hwDate === lessonDate) return true;
+        
+        // Convert YYYYMMDD to Date objects for comparison
+        const hwDateObj = new Date(
+            Math.floor(hwDate / 10000),
+            Math.floor((hwDate % 10000) / 100) - 1,
+            hwDate % 100
+        );
+        const lessonDateObj = new Date(
+            Math.floor(lessonDate / 10000),
+            Math.floor((lessonDate % 10000) / 100) - 1,
+            lessonDate % 100
+        );
+        
+        const diffMs = Math.abs(hwDateObj.getTime() - lessonDateObj.getTime());
+        const diffDays = diffMs / (1000 * 60 * 60 * 24);
+        return diffDays <= dayRange;
+    };
+
     // Enrich lessons with homework and exam data
     return lessons.map((lesson) => {
         const subjectName = lesson.su?.[0]?.name;
         const lessonHomework = homework
             .filter(
-                (hw: any) =>
-                    lessonMatchesHw(hw, lesson) ||
-                    (hw.date === lesson.date &&
-                        hw.subject &&
-                        subjectName &&
-                        hw.subject === subjectName)
+                (hw: any) => {
+                    // Primary matching: homework lessonId matches lesson ID
+                    if (lessonMatchesHw(hw, lesson)) {
+                        return true;
+                    }
+                    
+                    // Secondary matching: subject matches and date is within reasonable range
+                    if (hw.subject && subjectName && subjectMatches(hw.subject, subjectName)) {
+                        // Only attach if homework date is within 7 days of lesson date
+                        // This prevents homework from being attached to all lessons of same subject
+                        if (dateWithinRange(hw.date, lesson.date, 7)) {
+                            return true;
+                        }
+                    }
+                    
+                    return false;
+                }
             )
             .map((hw: any) => ({
                 id: hw.untisId,

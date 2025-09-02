@@ -251,13 +251,34 @@ export class NotificationService {
                 return;
             }
 
-            // Check for cancelled or irregular lessons
+            // Get current date info
             const today = new Date();
             const todayString = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
+            
+            // Calculate week boundaries (assuming week starts on Monday)
+            const startOfWeek = new Date(today);
+            const dayOfWeek = startOfWeek.getDay();
+            const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Handle Sunday (0) as 6 days from Monday
+            startOfWeek.setDate(today.getDate() - daysFromMonday);
+            const startOfWeekString = startOfWeek.getFullYear() * 10000 + (startOfWeek.getMonth() + 1) * 100 + startOfWeek.getDate();
+            
+            const endOfWeek = new Date(startOfWeek);
+            endOfWeek.setDate(startOfWeek.getDate() + 6);
+            const endOfWeekString = endOfWeek.getFullYear() * 10000 + (endOfWeek.getMonth() + 1) * 100 + endOfWeek.getDate();
 
             for (const lesson of lessons) {
-                if (lesson.date === todayString || lesson.date === todayString + 1) { // Today or tomorrow
-                    if (lesson.code === 'cancelled') {
+                // Check cancelled lessons based on user's time scope preference
+                if (lesson.code === 'cancelled' && user.notificationSettings?.cancelledLessonsEnabled) {
+                    const scope = user.notificationSettings?.cancelledLessonsTimeScope || 'day';
+                    let shouldNotify = false;
+
+                    if (scope === 'day') {
+                        shouldNotify = lesson.date === todayString;
+                    } else if (scope === 'week') {
+                        shouldNotify = lesson.date >= startOfWeekString && lesson.date <= endOfWeekString;
+                    }
+
+                    if (shouldNotify) {
                         await this.createNotification({
                             type: 'cancelled_lesson',
                             title: 'Lesson Cancelled',
@@ -265,11 +286,60 @@ export class NotificationService {
                             userId: user.id,
                             data: lesson,
                         });
-                    } else if (lesson.code === 'irregular') {
+                    }
+                }
+
+                // Check irregular lessons based on user's time scope preference
+                if (lesson.code === 'irregular' && user.notificationSettings?.irregularLessonsEnabled) {
+                    const scope = user.notificationSettings?.irregularLessonsTimeScope || 'day';
+                    let shouldNotify = false;
+
+                    if (scope === 'day') {
+                        shouldNotify = lesson.date === todayString;
+                    } else if (scope === 'week') {
+                        shouldNotify = lesson.date >= startOfWeekString && lesson.date <= endOfWeekString;
+                    }
+
+                    if (shouldNotify) {
                         await this.createNotification({
                             type: 'irregular_lesson',
                             title: 'Irregular Lesson',
                             message: `${lesson.su?.[0]?.name || 'Lesson'} has irregular scheduling`,
+                            userId: user.id,
+                            data: lesson,
+                        });
+                    }
+                }
+
+                // Check for room/teacher changes (also count as irregular)
+                const hasTeacherChanges = lesson.te?.some((t: any) => t.orgname) || false;
+                const hasRoomChanges = lesson.ro?.some((r: any) => r.orgname) || false;
+                
+                if ((hasTeacherChanges || hasRoomChanges) && user.notificationSettings?.irregularLessonsEnabled) {
+                    const scope = user.notificationSettings?.irregularLessonsTimeScope || 'day';
+                    let shouldNotify = false;
+
+                    if (scope === 'day') {
+                        shouldNotify = lesson.date === todayString;
+                    } else if (scope === 'week') {
+                        shouldNotify = lesson.date >= startOfWeekString && lesson.date <= endOfWeekString;
+                    }
+
+                    if (shouldNotify) {
+                        const changedItems = [];
+                        if (hasTeacherChanges) {
+                            const teacherChanges = lesson.te?.filter((t: any) => t.orgname).map((t: any) => `${t.orgname} → ${t.name}`);
+                            changedItems.push(`Teacher: ${teacherChanges?.join(', ')}`);
+                        }
+                        if (hasRoomChanges) {
+                            const roomChanges = lesson.ro?.filter((r: any) => r.orgname).map((r: any) => `${r.orgname} → ${r.name}`);
+                            changedItems.push(`Room: ${roomChanges?.join(', ')}`);
+                        }
+
+                        await this.createNotification({
+                            type: 'room_teacher_change',
+                            title: 'Room/Teacher Change',
+                            message: `${lesson.su?.[0]?.name || 'Lesson'}: ${changedItems.join(', ')}`,
                             userId: user.id,
                             data: lesson,
                         });

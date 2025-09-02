@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom';
 import type { Lesson, LessonColors } from '../types';
 import { fmtHM, untisToMinutes } from '../utils/dates';
 import ColorPicker from './ColorPicker';
+import { extractSubjectType } from '../utils/subjectUtils';
+import { getTeacherDisplayText, getRoomDisplayText } from '../utils/lessonChanges';
 
 export default function LessonModal({
     lesson,
@@ -101,11 +103,20 @@ export default function LessonModal({
     };
 
     const subject = lesson.su?.[0]?.name ?? lesson.activityType ?? '—';
+    const subjectType = extractSubjectType(subject);
     const subjectLong = lesson.su?.[0]?.longname ?? subject;
-    const room = lesson.ro?.map((r) => r.name).join(', ');
-    const roomLong = lesson.ro?.map((r) => r.longname || r.name).join(', ');
-    const teacher = lesson.te?.map((t) => t.name).join(', ');
-    const teacherLong = lesson.te?.map((t) => t.longname || t.name).join(', ');
+    const cancelled = lesson.code === 'cancelled';
+    
+    // Use helper functions to get teacher and room display info
+    const teacherInfo = getTeacherDisplayText(lesson);
+    const roomInfo = getRoomDisplayText(lesson);
+    
+    // Keep old variables for backward compatibility in other parts
+    const teacher = teacherInfo.current;
+    const teacherLong = lesson.te?.map((t) => t.longname || t.name).join(', ') || '';
+    const room = roomInfo.current;
+    const roomLong = lesson.ro?.map((r) => r.longname || r.name).join(', ') || '';
+    
     const startTime = fmtHM(untisToMinutes(lesson.startTime));
     const endTime = fmtHM(untisToMinutes(lesson.endTime));
 
@@ -227,11 +238,11 @@ export default function LessonModal({
                                     <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-2">
                                         Subject
                                     </h3>
-                                    <p className="text-slate-900 dark:text-slate-100">
+                                    <p className={`text-slate-900 dark:text-slate-100 ${cancelled ? 'lesson-cancelled-subject' : ''}`}>
                                         {subjectLong}
                                     </p>
                                     {subjectLong !== subject && (
-                                        <p className="text-sm text-slate-600 dark:text-slate-400">
+                                        <p className={`text-sm text-slate-600 dark:text-slate-400 ${cancelled ? 'lesson-cancelled' : ''}`}>
                                             ({subject})
                                         </p>
                                     )}
@@ -240,38 +251,54 @@ export default function LessonModal({
                                     <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-2">
                                         Time
                                     </h3>
-                                    <p className="text-slate-900 dark:text-slate-100">
+                                    <p className={`text-slate-900 dark:text-slate-100 ${cancelled ? 'lesson-cancelled-time' : ''}`}>
                                         {startTime} - {endTime}
                                     </p>
                                 </div>
-                                {teacherLong && (
+                                {teacherInfo.current && (
                                     <div>
                                         <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-2">
                                             Teacher
                                         </h3>
-                                        <p className="text-slate-900 dark:text-slate-100">
-                                            {teacherLong}
-                                        </p>
-                                        {teacherLong !== teacher && (
-                                            <p className="text-sm text-slate-600 dark:text-slate-400">
-                                                ({teacher})
+                                        <div className="space-y-1">
+                                            <p className={`text-slate-900 dark:text-slate-100 ${cancelled ? 'lesson-cancelled-teacher' : ''}`}>
+                                                {teacherInfo.hasChanges ? (
+                                                    <span className="change-highlight">
+                                                        {teacherLong && teacherLong !== teacher ? `${teacherLong} (${teacher})` : teacherLong || teacher}
+                                                    </span>
+                                                ) : (
+                                                    teacherLong && teacherLong !== teacher ? `${teacherLong} (${teacher})` : teacherLong || teacher
+                                                )}
                                             </p>
-                                        )}
+                                            {teacherInfo.hasChanges && teacherInfo.original && (
+                                                <p className={`text-sm change-original ${cancelled ? 'lesson-cancelled' : ''}`}>
+                                                    Original: {teacherInfo.original}
+                                                </p>
+                                            )}
+                                        </div>
                                     </div>
                                 )}
-                                {roomLong && (
+                                {roomInfo.current && (
                                     <div>
                                         <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-2">
                                             Room
                                         </h3>
-                                        <p className="text-slate-900 dark:text-slate-100">
-                                            {roomLong}
-                                        </p>
-                                        {roomLong !== room && (
-                                            <p className="text-sm text-slate-600 dark:text-slate-400">
-                                                ({room})
+                                        <div className="space-y-1">
+                                            <p className={`text-slate-900 dark:text-slate-100 ${cancelled ? 'lesson-cancelled-room' : ''}`}>
+                                                {roomInfo.hasChanges ? (
+                                                    <span className="change-highlight">
+                                                        {roomLong && roomLong !== room ? `${roomLong} (${room})` : roomLong || room}
+                                                    </span>
+                                                ) : (
+                                                    roomLong && roomLong !== room ? `${roomLong} (${room})` : roomLong || room
+                                                )}
                                             </p>
-                                        )}
+                                            {roomInfo.hasChanges && roomInfo.original && (
+                                                <p className={`text-sm change-original ${cancelled ? 'lesson-cancelled' : ''}`}>
+                                                    Original: {roomInfo.original}
+                                                </p>
+                                            )}
+                                        </div>
                                     </div>
                                 )}
                             </div>
@@ -316,7 +343,7 @@ export default function LessonModal({
                                                 </svg>
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <p className="text-sm text-blue-900 dark:text-blue-100 whitespace-pre-wrap">
+                                                <p className={`text-sm text-blue-900 dark:text-blue-100 whitespace-pre-wrap ${cancelled ? 'lesson-cancelled' : ''}`}>
                                                     {lesson.info}
                                                 </p>
                                             </div>
@@ -342,7 +369,7 @@ export default function LessonModal({
                                                 </svg>
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <p className="text-sm text-indigo-900 dark:text-indigo-100 whitespace-pre-wrap">
+                                                <p className={`text-sm text-indigo-900 dark:text-indigo-100 whitespace-pre-wrap ${cancelled ? 'lesson-cancelled' : ''}`}>
                                                     {lesson.lstext}
                                                 </p>
                                             </div>
@@ -511,7 +538,7 @@ export default function LessonModal({
                                 </div>
                             )}
 
-                            {onColorChange && subject && (
+                            {onColorChange && subjectType && (
                                 <div>
                                     <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-3">
                                         Customize Color
@@ -519,32 +546,32 @@ export default function LessonModal({
                                     <div className="border border-slate-200 dark:border-slate-700 rounded-lg p-4">
                                         <ColorPicker
                                             currentColor={
-                                                lessonColors?.[subject]
+                                                lessonColors?.[subjectType]
                                             }
                                             fallbackColor={
-                                                defaultLessonColors?.[subject]
+                                                defaultLessonColors?.[subjectType]
                                             }
                                             canRemoveFallback={!!isAdmin}
                                             onColorChange={(color) =>
                                                 onColorChange(
-                                                    subject,
+                                                    subjectType,
                                                     color,
                                                     gradientOffsets?.[
-                                                        subject
+                                                        subjectType
                                                     ] ?? 0.5
                                                 )
                                             }
                                             onRemoveColor={() =>
-                                                onColorChange(subject, null)
+                                                onColorChange(subjectType, null)
                                             }
                                             isAdmin={!!isAdmin}
                                             gradientOffset={
-                                                gradientOffsets?.[subject] ??
+                                                gradientOffsets?.[subjectType] ??
                                                 0.5
                                             }
                                             onGradientOffsetChange={(v) =>
                                                 onGradientOffsetChange?.(
-                                                    subject,
+                                                    subjectType,
                                                     v
                                                 )
                                             }

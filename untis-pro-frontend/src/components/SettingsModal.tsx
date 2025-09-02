@@ -886,6 +886,42 @@ export default function SettingsModal({
         }
     };
 
+    // Intelligent notification toggle - automatically uses PWA notifications when available, browser notifications otherwise
+    const handleToggleNotifications = async (enabled: boolean) => {
+        if (!notificationSettings) return;
+
+        try {
+            if (enabled) {
+                // Always enable browser notifications first
+                await handleUpdateNotificationSettings({
+                    browserNotificationsEnabled: true,
+                });
+
+                // If we're in a PWA environment, also enable push notifications
+                if (isStandalonePWA() && !iosTooOld && !iosNeedsInstall) {
+                    try {
+                        await ensurePushSubscription();
+                        await handleUpdateNotificationSettings({ pushNotificationsEnabled: true });
+                    } catch (err) {
+                        // PWA notifications failed, but browser notifications are still enabled
+                        console.warn('PWA notifications failed, using browser notifications only:', err);
+                    }
+                }
+            } else {
+                // Disable both browser and push notifications
+                await disablePushSubscription();
+                await handleUpdateNotificationSettings({
+                    browserNotificationsEnabled: false,
+                    pushNotificationsEnabled: false,
+                });
+            }
+        } catch (e) {
+            setNotificationError(
+                e instanceof Error ? e.message : 'Failed to update notification settings'
+            );
+        }
+    };
+
     // Load settings when modal opens (with stable callbacks)
     useEffect(() => {
         if (isOpen) {
@@ -1972,10 +2008,16 @@ export default function SettingsModal({
                                                     <div className="flex items-center justify-between">
                                                         <div>
                                                             <h4 className="font-medium text-slate-900 dark:text-slate-100">
-                                                                Browser
                                                                 Notifications
                                                             </h4>
-                                                            <p className="text-sm text-slate-600 dark:text-slate-400">{notificationPermissionMessage()}</p>
+                                                            <p className="text-sm text-slate-600 dark:text-slate-400">
+                                                                {notificationPermission === 'granted' 
+                                                                    ? isStandalonePWA() 
+                                                                        ? 'PWA push notifications (background) enabled' 
+                                                                        : 'Browser notifications (tab must be open) enabled'
+                                                                    : notificationPermissionMessage()
+                                                                }
+                                                            </p>
                                                         </div>
                                                         {canShowPermissionButton && (
                                                             <button
@@ -1998,13 +2040,8 @@ export default function SettingsModal({
                                                                     onChange={(
                                                                         e
                                                                     ) =>
-                                                                        handleUpdateNotificationSettings(
-                                                                            {
-                                                                                browserNotificationsEnabled:
-                                                                                    e
-                                                                                        .target
-                                                                                        .checked,
-                                                                            }
+                                                                        handleToggleNotifications(
+                                                                            e.target.checked
                                                                         )
                                                                     }
                                                                     className="sr-only peer"
@@ -2013,38 +2050,6 @@ export default function SettingsModal({
                                                             </label>
                                                         )}
                                                     </div>
-                                                    {notificationPermission === 'granted' && notificationSettings.browserNotificationsEnabled && !iosTooOld && !iosNeedsInstall && (
-                                                        <div className="mt-4 flex items-center justify-between">
-                                                            <div>
-                                                                <h5 className="text-sm font-medium text-slate-900 dark:text-slate-100">Push Notifications (PWA)</h5>
-                                                                <p className="text-xs text-slate-600 dark:text-slate-400 max-w-sm">
-                                                                    Reliable background notifications when the app isn't active. Requires installed PWA. Browser notifications work only while a tab is open.
-                                                                </p>
-                                                            </div>
-                                                            <label className="relative inline-flex items-center cursor-pointer">
-                                                                <input
-                                                                    type="checkbox"
-                                                                    checked={!!notificationSettings.pushNotificationsEnabled}
-                                                                    onChange={async (e) => {
-                                                                        const enable = e.target.checked;
-                                                                        if (enable) {
-                                                                            try {
-                                                                                await ensurePushSubscription();
-                                                                                await handleUpdateNotificationSettings({ pushNotificationsEnabled: true });
-                                                                            } catch (err) {
-                                                                                setNotificationError(err instanceof Error ? err.message : 'Failed to enable push notifications');
-                                                                            }
-                                                                        } else {
-                                                                            await disablePushSubscription();
-                                                                            await handleUpdateNotificationSettings({ pushNotificationsEnabled: false });
-                                                                        }
-                                                                    }}
-                                                                    className="sr-only peer"
-                                                                />
-                                                                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600"></div>
-                                                            </label>
-                                                        </div>
-                                                    )}
                                                 </div>
                                             )}
 
@@ -2083,6 +2088,47 @@ export default function SettingsModal({
                                                         </label>
                                                     </div>
 
+                                                    {/* Time scope for cancelled lessons (User Manager) */}
+                                                    {notificationSettings.cancelledLessonsEnabled && (
+                                                        <div className="ml-4 pl-4 border-l border-slate-200 dark:border-slate-600">
+                                                            <p className="text-xs font-medium text-slate-700 dark:text-slate-300 mb-2">
+                                                                Notify me for cancelled lessons:
+                                                            </p>
+                                                            <div className="flex gap-4">
+                                                                <label className="flex items-center cursor-pointer">
+                                                                    <input
+                                                                        type="radio"
+                                                                        name="umCancelledScope"
+                                                                        value="day"
+                                                                        checked={notificationSettings.cancelledLessonsTimeScope === 'day'}
+                                                                        onChange={() => handleUpdateNotificationSettings({
+                                                                            cancelledLessonsTimeScope: 'day'
+                                                                        })}
+                                                                        className="w-4 h-4 text-indigo-600 border-slate-300 dark:border-slate-600 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:ring-2"
+                                                                    />
+                                                                    <span className="ml-2 text-xs text-slate-600 dark:text-slate-400">
+                                                                        Today only
+                                                                    </span>
+                                                                </label>
+                                                                <label className="flex items-center cursor-pointer">
+                                                                    <input
+                                                                        type="radio"
+                                                                        name="umCancelledScope"
+                                                                        value="week"
+                                                                        checked={notificationSettings.cancelledLessonsTimeScope === 'week'}
+                                                                        onChange={() => handleUpdateNotificationSettings({
+                                                                            cancelledLessonsTimeScope: 'week'
+                                                                        })}
+                                                                        className="w-4 h-4 text-indigo-600 border-slate-300 dark:border-slate-600 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:ring-2"
+                                                                    />
+                                                                    <span className="ml-2 text-xs text-slate-600 dark:text-slate-400">
+                                                                        This week
+                                                                    </span>
+                                                                </label>
+                                                            </div>
+                                                        </div>
+                                                    )}
+
                                                     <div className="flex items-center justify-between">
                                                         <div>
                                                             <h5 className="text-sm font-medium text-slate-900 dark:text-slate-100">
@@ -2116,6 +2162,47 @@ export default function SettingsModal({
                                                             <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600"></div>
                                                         </label>
                                                     </div>
+
+                                                    {/* Time scope for irregular lessons (User Manager) */}
+                                                    {notificationSettings.irregularLessonsEnabled && (
+                                                        <div className="ml-4 pl-4 border-l border-slate-200 dark:border-slate-600">
+                                                            <p className="text-xs font-medium text-slate-700 dark:text-slate-300 mb-2">
+                                                                Notify me for irregular lessons:
+                                                            </p>
+                                                            <div className="flex gap-4">
+                                                                <label className="flex items-center cursor-pointer">
+                                                                    <input
+                                                                        type="radio"
+                                                                        name="umIrregularScope"
+                                                                        value="day"
+                                                                        checked={notificationSettings.irregularLessonsTimeScope === 'day'}
+                                                                        onChange={() => handleUpdateNotificationSettings({
+                                                                            irregularLessonsTimeScope: 'day'
+                                                                        })}
+                                                                        className="w-4 h-4 text-indigo-600 border-slate-300 dark:border-slate-600 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:ring-2"
+                                                                    />
+                                                                    <span className="ml-2 text-xs text-slate-600 dark:text-slate-400">
+                                                                        Today only
+                                                                    </span>
+                                                                </label>
+                                                                <label className="flex items-center cursor-pointer">
+                                                                    <input
+                                                                        type="radio"
+                                                                        name="umIrregularScope"
+                                                                        value="week"
+                                                                        checked={notificationSettings.irregularLessonsTimeScope === 'week'}
+                                                                        onChange={() => handleUpdateNotificationSettings({
+                                                                            irregularLessonsTimeScope: 'week'
+                                                                        })}
+                                                                        className="w-4 h-4 text-indigo-600 border-slate-300 dark:border-slate-600 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:ring-2"
+                                                                    />
+                                                                    <span className="ml-2 text-xs text-slate-600 dark:text-slate-400">
+                                                                        This week
+                                                                    </span>
+                                                                </label>
+                                                            </div>
+                                                        </div>
+                                                    )}
 
                                                     <div className="flex items-center justify-between">
                                                         <div>
@@ -2187,6 +2274,206 @@ export default function SettingsModal({
                                         </div>
                                     )
                                 )}
+
+                                {/* Sharing Settings for User Managers */}
+                                {loading ? (
+                                    <div className="text-center text-slate-600 dark:text-slate-400 pt-6">
+                                        Loading sharing settings...
+                                    </div>
+                                ) : error ? (
+                                    <div className="text-center text-red-600 dark:text-red-400 pt-6">
+                                        {error}
+                                    </div>
+                                ) : settings ? (
+                                    <div className="border-t border-slate-200 dark:border-slate-700 pt-6">
+                                        <h3 className="text-lg font-medium mb-4 text-slate-900 dark:text-slate-100">
+                                            Timetable Sharing
+                                        </h3>
+
+                                        {/* Personal sharing toggle */}
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <h4 className="font-medium text-slate-900 dark:text-slate-100">
+                                                    Enable Timetable Sharing
+                                                </h4>
+                                                <p className="text-sm text-slate-600 dark:text-slate-400">
+                                                    Allow others to see your
+                                                    timetable
+                                                </p>
+                                            </div>
+                                            <label className="relative inline-flex items-center cursor-pointer">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={
+                                                        settings.sharingEnabled
+                                                    }
+                                                    onChange={(e) =>
+                                                        handleToggleSharing(
+                                                            e.target.checked
+                                                        )
+                                                    }
+                                                    disabled={
+                                                        !settings.globalSharingEnabled
+                                                    }
+                                                    className="sr-only peer"
+                                                />
+                                                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600 peer-disabled:opacity-50"></div>
+                                            </label>
+                                        </div>
+
+                                        {settings.globalSharingEnabled ? (
+                                            <>
+                                                {/* Search and add users */}
+                                                <div className="mt-4">
+                                                    <label className="block text-sm font-medium mb-2 text-slate-900 dark:text-slate-100">
+                                                        Share with new people
+                                                    </label>
+                                                    <div className="relative">
+                                                        <input
+                                                            type="text"
+                                                            placeholder="Search users by name or username..."
+                                                            value={searchQuery}
+                                                            onChange={(e) =>
+                                                                setSearchQuery(
+                                                                    e.target.value
+                                                                )
+                                                            }
+                                                            className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 placeholder:text-slate-500 dark:placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                                        />
+                                                        {searchLoading && (
+                                                            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                                                                <div className="w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    {searchResults.length > 0 && (
+                                                        <div className="mt-2 border border-slate-200 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 max-h-40 overflow-y-auto">
+                                                            {searchResults.map(
+                                                                (result) => (
+                                                                    <button
+                                                                        key={
+                                                                            result.id
+                                                                        }
+                                                                        onClick={() =>
+                                                                            handleShareWithUser(
+                                                                                result
+                                                                            )
+                                                                        }
+                                                                        className="w-full px-3 py-2 text-left hover:bg-slate-100 dark:hover:bg-slate-600 flex items-center justify-between"
+                                                                    >
+                                                                        <div>
+                                                                            <div className="font-medium text-slate-900 dark:text-slate-100">
+                                                                                {result.displayName ||
+                                                                                    result.username}
+                                                                            </div>
+                                                                            {result.displayName && (
+                                                                                <div className="text-sm text-slate-500 dark:text-slate-400">
+                                                                                    @
+                                                                                    {
+                                                                                        result.username
+                                                                                    }
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                        <svg
+                                                                            width="16"
+                                                                            height="16"
+                                                                            viewBox="0 0 24 24"
+                                                                            fill="none"
+                                                                            className="text-slate-400"
+                                                                        >
+                                                                            <path
+                                                                                d="M12 5v14m7-7H5"
+                                                                                stroke="currentColor"
+                                                                                strokeWidth="2"
+                                                                                strokeLinecap="round"
+                                                                                strokeLinejoin="round"
+                                                                            />
+                                                                        </svg>
+                                                                    </button>
+                                                                )
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                {/* Currently sharing with */}
+                                                <div className="mt-4">
+                                                    <label className="block text-sm font-medium mb-2 text-slate-900 dark:text-slate-100">
+                                                        Sharing with
+                                                    </label>
+                                                    {settings.sharingWith.length ===
+                                                    0 ? (
+                                                        <p className="text-sm text-slate-500 dark:text-slate-400 text-center py-4 bg-slate-50 dark:bg-slate-700 rounded-md">
+                                                            You're not sharing your
+                                                            timetable with anyone
+                                                            yet.
+                                                        </p>
+                                                    ) : (
+                                                        <div className="space-y-2">
+                                                            {settings.sharingWith.map(
+                                                                (sharedUser) => (
+                                                                    <div
+                                                                        key={
+                                                                            sharedUser.id
+                                                                        }
+                                                                        className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-700 rounded-md"
+                                                                    >
+                                                                        <div>
+                                                                            <div className="font-medium text-slate-900 dark:text-slate-100">
+                                                                                {sharedUser.displayName ||
+                                                                                    sharedUser.username}
+                                                                            </div>
+                                                                            {sharedUser.displayName && (
+                                                                                <div className="text-sm text-slate-500 dark:text-slate-400">
+                                                                                    @
+                                                                                    {
+                                                                                        sharedUser.username
+                                                                                    }
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                        <button
+                                                                            onClick={() =>
+                                                                                handleStopSharing(
+                                                                                    sharedUser.id
+                                                                                )
+                                                                            }
+                                                                            className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 p-1 rounded"
+                                                                            title="Stop sharing"
+                                                                        >
+                                                                            <svg
+                                                                                width="16"
+                                                                                height="16"
+                                                                                viewBox="0 0 24 24"
+                                                                                fill="none"
+                                                                            >
+                                                                                <path
+                                                                                    d="M18 6L6 18M6 6l12 12"
+                                                                                    stroke="currentColor"
+                                                                                    strokeWidth="2"
+                                                                                    strokeLinecap="round"
+                                                                                    strokeLinejoin="round"
+                                                                                />
+                                                                            </svg>
+                                                                        </button>
+                                                                    </div>
+                                                                )
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </>
+                                        ) : (
+                                            <div className="text-center p-4 bg-slate-50 dark:bg-slate-700 rounded-md mt-4">
+                                                <p className="text-slate-600 dark:text-slate-400">
+                                                    Timetable sharing is currently
+                                                    disabled by an administrator.
+                                                </p>
+                                            </div>
+                                        )}
+                                    </div>
+                                ) : null}
                             </div>
                         </>
                     ) : (
@@ -2256,16 +2543,22 @@ export default function SettingsModal({
                                                     Notification Preferences
                                                 </h3>
 
-                                                {/* Browser notification permission */}
+                                                {/* Intelligent notification toggle */}
                                                 {isNotificationSupported() && (
                                                     <div className="mb-4">
                                                         <div className="flex items-center justify-between">
                                                             <div>
                                                                 <h4 className="font-medium text-slate-900 dark:text-slate-100">
-                                                                    Browser
                                                                     Notifications
                                                                 </h4>
-                                                                <p className="text-sm text-slate-600 dark:text-slate-400">{notificationPermissionMessage()}</p>
+                                                                <p className="text-sm text-slate-600 dark:text-slate-400">
+                                                                    {notificationPermission === 'granted' 
+                                                                        ? isStandalonePWA() 
+                                                                            ? 'PWA push notifications (background) enabled' 
+                                                                            : 'Browser notifications (tab must be open) enabled'
+                                                                        : notificationPermissionMessage()
+                                                                    }
+                                                                </p>
                                                             </div>
                                                             {canShowPermissionButton && (
                                                                 <button
@@ -2288,13 +2581,8 @@ export default function SettingsModal({
                                                                         onChange={(
                                                                             e
                                                                         ) =>
-                                                                            handleUpdateNotificationSettings(
-                                                                                {
-                                                                                    browserNotificationsEnabled:
-                                                                                        e
-                                                                                            .target
-                                                                                            .checked,
-                                                                                }
+                                                                            handleToggleNotifications(
+                                                                                e.target.checked
                                                                             )
                                                                         }
                                                                         className="sr-only peer"
@@ -2303,38 +2591,6 @@ export default function SettingsModal({
                                                                 </label>
                                                             )}
                                                         </div>
-                                                        {notificationPermission === 'granted' && notificationSettings.browserNotificationsEnabled && !iosTooOld && !iosNeedsInstall && (
-                                                            <div className="mt-4 flex items-center justify-between">
-                                                                <div>
-                                                                    <h5 className="text-sm font-medium text-slate-900 dark:text-slate-100">Push Notifications (PWA)</h5>
-                                                                    <p className="text-xs text-slate-600 dark:text-slate-400 max-w-sm">
-                                                                        Reliable background notifications when the app isn't active. Requires installed PWA. Browser notifications work only while a tab is open.
-                                                                    </p>
-                                                                </div>
-                                                                <label className="relative inline-flex items-center cursor-pointer">
-                                                                    <input
-                                                                        type="checkbox"
-                                                                        checked={!!notificationSettings.pushNotificationsEnabled}
-                                                                        onChange={async (e) => {
-                                                                            const enable = e.target.checked;
-                                                                            if (enable) {
-                                                                                try {
-                                                                                    await ensurePushSubscription();
-                                                                                    await handleUpdateNotificationSettings({ pushNotificationsEnabled: true });
-                                                                                } catch (err) {
-                                                                                    setNotificationError(err instanceof Error ? err.message : 'Failed to enable push notifications');
-                                                                                }
-                                                                            } else {
-                                                                                await disablePushSubscription();
-                                                                                await handleUpdateNotificationSettings({ pushNotificationsEnabled: false });
-                                                                            }
-                                                                        }}
-                                                                        className="sr-only peer"
-                                                                    />
-                                                                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600"></div>
-                                                                </label>
-                                                            </div>
-                                                        )}
                                                     </div>
                                                 )}
 
@@ -2377,6 +2633,47 @@ export default function SettingsModal({
                                                             </label>
                                                         </div>
 
+                                                        {/* Time scope for cancelled lessons */}
+                                                        {notificationSettings.cancelledLessonsEnabled && (
+                                                            <div className="ml-4 pl-4 border-l border-slate-200 dark:border-slate-600">
+                                                                <p className="text-xs font-medium text-slate-700 dark:text-slate-300 mb-2">
+                                                                    Notify me for cancelled lessons:
+                                                                </p>
+                                                                <div className="flex gap-4">
+                                                                    <label className="flex items-center cursor-pointer">
+                                                                        <input
+                                                                            type="radio"
+                                                                            name="cancelledScope"
+                                                                            value="day"
+                                                                            checked={notificationSettings.cancelledLessonsTimeScope === 'day'}
+                                                                            onChange={() => handleUpdateNotificationSettings({
+                                                                                cancelledLessonsTimeScope: 'day'
+                                                                            })}
+                                                                            className="w-4 h-4 text-indigo-600 border-slate-300 dark:border-slate-600 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:ring-2"
+                                                                        />
+                                                                        <span className="ml-2 text-xs text-slate-600 dark:text-slate-400">
+                                                                            Today only
+                                                                        </span>
+                                                                    </label>
+                                                                    <label className="flex items-center cursor-pointer">
+                                                                        <input
+                                                                            type="radio"
+                                                                            name="cancelledScope"
+                                                                            value="week"
+                                                                            checked={notificationSettings.cancelledLessonsTimeScope === 'week'}
+                                                                            onChange={() => handleUpdateNotificationSettings({
+                                                                                cancelledLessonsTimeScope: 'week'
+                                                                            })}
+                                                                            className="w-4 h-4 text-indigo-600 border-slate-300 dark:border-slate-600 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:ring-2"
+                                                                        />
+                                                                        <span className="ml-2 text-xs text-slate-600 dark:text-slate-400">
+                                                                            This week
+                                                                        </span>
+                                                                    </label>
+                                                                </div>
+                                                            </div>
+                                                        )}
+
                                                         <div className="flex items-center justify-between">
                                                             <div>
                                                                 <h5 className="text-sm font-medium text-slate-900 dark:text-slate-100">
@@ -2413,6 +2710,47 @@ export default function SettingsModal({
                                                                 <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600"></div>
                                                             </label>
                                                         </div>
+
+                                                        {/* Time scope for irregular lessons */}
+                                                        {notificationSettings.irregularLessonsEnabled && (
+                                                            <div className="ml-4 pl-4 border-l border-slate-200 dark:border-slate-600">
+                                                                <p className="text-xs font-medium text-slate-700 dark:text-slate-300 mb-2">
+                                                                    Notify me for irregular lessons:
+                                                                </p>
+                                                                <div className="flex gap-4">
+                                                                    <label className="flex items-center cursor-pointer">
+                                                                        <input
+                                                                            type="radio"
+                                                                            name="irregularScope"
+                                                                            value="day"
+                                                                            checked={notificationSettings.irregularLessonsTimeScope === 'day'}
+                                                                            onChange={() => handleUpdateNotificationSettings({
+                                                                                irregularLessonsTimeScope: 'day'
+                                                                            })}
+                                                                            className="w-4 h-4 text-indigo-600 border-slate-300 dark:border-slate-600 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:ring-2"
+                                                                        />
+                                                                        <span className="ml-2 text-xs text-slate-600 dark:text-slate-400">
+                                                                            Today only
+                                                                        </span>
+                                                                    </label>
+                                                                    <label className="flex items-center cursor-pointer">
+                                                                        <input
+                                                                            type="radio"
+                                                                            name="irregularScope"
+                                                                            value="week"
+                                                                            checked={notificationSettings.irregularLessonsTimeScope === 'week'}
+                                                                            onChange={() => handleUpdateNotificationSettings({
+                                                                                irregularLessonsTimeScope: 'week'
+                                                                            })}
+                                                                            className="w-4 h-4 text-indigo-600 border-slate-300 dark:border-slate-600 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:ring-2"
+                                                                        />
+                                                                        <span className="ml-2 text-xs text-slate-600 dark:text-slate-400">
+                                                                            This week
+                                                                        </span>
+                                                                    </label>
+                                                                </div>
+                                                            </div>
+                                                        )}
 
                                                         <div className="flex items-center justify-between">
                                                             <div>

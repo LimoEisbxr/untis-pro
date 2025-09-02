@@ -1,10 +1,13 @@
-import type { FC } from 'react';
+import type { FC, ReactElement } from 'react';
 import { useEffect, useState } from 'react';
 import FitText from './FitText';
+import EllipsisIcon from './EllipsisIcon';
 import type { Lesson, LessonColors } from '../types';
 import { fmtHM, untisToMinutes } from '../utils/dates';
 import { clamp } from '../utils/dates';
 import { generateGradient, getDefaultGradient } from '../utils/colors';
+import { extractSubjectType } from '../utils/subjectUtils';
+import { hasLessonChanges, getRoomDisplayText } from '../utils/lessonChanges';
 
 export type Block = {
     l: Lesson;
@@ -56,6 +59,14 @@ const DayColumn: FC<DayColumnProps> = ({
         mq.addEventListener('change', update);
         return () => mq.removeEventListener('change', update);
     }, []);
+
+    // Helper function to detect if a lesson is merged (contains merge separator)
+    const isLessonMerged = (lesson: Lesson): boolean => {
+        return (
+            (lesson.info?.includes(' | ') ?? false) ||
+            (lesson.lstext?.includes(' | ') ?? false)
+        );
+    };
     const headerPx = hideHeader ? 8 : DAY_HEADER_PX; // minimal spacer when external sticky header used
     const containerHeight =
         (END_MIN - START_MIN) * SCALE + BOTTOM_PAD_PX + headerPx;
@@ -224,10 +235,12 @@ const DayColumn: FC<DayColumnProps> = ({
 
                     const cancelled = l.code === 'cancelled';
                     const irregular = l.code === 'irregular';
+                    // Determine if this lesson represents a merged (double / multi) lesson
+                    const isMerged = isLessonMerged(l);
+                    const hasChanges = hasLessonChanges(l);
                     const subject = l.su?.[0]?.name ?? l.activityType ?? '—';
-                    const displaySubject = subject.includes('_')
-                        ? subject.split('_')[0] || subject
-                        : subject;
+                    const subjectType = extractSubjectType(subject);
+                    const displaySubject = subjectType;
                     const room = l.ro?.map((r) => r.name).join(', ');
                     const teacher = l.te?.map((t) => t.name).join(', ');
                     const roomMobile = room
@@ -239,16 +252,27 @@ const DayColumn: FC<DayColumnProps> = ({
                               .join(', ')
                         : room;
 
+                    // Mobile single-lesson (non-overlapping) detection for special styling tweaks
+                    const singleMobile = isMobile && b.colCount === 1;
+
                     const effectiveColor =
-                        lessonColors[subject] ??
-                        defaultLessonColors[subject] ??
+                        lessonColors[subjectType] ??
+                        defaultLessonColors[subjectType] ??
                         null;
-                    const offset = gradientOffsets?.[subject] ?? 0.5;
-                    const gradient = effectiveColor
+                    const offset = gradientOffsets?.[subjectType] ?? 0.5;
+                    const baseGradient = effectiveColor
                         ? generateGradient(effectiveColor, offset)
                         : getDefaultGradient();
 
-                    const GAP_PCT = 2.25;
+                    // Create tinted gradient for cancelled/irregular lessons using CSS overlays
+                    const gradient = baseGradient;
+                    const statusOverlay = cancelled
+                        ? 'linear-gradient(to right, rgba(239, 68, 68, 0.6), rgba(239, 68, 68, 0.55), rgba(239, 68, 68, 0.6))'
+                        : irregular
+                        ? 'linear-gradient(to right, rgba(16, 185, 129, 0.6), rgba(16, 185, 129, 0.55), rgba(16, 185, 129, 0.6))'
+                        : null;
+
+                    const GAP_PCT = 1.5; // Reduced gap for better space utilization
                     let widthPct =
                         (100 - GAP_PCT * (b.colCount - 1)) / b.colCount;
                     let leftPct = b.colIndex * (widthPct + GAP_PCT);
@@ -288,7 +312,7 @@ const DayColumn: FC<DayColumnProps> = ({
                     lastBottomByCol[colKey] = topPx + heightPx;
 
                     // Reserve space for bottom labels and pad right for indicators
-                    const labelReservePx = cancelled || irregular ? 22 : 0;
+                    const labelReservePx = 0; // No longer reserve space for status labels
                     const MIN_BOTTOM_RESERVE = isMobile ? 4 : 6; // slightly tighter on mobile
                     const reservedBottomPx = Math.max(
                         labelReservePx,
@@ -297,9 +321,29 @@ const DayColumn: FC<DayColumnProps> = ({
                     // Extra right padding for room label shown under icons on desktop
                     const roomPadRightPx = !isMobile && room ? 88 : 0;
                     // Allow a more compact mobile layout: lower height threshold for previews
-                    const MIN_PREVIEW_HEIGHT = isMobile ? 44 : 56;
-                    const canShowPreview =
-                        heightPx - reservedBottomPx >= MIN_PREVIEW_HEIGHT;
+                    // Previously used to decide rendering of inline info previews; now removed.
+                    // const MIN_PREVIEW_HEIGHT = isMobile ? 44 : 56;
+
+                    // Determine if there's enough space to show time frame along with teacher
+                    // We need space for: subject (~16px) + teacher (~14px) + time (~14px) + margins
+                    // Only show time if we have sufficient space for subject + teacher + time (minimum 50px total)
+                    const MIN_TIME_DISPLAY_HEIGHT = isMobile ? 56 : 56;
+                    // Second threshold for very compact layout: move teacher to same row as subject
+                    const MIN_COMPACT_DISPLAY_HEIGHT = isMobile ? 45 : 45;
+                    // Separate threshold for cancelled/irregular lessons (they can use compact layout more aggressively)
+                    const MIN_COMPACT_DISPLAY_HEIGHT_CANCELLED_IRREGULAR =
+                        isMobile ? 55 : 55;
+                    const availableSpace = heightPx - reservedBottomPx;
+                    const canShowTimeFrame =
+                        !isMobile && availableSpace >= MIN_TIME_DISPLAY_HEIGHT;
+
+                    // Use different compact layout thresholds for cancelled/irregular vs normal lessons
+                    const compactThreshold =
+                        cancelled || irregular
+                            ? MIN_COMPACT_DISPLAY_HEIGHT_CANCELLED_IRREGULAR
+                            : MIN_COMPACT_DISPLAY_HEIGHT;
+                    const shouldUseCompactLayout =
+                        !isMobile && availableSpace <= compactThreshold;
 
                     // Compute content padding so mobile remains centered when icons exist
                     // Desktop readability fix:
@@ -307,9 +351,14 @@ const DayColumn: FC<DayColumnProps> = ({
                     // which caused FitText to aggressively down‑scale subject/time/teacher text even though the icons
                     // only occupy a small corner on the right. We now only reserve space for the optional room label plus
                     // a small constant (8px) and let the text flow underneath the vertical icon column if needed.
+                    // Reduce padding when lessons are side by side to maximize text space
+                    const sideByySideAdjustment =
+                        b.colCount > 1
+                            ? Math.max(0, roomPadRightPx - 40)
+                            : roomPadRightPx;
                     const contentPadRight = isMobile
                         ? 0 // mobile keeps centered layout
-                        : roomPadRightPx + 8; // exclude indicator width for better available text width
+                        : sideByySideAdjustment + 4; // reduced padding for side-by-side lessons
                     const contentPadLeft = 0;
 
                     // Auto contrast decision based on middle gradient (via) luminance heuristics
@@ -329,21 +378,19 @@ const DayColumn: FC<DayColumnProps> = ({
                             key={l.id}
                             className={`timetable-lesson absolute rounded-md p-2 sm:p-2 text-[11px] sm:text-xs ring-1 ring-slate-900/10 dark:ring-white/15 overflow-hidden cursor-pointer transform duration-150 hover:shadow-lg hover:brightness-110 hover:saturate-140 hover:contrast-110 backdrop-blur-[1px] ${textColorClass} ${
                                 cancelled
-                                    ? 'bg-rose-500/90'
+                                    ? 'border-6 border-rose-600 dark:border-rose-500'
                                     : irregular
-                                    ? 'bg-emerald-500/90'
-                                    : ''
+                                    ? 'border-6 border-emerald-500 dark:border-emerald-400'
+                                    : 'ring-1 ring-slate-900/10 dark:ring-white/15'
                             }`}
                             style={{
                                 top: topPx,
                                 height: heightPx,
                                 left: `${leftPct}%`,
                                 width: `${widthPct}%`,
-                                background: cancelled
-                                    ? undefined
-                                    : irregular
-                                    ? undefined
-                                    : (`linear-gradient(to right, ${gradient.from}, ${gradient.via}, ${gradient.to})` as string),
+                                background: statusOverlay
+                                    ? `${statusOverlay}, linear-gradient(to right, ${gradient.from}, ${gradient.via}, ${gradient.to})`
+                                    : `linear-gradient(to right, ${gradient.from}, ${gradient.via}, ${gradient.to})`,
                                 // Larger invisible hit target for touch
                                 paddingTop: isMobile ? 6 : undefined,
                                 paddingBottom: isMobile ? 6 : undefined,
@@ -360,8 +407,29 @@ const DayColumn: FC<DayColumnProps> = ({
                             {/* Indicators + room label (desktop) */}
                             <div className="absolute top-1 right-1 hidden sm:flex flex-col items-end gap-1">
                                 {room && (
-                                    <div className="hidden sm:block text-[11px] leading-tight whitespace-nowrap text-white/95 drop-shadow-sm">
-                                        {room}
+                                    <div
+                                        className={`hidden sm:block text-[11px] leading-tight whitespace-nowrap drop-shadow-sm ${
+                                            cancelled
+                                                ? 'lesson-cancelled-room'
+                                                : ''
+                                        }`}
+                                    >
+                                        {(() => {
+                                            const roomInfo =
+                                                getRoomDisplayText(l);
+                                            // Show only short room codes (no long names or originals) in timetable view
+                                            return (
+                                                <div
+                                                    className={`${
+                                                        roomInfo.hasChanges
+                                                            ? 'change-highlight'
+                                                            : textColorClass
+                                                    }`}
+                                                >
+                                                    {room}
+                                                </div>
+                                            );
+                                        })()}
                                     </div>
                                 )}
                                 <div className="flex gap-1">
@@ -421,7 +489,43 @@ const DayColumn: FC<DayColumnProps> = ({
                                             </svg>
                                         </div>
                                     )}
+                                    {hasChanges && (
+                                        <div className="w-3 h-3 bg-emerald-400 dark:bg-emerald-500 rounded-full flex items-center justify-center shadow-sm">
+                                            <svg
+                                                className="w-2 h-2 text-white"
+                                                fill="currentColor"
+                                                viewBox="0 0 20 20"
+                                            >
+                                                <path
+                                                    fillRule="evenodd"
+                                                    d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z"
+                                                    clipRule="evenodd"
+                                                />
+                                            </svg>
+                                        </div>
+                                    )}
                                 </div>
+                                {/* Desktop inline info snippet under icons (only when time is shown) */}
+                                {l.info &&
+                                    l.info.trim().length < 4 &&
+                                    canShowTimeFrame && (
+                                        <div
+                                            className="mt-0.5 max-w-[140px] text-[10px] leading-snug text-white/90 text-right bg-black/15 dark:bg-black/20 px-1 py-0.5 rounded-sm backdrop-blur-[1px] overflow-hidden"
+                                            style={{ maxHeight: '3.3em' }}
+                                        >
+                                            {l.info}
+                                        </div>
+                                    )}
+                                {l.lstext &&
+                                    l.lstext.trim().length < 4 &&
+                                    canShowTimeFrame && (
+                                        <div
+                                            className="mt-0.5 max-w-[140px] text-[10px] leading-snug text-white/90 text-right bg-black/10 dark:bg-black/15 px-1 py-0.5 rounded-sm backdrop-blur-[1px] overflow-hidden"
+                                            style={{ maxHeight: '3.3em' }}
+                                        >
+                                            {l.lstext}
+                                        </div>
+                                    )}
                             </div>
 
                             {/* Content */}
@@ -434,95 +538,202 @@ const DayColumn: FC<DayColumnProps> = ({
                                 }}
                             >
                                 {/* Mobile: absolute icons overlay (no layout impact) */}
-                                <div className="sm:hidden absolute top-1.5 right-1.5 flex flex-col gap-1 items-end pointer-events-none">
-                                    {l.homework && l.homework.length > 0 && (
-                                        <div className="w-3.5 h-3.5 bg-amber-500/90 dark:bg-amber-500/90 rounded-full flex items-center justify-center ring-1 ring-black/15 dark:ring-white/20 shadow-md backdrop-blur-sm">
-                                            <svg
-                                                className="w-2 h-2 text-white"
-                                                fill="currentColor"
-                                                viewBox="0 0 20 20"
-                                            >
-                                                <path
-                                                    fillRule="evenodd"
-                                                    d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z"
-                                                    clipRule="evenodd"
-                                                />
-                                            </svg>
-                                        </div>
-                                    )}
-                                    {l.info && (
-                                        <div className="w-3.5 h-3.5 bg-blue-500/90 dark:bg-blue-500/90 rounded-full flex items-center justify-center ring-1 ring-black/15 dark:ring-white/20 shadow-md backdrop-blur-sm">
-                                            <svg
-                                                className="w-2 h-2 text-white"
-                                                fill="currentColor"
-                                                viewBox="0 0 20 20"
-                                            >
-                                                <path
-                                                    fillRule="evenodd"
-                                                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-                                                    clipRule="evenodd"
-                                                />
-                                            </svg>
-                                        </div>
-                                    )}
-                                    {l.lstext && (
-                                        <div className="w-3.5 h-3.5 bg-violet-500/90 dark:bg-violet-400/90 rounded-full flex items-center justify-center ring-1 ring-black/15 dark:ring-white/20 shadow-md backdrop-blur-sm">
-                                            <svg
-                                                className="w-2 h-2 text-white"
-                                                fill="currentColor"
-                                                viewBox="0 0 20 20"
-                                            >
-                                                <path d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h8.5a2 2 0 001.414-.586l2.5-2.5A2 2 0 0017 12.5V5a2 2 0 00-2-2H4zm9 10h1.586L13 14.586V13z" />
-                                            </svg>
-                                        </div>
-                                    )}
-                                    {l.exams && l.exams.length > 0 && (
-                                        <div className="w-3.5 h-3.5 bg-red-500/90 dark:bg-red-500/90 rounded-full flex items-center justify-center ring-1 ring-black/15 dark:ring-white/20 shadow-md backdrop-blur-sm">
-                                            <svg
-                                                className="w-2 h-2 text-white"
-                                                fill="currentColor"
-                                                viewBox="0 0 20 20"
-                                            >
-                                                <path
-                                                    fillRule="evenodd"
-                                                    d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z"
-                                                    clipRule="evenodd"
-                                                />
-                                            </svg>
-                                        </div>
-                                    )}
+                                <div className="sm:hidden absolute top-1.5 right-1.5 flex flex-row-reverse gap-1 items-center pointer-events-none">
+                                    {/* Mobile badges: show limited badges for single lessons, up to 3 for merged lessons */}
+                                    {(() => {
+                                        const badges: ReactElement[] = [];
+                                        const baseClass =
+                                            'w-3.5 h-3.5 rounded-full flex items-center justify-center ring-1 ring-black/15 dark:ring-white/20 shadow-md backdrop-blur-sm';
+
+                                        // Count information types available
+                                        const hasHomework =
+                                            l.homework && l.homework.length > 0;
+                                        const hasInfo = !!l.info;
+                                        const hasLstext = !!l.lstext;
+                                        const hasExams =
+                                            l.exams && l.exams.length > 0;
+                                        const informationCount = [
+                                            hasHomework,
+                                            hasInfo,
+                                            hasLstext,
+                                            hasExams,
+                                        ].filter(Boolean).length;
+
+                                        const isMerged = isLessonMerged(l);
+
+                                        // For single lessons with multiple information types, show ellipsis instead
+                                        if (!isMerged && informationCount > 1) {
+                                            badges.push(
+                                                <div
+                                                    key="ellipsis"
+                                                    className={`bg-slate-500/90 dark:bg-slate-400/90 ${baseClass}`}
+                                                    title="Multiple information items - click lesson for details"
+                                                >
+                                                    <EllipsisIcon className="w-2 h-2 text-white" />
+                                                </div>
+                                            );
+                                        } else {
+                                            // For merged lessons or single lessons with 1 info type, show individual badges
+                                            if (hasHomework)
+                                                badges.push(
+                                                    <div
+                                                        key="hw"
+                                                        className={`bg-amber-500/90 dark:bg-amber-500/90 ${baseClass}`}
+                                                    >
+                                                        <svg
+                                                            className="w-2 h-2 text-white"
+                                                            fill="currentColor"
+                                                            viewBox="0 0 20 20"
+                                                        >
+                                                            <path
+                                                                fillRule="evenodd"
+                                                                d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z"
+                                                                clipRule="evenodd"
+                                                            />
+                                                        </svg>
+                                                    </div>
+                                                );
+                                            if (hasInfo)
+                                                badges.push(
+                                                    <div
+                                                        key="info"
+                                                        className={`bg-blue-500/90 dark:bg-blue-500/90 ${baseClass}`}
+                                                    >
+                                                        <svg
+                                                            className="w-2 h-2 text-white"
+                                                            fill="currentColor"
+                                                            viewBox="0 0 20 20"
+                                                        >
+                                                            <path
+                                                                fillRule="evenodd"
+                                                                d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                                                                clipRule="evenodd"
+                                                            />
+                                                        </svg>
+                                                    </div>
+                                                );
+                                            if (hasLstext)
+                                                badges.push(
+                                                    <div
+                                                        key="lstext"
+                                                        className={`bg-violet-500/90 dark:bg-violet-400/90 ${baseClass}`}
+                                                    >
+                                                        <svg
+                                                            className="w-2 h-2 text-white"
+                                                            fill="currentColor"
+                                                            viewBox="0 0 20 20"
+                                                        >
+                                                            <path d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h8.5a2 2 0 001.414-.586l2.5-2.5A2 2 0 0017 12.5V5a2 2 0 00-2-2H4zm9 10h1.586L13 14.586V13z" />
+                                                        </svg>
+                                                    </div>
+                                                );
+                                            if (hasExams)
+                                                badges.push(
+                                                    <div
+                                                        key="exam"
+                                                        className={`bg-red-500/90 dark:bg-red-500/90 ${baseClass}`}
+                                                    >
+                                                        <svg
+                                                            className="w-2 h-2 text-white"
+                                                            fill="currentColor"
+                                                            viewBox="0 0 20 20"
+                                                        >
+                                                            <path
+                                                                fillRule="evenodd"
+                                                                d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z"
+                                                                clipRule="evenodd"
+                                                            />
+                                                        </svg>
+                                                    </div>
+                                                );
+                                        }
+
+                                        // For merged lessons, keep the limit of 3 badges
+                                        return isMerged
+                                            ? badges.slice(0, 3)
+                                            : badges.slice(0, 1);
+                                    })()}
                                 </div>
 
                                 {/* Mobile centered layout */}
                                 <div className="flex flex-col items-center justify-center text-center gap-0.5 h-full sm:hidden px-0.5">
-                                    {l.info && canShowPreview && (
-                                        <div className="w-full text-[11px] font-medium leading-snug px-1.5 py-0.5 rounded-md bg-white/25 dark:bg-white/15 backdrop-blur-sm shadow-sm text-white/95 max-h-[40px] overflow-hidden">
-                                            {l.info}
-                                        </div>
-                                    )}
+                                    {/* Info preview removed from mobile timetable view */}
                                     <div
-                                        className="font-semibold leading-snug w-full whitespace-nowrap truncate"
+                                        className={`font-semibold leading-snug w-full whitespace-nowrap truncate ${
+                                            cancelled
+                                                ? 'lesson-cancelled-subject'
+                                                : ''
+                                        }`}
                                         style={{
                                             fontSize:
                                                 'clamp(12px, 3.5vw, 15px)',
-
                                         }}
                                     >
                                         {displaySubject}
                                     </div>
-                                    {teacher && (
-                                        <div className="text-[11px] opacity-90 leading-tight truncate max-w-full">
-                                            {teacher}
-                                        </div>
-                                    )}
-                                    {roomMobile && (
-                                        <div className="text-[11px] opacity-90 leading-tight truncate max-w-full">
-                                            {roomMobile}
-                                        </div>
-                                    )}
+                                    {(() => {
+                                        if (!l.te || l.te.length === 0)
+                                            return null;
+                                        return (
+                                            <div
+                                                className={`text-[11px] leading-tight truncate max-w-full flex flex-wrap justify-center gap-x-1 ${
+                                                    cancelled
+                                                        ? 'lesson-cancelled-teacher'
+                                                        : ''
+                                                }`}
+                                            >
+                                                {l.te.map((t, i) => (
+                                                    <span
+                                                        key={i}
+                                                        className={
+                                                            t.orgname
+                                                                ? singleMobile
+                                                                    ? 'change-highlight-mobile'
+                                                                    : 'change-highlight-inline'
+                                                                : undefined
+                                                        }
+                                                    >
+                                                        {t.name}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        );
+                                    })()}
+                                    {(() => {
+                                        const roomInfo = getRoomDisplayText(l);
+                                        // Hide room on mobile for cancelled / irregular lessons per request
+                                        if (
+                                            !roomMobile ||
+                                            cancelled ||
+                                            irregular
+                                        )
+                                            return null;
+                                        // Only show short room codes in mobile timetable view
+                                        return (
+                                            <div
+                                                className={`text-[11px] leading-tight truncate max-w-full ${
+                                                    cancelled
+                                                        ? 'lesson-cancelled-room'
+                                                        : ''
+                                                }`}
+                                            >
+                                                <div
+                                                    className={
+                                                        roomInfo.hasChanges
+                                                            ? singleMobile
+                                                                ? 'change-highlight-mobile'
+                                                                : 'change-highlight opacity-90'
+                                                            : 'opacity-90'
+                                                    }
+                                                >
+                                                    {roomMobile}
+                                                </div>
+                                            </div>
+                                        );
+                                    })()}
                                     {/* Removed lstext preview in timetable (mobile) */}
                                 </div>
-                                {/* Original flexible desktop layout */}
+                                {/* Desktop layout - adaptive based on available space */}
                                 <div className="hidden sm:flex flex-col sm:flex-row items-stretch justify-between gap-1.5 sm:gap-2 min-w-0 h-full">
                                     <FitText
                                         mode="both"
@@ -531,44 +742,140 @@ const DayColumn: FC<DayColumnProps> = ({
                                         reserveBottom={reservedBottomPx}
                                         className="min-w-0 self-stretch"
                                     >
-                                        <div className="font-semibold leading-tight text-[13px]">
-                                            {displaySubject}
-                                        </div>
-                                        <div className="opacity-90 sm:mt-0 leading-tight text-[12px]">
-                                            <span className="whitespace-nowrap">
-                                                {fmtHM(b.startMin)}–
-                                                {fmtHM(b.endMin)}
-                                            </span>
-                                        </div>
-                                        {teacher && (
-                                            <div className="opacity-90 leading-tight text-[12px]">
-                                                {teacher}
+                                        {shouldUseCompactLayout ? (
+                                            // Compact layout: subject and teacher on same line
+                                            <div className="flex flex-wrap items-baseline gap-x-2">
+                                                <div
+                                                    className={`font-semibold leading-tight text-[13px] ${
+                                                        cancelled
+                                                            ? 'lesson-cancelled-subject'
+                                                            : ''
+                                                    }`}
+                                                >
+                                                    {displaySubject}
+                                                </div>
+                                                {(() => {
+                                                    if (
+                                                        !l.te ||
+                                                        l.te.length === 0
+                                                    )
+                                                        return null;
+                                                    return (
+                                                        <div
+                                                            className={`leading-tight text-[12px] flex flex-wrap gap-x-1 ${
+                                                                cancelled
+                                                                    ? 'lesson-cancelled-teacher'
+                                                                    : ''
+                                                            }`}
+                                                        >
+                                                            {l.te.map(
+                                                                (t, i) => (
+                                                                    <span
+                                                                        key={i}
+                                                                        className={
+                                                                            t.orgname
+                                                                                ? 'change-highlight-inline'
+                                                                                : undefined
+                                                                        }
+                                                                    >
+                                                                        {t.name}
+                                                                    </span>
+                                                                )
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })()}
                                             </div>
+                                        ) : (
+                                            // Normal layout: subject, time, teacher in separate rows
+                                            <>
+                                                <div
+                                                    className={`font-semibold leading-tight text-[13px] ${
+                                                        cancelled
+                                                            ? 'lesson-cancelled-subject'
+                                                            : ''
+                                                    }`}
+                                                >
+                                                    {displaySubject}
+                                                </div>
+                                                {/* Timeframe:
+                                                    - For normal lessons: shown (when canShowTimeFrame true)
+                                                    - Previously hidden for cancelled / irregular lessons.
+                                                    - Request: show it again for merged cancelled / irregular lessons.
+                                                      If cancelled, it should be crossed out; irregular stays normal.
+                                                */}
+                                                {canShowTimeFrame &&
+                                                    // normal lesson
+                                                    (!(
+                                                        cancelled || irregular
+                                                    ) ||
+                                                        // merged cancelled / irregular lesson
+                                                        ((cancelled ||
+                                                            irregular) &&
+                                                            isMerged)) && (
+                                                        <div
+                                                            className={`opacity-90 sm:mt-0 leading-tight text-[12px] ${
+                                                                cancelled &&
+                                                                isMerged
+                                                                    ? 'lesson-cancelled-time'
+                                                                    : ''
+                                                            }`}
+                                                        >
+                                                            <span className="whitespace-nowrap">
+                                                                {fmtHM(
+                                                                    b.startMin
+                                                                )}
+                                                                –
+                                                                {fmtHM(
+                                                                    b.endMin
+                                                                )}
+                                                            </span>
+                                                        </div>
+                                                    )}
+                                                {(() => {
+                                                    if (
+                                                        !l.te ||
+                                                        l.te.length === 0
+                                                    )
+                                                        return null;
+                                                    return (
+                                                        <div
+                                                            className={`leading-tight text-[12px] flex flex-wrap gap-x-1 ${
+                                                                cancelled
+                                                                    ? 'lesson-cancelled-teacher'
+                                                                    : ''
+                                                            }`}
+                                                        >
+                                                            {l.te.map(
+                                                                (t, i) => (
+                                                                    <span
+                                                                        key={i}
+                                                                        className={
+                                                                            t.orgname
+                                                                                ? 'change-highlight-inline'
+                                                                                : undefined
+                                                                        }
+                                                                    >
+                                                                        {t.name}
+                                                                    </span>
+                                                                )
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })()}
+                                            </>
                                         )}
                                     </FitText>
                                 </div>
                                 {/* Info/Notes preview (desktop) */}
-                                {l.info && canShowPreview && (
-                                    <div className="hidden sm:block mt-1 text-[11px] leading-snug text-white/90 whitespace-pre-wrap">
-                                        {l.info}
-                                    </div>
-                                )}
+                                {/* Info preview moved to indicators area (desktop) */}
                                 {/* Removed lstext preview in timetable (desktop) */}
                                 {/* {l.lstext && canShowPreview && (
                                     <div className="hidden sm:block mt-0.5 text-[11px] leading-snug text-white/90 whitespace-pre-wrap">
                                         {l.lstext}
                                     </div>
                                 )} */}
-                                {cancelled && (
-                                    <div className="hidden sm:block absolute bottom-1 right-2 text-right text-[10px] font-semibold uppercase tracking-wide">
-                                        Cancelled
-                                    </div>
-                                )}
-                                {irregular && (
-                                    <div className="hidden sm:block absolute bottom-1 right-2 text-right text-[10px] font-semibold uppercase tracking-wide">
-                                        Irregular
-                                    </div>
-                                )}
+                                {/* Status text overlays removed - now shown only in modal */}
                             </div>
                         </div>
                     );
