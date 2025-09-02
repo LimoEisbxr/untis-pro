@@ -36,7 +36,29 @@ export default function Login({
                 return;
             }
             
-            setError(msg || 'Failed');
+            // Try to parse JSON error response from the API
+            let errorMessage = 'An error occurred during sign in';
+            let errorCode: string | null = null;
+            
+            try {
+                const errorData = JSON.parse(msg);
+                if (errorData.error) {
+                    errorMessage = errorData.error;
+                    errorCode = errorData.code;
+                }
+            } catch {
+                // If not JSON, use the raw message
+                errorMessage = msg || 'Failed';
+            }
+            
+            // Provide user-friendly messages for specific error codes
+            if (errorCode === 'BAD_CREDENTIALS') {
+                errorMessage = 'Invalid username or password. Please check your Untis credentials and try again.';
+            } else if (errorCode === 'UNTIS_LOGIN_FAILED') {
+                errorMessage = 'Unable to connect to Untis. Please try again later.';
+            }
+            
+            setError(errorMessage);
         } finally {
             setLoading(false);
         }
@@ -66,7 +88,14 @@ export default function Login({
                         onChange={(e) => setPassword(e.target.value)}
                     />
                     {error && (
-                        <div className="text-red-600 text-sm">{error}</div>
+                        <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-800/30 dark:bg-red-900/20 dark:text-red-200">
+                            <div className="flex items-start gap-2">
+                                <svg className="h-4 w-4 flex-shrink-0 mt-0.5 text-red-500 dark:text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clipRule="evenodd" />
+                                </svg>
+                                <span>{error}</span>
+                            </div>
+                        </div>
                     )}
                     <div className="pt-2">
                         <button
