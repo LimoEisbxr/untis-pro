@@ -559,18 +559,30 @@ export default function Timetable({
             
             if (shouldNavigate && isHorizontalSwipe) {
                 setIsAnimating(true);
+                
+                const containerWidth = el.getBoundingClientRect().width;
+                
                 if (dx < 0) {
-                    // Swiping left - go to next week
-                    onWeekNavigate?.('next');
+                    // Swiping left - animate to show next week fully
+                    setTranslateX(-containerWidth);
+                    
+                    // After animation completes, change data and reset position
+                    setTimeout(() => {
+                        onWeekNavigate?.('next');
+                        setTranslateX(0);
+                        setIsAnimating(false);
+                    }, 300);
                 } else {
-                    // Swiping right - go to previous week
-                    onWeekNavigate?.('prev');
+                    // Swiping right - animate to show previous week fully  
+                    setTranslateX(containerWidth);
+                    
+                    // After animation completes, change data and reset position
+                    setTimeout(() => {
+                        onWeekNavigate?.('prev');
+                        setTranslateX(0);
+                        setIsAnimating(false);
+                    }, 300);
                 }
-                // Animation will reset after navigation
-                setTimeout(() => {
-                    setTranslateX(0);
-                    setIsAnimating(false);
-                }, 300);
             } else {
                 // Snap back to current position
                 setTranslateX(0);
