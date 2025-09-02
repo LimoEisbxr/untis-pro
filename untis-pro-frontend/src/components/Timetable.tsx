@@ -224,6 +224,7 @@ export default function Timetable({
     token,
     viewingUserId,
     onWeekNavigate,
+    getAdjacentWeekData,
 }: {
     data: TimetableResponse | null;
     weekStart: Date;
@@ -239,6 +240,7 @@ export default function Timetable({
     token?: string;
     viewingUserId?: string; // if admin is viewing a student
     onWeekNavigate?: (direction: 'prev' | 'next') => void; // optional external navigation handler
+    getAdjacentWeekData?: (direction: 'prev' | 'next') => TimetableResponse | null; // function to get cached data for adjacent weeks
     // Extended: allow passing current offset when color set
     // (so initial color creation can persist chosen offset)
     // Keeping backwards compatibility (third param optional)
@@ -631,6 +633,54 @@ export default function Timetable({
         return byDay;
     }, [data?.payload, days]);
 
+    // Process previous week's data
+    const prevWeekLessonsByDay = useMemo(() => {
+        const byDay: Record<string, Lesson[]> = {};
+        for (const d of prevWeekDays) byDay[fmtLocal(d)] = [];
+        
+        const prevWeekData = getAdjacentWeekData?.('prev');
+        const lessons = Array.isArray(prevWeekData?.payload)
+            ? (prevWeekData?.payload as Lesson[])
+            : [];
+        
+        for (const l of lessons) {
+            const dStr = yyyymmddToISO(l.date);
+            if (byDay[dStr]) byDay[dStr].push(l);
+        }
+        for (const k of Object.keys(byDay)) {
+            byDay[k].sort(
+                (a, b) => a.startTime - b.startTime || a.endTime - b.endTime
+            );
+            // Apply lesson merging after sorting
+            byDay[k] = mergeLessons(byDay[k]);
+        }
+        return byDay;
+    }, [prevWeekDays, getAdjacentWeekData]);
+
+    // Process next week's data
+    const nextWeekLessonsByDay = useMemo(() => {
+        const byDay: Record<string, Lesson[]> = {};
+        for (const d of nextWeekDays) byDay[fmtLocal(d)] = [];
+        
+        const nextWeekData = getAdjacentWeekData?.('next');
+        const lessons = Array.isArray(nextWeekData?.payload)
+            ? (nextWeekData?.payload as Lesson[])
+            : [];
+        
+        for (const l of lessons) {
+            const dStr = yyyymmddToISO(l.date);
+            if (byDay[dStr]) byDay[dStr].push(l);
+        }
+        for (const k of Object.keys(byDay)) {
+            byDay[k].sort(
+                (a, b) => a.startTime - b.startTime || a.endTime - b.endTime
+            );
+            // Apply lesson merging after sorting
+            byDay[k] = mergeLessons(byDay[k]);
+        }
+        return byDay;
+    }, [nextWeekDays, getAdjacentWeekData]);
+
     const hasLessons = useMemo(
         () => Object.values(lessonsByDay).some((arr) => arr.length > 0),
         [lessonsByDay]
@@ -773,13 +823,13 @@ export default function Timetable({
                                 <div className="absolute right-0 top-0 bottom-0 w-px bg-slate-200 dark:bg-slate-700 opacity-30 z-10" />
                                 {prevWeekDays.map((d) => {
                                     const key = fmtLocal(d);
-                                    // Previous week has no lessons (empty), but we show the structure
+                                    const items = prevWeekLessonsByDay[key] || [];
                                     return (
                                         <div key={key} className="flex-1">
                                             <DayColumn
                                                 day={d}
                                                 keyStr={key}
-                                                items={[]} // No lessons for previous/next weeks in this implementation
+                                                items={items}
                                                 START_MIN={START_MIN}
                                                 END_MIN={END_MIN}
                                                 SCALE={SCALE}
@@ -923,13 +973,13 @@ export default function Timetable({
                                 <div className="absolute left-0 top-0 bottom-0 w-px bg-slate-200 dark:bg-slate-700 opacity-30 z-10" />
                                 {nextWeekDays.map((d) => {
                                     const key = fmtLocal(d);
-                                    // Next week has no lessons (empty), but we show the structure
+                                    const items = nextWeekLessonsByDay[key] || [];
                                     return (
                                         <div key={key} className="flex-1">
                                             <DayColumn
                                                 day={d}
                                                 keyStr={key}
-                                                items={[]} // No lessons for previous/next weeks in this implementation
+                                                items={items}
                                                 START_MIN={START_MIN}
                                                 END_MIN={END_MIN}
                                                 SCALE={SCALE}

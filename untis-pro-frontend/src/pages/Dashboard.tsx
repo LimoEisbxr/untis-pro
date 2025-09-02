@@ -85,7 +85,32 @@ export default function Dashboard({
     const [lessonOffsets, setLessonOffsets] = useState<LessonOffsets>({});
 
     // Initialize timetable cache hook
-    const { getTimetableData } = useTimetableCache();
+    const { getTimetableData, getCachedData } = useTimetableCache();
+
+    // Compute the week range based on the selected date
+    const weekStartDate = useMemo(() => startOfWeek(new Date(start)), [start]);
+    const weekStartStr = useMemo(
+        () => fmtLocal(weekStartDate),
+        [weekStartDate]
+    );
+    const weekEndStr = useMemo(
+        () => fmtLocal(addDays(weekStartDate, 6)),
+        [weekStartDate]
+    );
+
+    // Function to get cached timetable data for adjacent weeks
+    const getAdjacentWeekData = useCallback((direction: 'prev' | 'next'): TimetableResponse | null => {
+        const targetDate = direction === 'prev' 
+            ? addDays(weekStartDate, -7) 
+            : addDays(weekStartDate, 7);
+        
+        const targetWeekStartStr = fmtLocal(targetDate);
+        const targetWeekEndStr = fmtLocal(addDays(targetDate, 6));
+        const targetUserId = selectedUser?.id || user.id;
+        
+        // Get cached data for the target week
+        return getCachedData(targetUserId, targetWeekStartStr, targetWeekEndStr);
+    }, [weekStartDate, selectedUser?.id, user.id, getCachedData]);
     // Short auto-retry countdown for rate limit (429)
     const [retrySeconds, setRetrySeconds] = useState<number | null>(null);
     // Settings modal state
@@ -113,17 +138,6 @@ export default function Dashboard({
         }
         return null;
     }, [loadError, user?.isAdmin]);
-
-    // Compute the week range based on the selected date
-    const weekStartDate = useMemo(() => startOfWeek(new Date(start)), [start]);
-    const weekStartStr = useMemo(
-        () => fmtLocal(weekStartDate),
-        [weekStartDate]
-    );
-    const weekEndStr = useMemo(
-        () => fmtLocal(addDays(weekStartDate, 6)),
-        [weekStartDate]
-    );
 
     // Calculate the calendar week number
     const calendarWeek = useMemo(
@@ -869,6 +883,7 @@ export default function Dashboard({
                                     setStart(ns);
                                 }
                             }}
+                            getAdjacentWeekData={getAdjacentWeekData}
                         />
                     </div>
                 </section>
