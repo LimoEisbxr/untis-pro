@@ -644,6 +644,10 @@ export default function OnboardingModal({
         <div
             className={`fixed inset-0 ${inModalOnboarding ? 'z-[10000]' : 'z-50'} transition-opacity duration-200 ${
                 isVisible ? 'opacity-100' : 'opacity-0'
+            } ${
+                waitingForInteraction && (currentStepData.demoType === 'interactive-lesson' || currentStepData.demoType === 'interactive-settings')
+                    ? 'pointer-events-none' // Allow clicks to pass through during interactive steps
+                    : ''
             }`}
             onMouseDown={(e) => {
                 // Only block mouse events for modal onboarding, not for interactive steps
@@ -662,8 +666,11 @@ export default function OnboardingModal({
                 }`}
                 onClick={(e) => {
                     // Prevent all backdrop clicks to avoid accidentally closing the onboarding
-                    e.preventDefault();
-                    e.stopPropagation();
+                    // But only if not waiting for interaction on interactive elements
+                    if (!(waitingForInteraction && (currentStepData.demoType === 'interactive-lesson' || currentStepData.demoType === 'interactive-settings'))) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                    }
                 }}
                 style={{
                     maskImage: highlightedElement 
@@ -767,6 +774,10 @@ export default function OnboardingModal({
                         : waitingForInteraction && currentStepData.demoType === 'interactive-settings' && hasInteracted
                         ? 'opacity-95'
                         : 'opacity-100'
+                } ${
+                    waitingForInteraction && (currentStepData.demoType === 'interactive-lesson' || currentStepData.demoType === 'interactive-settings')
+                        ? 'pointer-events-none' // Make modal container non-interactive during interactive steps
+                        : ''
                 }`}
                 style={!('useCenter' in modalPosition) && !('useMobileBottom' in modalPosition) ? modalPosition as React.CSSProperties : {}}
             >
@@ -779,7 +790,7 @@ export default function OnboardingModal({
                         'useCenter' in modalPosition || 'useMobileBottom' in modalPosition ? 'mx-4' : ''
                     } max-h-[85vh] overflow-y-auto shadow-2xl ring-1 ring-black/10 dark:ring-white/10 bg-white/98 dark:bg-slate-900/98 backdrop-blur-md transition-all duration-200 ease-out will-change-transform will-change-opacity ${
                         waitingForInteraction && (currentStepData.demoType === 'interactive-lesson' || currentStepData.demoType === 'interactive-settings')
-                            ? 'pointer-events-auto' 
+                            ? 'pointer-events-auto' // Ensure modal content remains clickable during interactive steps
                             : ''
                     } ${
                         isVisible
