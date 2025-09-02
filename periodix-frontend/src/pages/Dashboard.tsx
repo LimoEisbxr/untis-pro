@@ -648,7 +648,7 @@ export default function Dashboard({
                 <section className="card p-4">
                     <div className="space-y-2 sm:space-y-4">
                         {/* Week navigation buttons (desktop only) - separate row */}
-                        <div className="hidden sm:flex justify-center">
+                        <div className="hidden sm:flex mr-auto">
                             <div className="flex gap-2">
                                 <button
                                     className="btn-secondary px-8 py-3 text-base font-medium"
@@ -685,7 +685,7 @@ export default function Dashboard({
                                 </button>
                             </div>
                         </div>
-                        
+
                         {/* Search (desktop), mobile icons (search+home), week picker */}
                         <div className="flex flex-wrap items-end gap-3">
                             {/* Desktop search */}
@@ -878,7 +878,7 @@ export default function Dashboard({
                                 </button>
                             </div>
                             {/* Week picker with calendar week display */}
-                            <div className="flex items-end gap-3 sm:mr-0">
+                            <div className="flex items-end gap-3 ml-auto mr-5">
                                 <div>
                                     <div className="flex justify-between items-center">
                                         <label className="label sm:text-sm text-[11px]">
