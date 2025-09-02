@@ -325,14 +325,16 @@ const DayColumn: FC<DayColumnProps> = ({
                     // Determine if there's enough space to show time frame along with teacher
                     // We need space for: subject (~16px) + teacher (~14px) + time (~14px) + margins
                     // Only show time if we have sufficient space for subject + teacher + time (minimum 50px total)
-                    const MIN_TIME_DISPLAY_HEIGHT = isMobile ? 55 : 55;
+                    const MIN_TIME_DISPLAY_HEIGHT = isMobile ? 56 : 56;
                     // Second threshold for very compact layout: move teacher to same row as subject
-                    const MIN_COMPACT_DISPLAY_HEIGHT = isMobile ? 35 : 35;
+                    const MIN_COMPACT_DISPLAY_HEIGHT = isMobile ? 45 : 45;
                     const availableSpace = heightPx - reservedBottomPx;
                     const canShowTimeFrame =
                         !isMobile && availableSpace >= MIN_TIME_DISPLAY_HEIGHT;
                     const shouldUseCompactLayout =
-                        !isMobile && availableSpace < MIN_TIME_DISPLAY_HEIGHT && availableSpace >= MIN_COMPACT_DISPLAY_HEIGHT;
+                        !isMobile &&
+                        availableSpace < MIN_TIME_DISPLAY_HEIGHT &&
+                        availableSpace <= MIN_COMPACT_DISPLAY_HEIGHT;
 
                     // Compute content padding so mobile remains centered when icons exist
                     // Desktop readability fix:
@@ -396,7 +398,13 @@ const DayColumn: FC<DayColumnProps> = ({
                             {/* Indicators + room label (desktop) */}
                             <div className="absolute top-1 right-1 hidden sm:flex flex-col items-end gap-1">
                                 {room && (
-                                    <div className={`hidden sm:block text-[11px] leading-tight whitespace-nowrap drop-shadow-sm ${cancelled ? 'lesson-cancelled-room' : ''}`}>
+                                    <div
+                                        className={`hidden sm:block text-[11px] leading-tight whitespace-nowrap drop-shadow-sm ${
+                                            cancelled
+                                                ? 'lesson-cancelled-room'
+                                                : ''
+                                        }`}
+                                    >
                                         {(() => {
                                             const roomInfo =
                                                 getRoomDisplayText(l);
@@ -642,7 +650,11 @@ const DayColumn: FC<DayColumnProps> = ({
                                 <div className="flex flex-col items-center justify-center text-center gap-0.5 h-full sm:hidden px-0.5">
                                     {/* Info preview removed from mobile timetable view */}
                                     <div
-                                        className={`font-semibold leading-snug w-full whitespace-nowrap truncate ${cancelled ? 'lesson-cancelled-subject' : ''}`}
+                                        className={`font-semibold leading-snug w-full whitespace-nowrap truncate ${
+                                            cancelled
+                                                ? 'lesson-cancelled-subject'
+                                                : ''
+                                        }`}
                                         style={{
                                             fontSize:
                                                 'clamp(12px, 3.5vw, 15px)',
@@ -654,7 +666,13 @@ const DayColumn: FC<DayColumnProps> = ({
                                         if (!l.te || l.te.length === 0)
                                             return null;
                                         return (
-                                            <div className={`text-[11px] leading-tight truncate max-w-full flex flex-wrap justify-center gap-x-1 ${cancelled ? 'lesson-cancelled-teacher' : ''}`}>
+                                            <div
+                                                className={`text-[11px] leading-tight truncate max-w-full flex flex-wrap justify-center gap-x-1 ${
+                                                    cancelled
+                                                        ? 'lesson-cancelled-teacher'
+                                                        : ''
+                                                }`}
+                                            >
                                                 {l.te.map((t, i) => (
                                                     <span
                                                         key={i}
@@ -683,7 +701,13 @@ const DayColumn: FC<DayColumnProps> = ({
                                             return null;
                                         // Only show short room codes in mobile timetable view
                                         return (
-                                            <div className={`text-[11px] leading-tight truncate max-w-full ${cancelled ? 'lesson-cancelled-room' : ''}`}>
+                                            <div
+                                                className={`text-[11px] leading-tight truncate max-w-full ${
+                                                    cancelled
+                                                        ? 'lesson-cancelled-room'
+                                                        : ''
+                                                }`}
+                                            >
                                                 <div
                                                     className={
                                                         roomInfo.hasChanges
@@ -712,26 +736,43 @@ const DayColumn: FC<DayColumnProps> = ({
                                         {shouldUseCompactLayout ? (
                                             // Compact layout: subject and teacher on same line
                                             <div className="flex flex-wrap items-baseline gap-x-2">
-                                                <div className={`font-semibold leading-tight text-[13px] ${cancelled ? 'lesson-cancelled-subject' : ''}`}>
+                                                <div
+                                                    className={`font-semibold leading-tight text-[13px] ${
+                                                        cancelled
+                                                            ? 'lesson-cancelled-subject'
+                                                            : ''
+                                                    }`}
+                                                >
                                                     {displaySubject}
                                                 </div>
                                                 {(() => {
-                                                    if (!l.te || l.te.length === 0)
+                                                    if (
+                                                        !l.te ||
+                                                        l.te.length === 0
+                                                    )
                                                         return null;
                                                     return (
-                                                        <div className={`leading-tight text-[12px] flex flex-wrap gap-x-1 ${cancelled ? 'lesson-cancelled-teacher' : ''}`}>
-                                                            {l.te.map((t, i) => (
-                                                                <span
-                                                                    key={i}
-                                                                    className={
-                                                                        t.orgname
-                                                                            ? 'change-highlight-inline'
-                                                                            : undefined
-                                                                    }
-                                                                >
-                                                                    {t.name}
-                                                                </span>
-                                                            ))}
+                                                        <div
+                                                            className={`leading-tight text-[12px] flex flex-wrap gap-x-1 ${
+                                                                cancelled
+                                                                    ? 'lesson-cancelled-teacher'
+                                                                    : ''
+                                                            }`}
+                                                        >
+                                                            {l.te.map(
+                                                                (t, i) => (
+                                                                    <span
+                                                                        key={i}
+                                                                        className={
+                                                                            t.orgname
+                                                                                ? 'change-highlight-inline'
+                                                                                : undefined
+                                                                        }
+                                                                    >
+                                                                        {t.name}
+                                                                    </span>
+                                                                )
+                                                            )}
                                                         </div>
                                                     );
                                                 })()}
@@ -739,36 +780,66 @@ const DayColumn: FC<DayColumnProps> = ({
                                         ) : (
                                             // Normal layout: subject, time, teacher in separate rows
                                             <>
-                                                <div className={`font-semibold leading-tight text-[13px] ${cancelled ? 'lesson-cancelled-subject' : ''}`}>
+                                                <div
+                                                    className={`font-semibold leading-tight text-[13px] ${
+                                                        cancelled
+                                                            ? 'lesson-cancelled-subject'
+                                                            : ''
+                                                    }`}
+                                                >
                                                     {displaySubject}
                                                 </div>
                                                 {/* Show timeframe unless lesson is cancelled or irregular. */}
                                                 {canShowTimeFrame &&
-                                                    !(cancelled || irregular) && (
-                                                        <div className={`opacity-90 sm:mt-0 leading-tight text-[12px] ${cancelled ? 'lesson-cancelled-time' : ''}`}>
+                                                    !(
+                                                        cancelled || irregular
+                                                    ) && (
+                                                        <div
+                                                            className={`opacity-90 sm:mt-0 leading-tight text-[12px] ${
+                                                                cancelled
+                                                                    ? 'lesson-cancelled-time'
+                                                                    : ''
+                                                            }`}
+                                                        >
                                                             <span className="whitespace-nowrap">
-                                                                {fmtHM(b.startMin)}–
-                                                                {fmtHM(b.endMin)}
+                                                                {fmtHM(
+                                                                    b.startMin
+                                                                )}
+                                                                –
+                                                                {fmtHM(
+                                                                    b.endMin
+                                                                )}
                                                             </span>
                                                         </div>
                                                     )}
                                                 {(() => {
-                                                    if (!l.te || l.te.length === 0)
+                                                    if (
+                                                        !l.te ||
+                                                        l.te.length === 0
+                                                    )
                                                         return null;
                                                     return (
-                                                        <div className={`leading-tight text-[12px] flex flex-wrap gap-x-1 ${cancelled ? 'lesson-cancelled-teacher' : ''}`}>
-                                                            {l.te.map((t, i) => (
-                                                                <span
-                                                                    key={i}
-                                                                    className={
-                                                                        t.orgname
-                                                                            ? 'change-highlight-inline'
-                                                                            : undefined
-                                                                    }
-                                                                >
-                                                                    {t.name}
-                                                                </span>
-                                                            ))}
+                                                        <div
+                                                            className={`leading-tight text-[12px] flex flex-wrap gap-x-1 ${
+                                                                cancelled
+                                                                    ? 'lesson-cancelled-teacher'
+                                                                    : ''
+                                                            }`}
+                                                        >
+                                                            {l.te.map(
+                                                                (t, i) => (
+                                                                    <span
+                                                                        key={i}
+                                                                        className={
+                                                                            t.orgname
+                                                                                ? 'change-highlight-inline'
+                                                                                : undefined
+                                                                        }
+                                                                    >
+                                                                        {t.name}
+                                                                    </span>
+                                                                )
+                                                            )}
                                                         </div>
                                                     );
                                                 })()}
