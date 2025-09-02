@@ -1,29 +1,27 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Periodix logo">
-  <defs>
+<defs>
     <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#4f46e5"/>
+    <stop offset="0%" stop-color="#4f46e5"/>
 <stop offset="50%" stop-color="#0284c7"/>
 <stop offset="100%" stop-color="#059669"/>
     </linearGradient>
     <!-- Create a gradient stroke via a path painted once -->
     <linearGradient id="grad-stroke" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#4f46e5"/>
+    <stop offset="0%" stop-color="#4f46e5"/>
 <stop offset="50%" stop-color="#0284c7"/>
 <stop offset="100%" stop-color="#059669"/>
     </linearGradient>
-  </defs>
+</defs>
 
-  <!-- Background transparent -->
-  <rect width="100%" height="100%" fill="none"/>
+<!-- Background transparent -->
+<rect width="100%" height="100%" fill="none"/>
 
-  <!-- Outer ring using stroke -->
-  <circle cx="128.0" cy="128.0" r="114.0" fill="none" stroke="url(#grad-stroke)" stroke-width="12.0" stroke-linecap="round"/>
+<!-- Outer ring using stroke -->
+<circle cx="128.0" cy="128.0" r="95.0" fill="none" stroke="url(#grad-stroke)" stroke-width="50.0" stroke-linecap="round"/>
 
-  <!-- P letter as a stroked path, centered and refined -->
-  <path d="M 83.312 172.68800000000002
-           L 83.312 83.312
-           L 134.19296 83.312
-           A 10.559040000000003 10.559040000000003 0 0 1 134.19296 104.43008
-           L 83.312 104.43008"
-        fill="none" stroke="url(#grad)" stroke-width="30.72" stroke-linecap="round" stroke-linejoin="round"/>
+
+<!-- Letter (glyph path, filled) -->
+<g transform="translate(128.0,128.0) scale(0.06040268456375839, -0.06040268456375839) translate(-644.5,-745.0)">
+    <path d="M129 0V1490H696Q862 1490 981.0 1430.5Q1100 1371 1163.5 1263.0Q1227 1155 1227 1010Q1227 864 1162.0 756.0Q1097 648 977.0 588.5Q857 529 691 529H282V753H676Q768 753 832.0 785.0Q896 817 930.0 874.5Q964 932 964 1010Q964 1088 930.0 1145.0Q896 1202 832.0 1233.5Q768 1265 676 1265H395V0Z" fill="url(#grad)" />
+</g>
 </svg>
