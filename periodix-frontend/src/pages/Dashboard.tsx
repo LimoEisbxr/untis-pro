@@ -838,8 +838,51 @@ export default function Dashboard({
                                     </svg>
                                 </button>
                             </div>
+                            {/* Week navigation buttons (desktop only) */}
+                            <div className="hidden sm:flex items-end gap-2 ml-auto">
+                                <div>
+                                    <label className="label text-sm mb-1 block">
+                                        Navigate
+                                    </label>
+                                    <div className="flex gap-1">
+                                        <button
+                                            className="btn-secondary px-3 py-2 text-xs"
+                                            onClick={() => {
+                                                const prevWeek = fmtLocal(
+                                                    addDays(new Date(start), -7)
+                                                );
+                                                setStart(prevWeek);
+                                            }}
+                                            title="Previous week"
+                                        >
+                                            ‹ Prev
+                                        </button>
+                                        <button
+                                            className="btn-secondary px-3 py-2 text-xs"
+                                            onClick={() => {
+                                                setStart(fmtLocal(new Date()));
+                                            }}
+                                            title="Current week"
+                                        >
+                                            This Week
+                                        </button>
+                                        <button
+                                            className="btn-secondary px-3 py-2 text-xs"
+                                            onClick={() => {
+                                                const nextWeek = fmtLocal(
+                                                    addDays(new Date(start), 7)
+                                                );
+                                                setStart(nextWeek);
+                                            }}
+                                            title="Next week"
+                                        >
+                                            Next ›
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
                             {/* Week picker with calendar week display */}
-                            <div className="flex items-end gap-3 ml-auto mr-5">
+                            <div className="flex items-end gap-3 mr-5">
                                 <div>
                                     <div className="flex justify-between items-center">
                                         <label className="label sm:text-sm text-[11px]">
