@@ -29,7 +29,7 @@ model User {
     sharingEnabled Boolean @default(true) // By default, new accounts enable sharing
 
     // Color preferences
-    ignoreAdminColors Boolean @default(false) // Ignore admin-set colors and use default colors
+    ignoreAdminColors Boolean @default(true) // Ignore admin-set colors and use default colors
 
     // Relationships
     timetables   Timetable[]
