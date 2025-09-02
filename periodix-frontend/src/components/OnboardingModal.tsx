@@ -462,15 +462,47 @@ export default function OnboardingModal({
 
     // Calculate modal position based on highlighted element
     const getModalPosition = () => {
-        if (!highlightedElement) return { position: 'center' };
-        
-        const currentStepData = steps[currentStep];
-        const rect = highlightedElement.getBoundingClientRect();
         const viewport = {
             width: window.innerWidth,
             height: window.innerHeight,
         };
         
+        // Mobile viewport detection (768px is typical tablet breakpoint)
+        const isMobile = viewport.width < 768;
+        
+        if (!highlightedElement) {
+            return isMobile ? { useMobileBottom: true } : { position: 'center' };
+        }
+        
+        const currentStepData = inModalOnboarding 
+            ? modalOnboardingSteps[modalStepIndex] 
+            : steps[currentStep];
+        const rect = highlightedElement.getBoundingClientRect();
+        
+        // On mobile, always use bottom sheet positioning to avoid overlaps
+        if (isMobile) {
+            // Ensure highlighted element is visible above the modal
+            // Calculate minimum space needed for the modal (approximately 400px)
+            const modalHeight = 400;
+            const topSpaceNeeded = viewport.height - modalHeight - 40; // 40px padding
+            
+            // If highlighted element is in the bottom half of screen, scroll it up
+            if (rect.bottom > topSpaceNeeded) {
+                // For search bars at top, we still use bottom positioning
+                // For lessons that might be lower, scroll them up first
+                if (currentStepData.target === '.timetable-lesson' || 
+                    currentStepData.demoType === 'interactive-lesson') {
+                    highlightedElement.scrollIntoView({ 
+                        behavior: 'smooth', 
+                        block: 'start' // Position at top of viewport
+                    });
+                }
+            }
+            
+            return { useMobileBottom: true };
+        }
+        
+        // Desktop positioning logic (unchanged)
         switch (currentStepData.position) {
             case 'right':
                 if (rect.right + 400 < viewport.width) {
@@ -510,8 +542,8 @@ export default function OnboardingModal({
                 break;
         }
         
-        // Fallback to center if positioning doesn't work
-        return { useCenter: true };
+        // Fallback to center for desktop, mobile bottom for mobile
+        return isMobile ? { useMobileBottom: true } : { useCenter: true };
     };
 
     const handleNext = () => {
@@ -611,15 +643,11 @@ export default function OnboardingModal({
     return createPortal(
         <div
             className={`fixed inset-0 ${inModalOnboarding ? 'z-[10000]' : 'z-50'} transition-opacity duration-200 ${
-                waitingForInteraction && (currentStepData.demoType === 'interactive-lesson' || currentStepData.demoType === 'interactive-settings')
-                    ? 'pointer-events-none' 
-                    : ''
-            } ${
                 isVisible ? 'opacity-100' : 'opacity-0'
             }`}
             onMouseDown={(e) => {
-                // Block all mouse events during interactive steps and modal onboarding
-                if (waitingForInteraction || inModalOnboarding) {
+                // Only block mouse events for modal onboarding, not for interactive steps
+                if (inModalOnboarding) {
                     e.preventDefault();
                     e.stopPropagation();
                 }
@@ -629,7 +657,7 @@ export default function OnboardingModal({
             <div 
                 className={`absolute inset-0 ${
                     waitingForInteraction && (currentStepData.demoType === 'interactive-lesson' || currentStepData.demoType === 'interactive-settings')
-                        ? 'bg-black/20' 
+                        ? 'bg-black/20 pointer-events-none' // Make backdrop non-interactive during interactive steps
                         : 'backdrop-blur-sm bg-black/60'
                 }`}
                 onClick={(e) => {
@@ -723,9 +751,13 @@ export default function OnboardingModal({
 
             {/* Modal positioned based on highlighted element */}
             <div
-                className={`${'useCenter' in modalPosition 
-                    ? 'grid place-items-center inset-0' 
-                    : 'absolute'} ${
+                className={`${
+                    'useMobileBottom' in modalPosition 
+                        ? 'fixed inset-x-0 bottom-0 flex items-end' 
+                        : 'useCenter' in modalPosition 
+                        ? 'grid place-items-center inset-0' 
+                        : 'absolute'
+                } ${
                     waitingForInteraction && currentStepData.demoType === 'interactive-lesson' && !hasInteracted 
                         ? 'opacity-90' 
                         : waitingForInteraction && currentStepData.demoType === 'interactive-lesson' && hasInteracted 
@@ -736,12 +768,16 @@ export default function OnboardingModal({
                         ? 'opacity-95'
                         : 'opacity-100'
                 }`}
-                style={'useCenter' in modalPosition ? {} : modalPosition as React.CSSProperties}
+                style={!('useCenter' in modalPosition) && !('useMobileBottom' in modalPosition) ? modalPosition as React.CSSProperties : {}}
             >
                 <div
-                    className={`relative w-full max-w-md max-h-[85vh] overflow-y-auto rounded-2xl shadow-2xl ring-1 ring-black/10 dark:ring-white/10 bg-white/98 dark:bg-slate-900/98 backdrop-blur-md transition-all duration-200 ease-out will-change-transform will-change-opacity ${
-                        'useCenter' in modalPosition ? 'mx-4' : ''
+                    className={`relative w-full ${
+                        'useMobileBottom' in modalPosition
+                            ? 'max-w-none mx-0 rounded-t-2xl rounded-b-none' // Mobile bottom sheet style
+                            : 'max-w-md rounded-2xl'
                     } ${
+                        'useCenter' in modalPosition || 'useMobileBottom' in modalPosition ? 'mx-4' : ''
+                    } max-h-[85vh] overflow-y-auto shadow-2xl ring-1 ring-black/10 dark:ring-white/10 bg-white/98 dark:bg-slate-900/98 backdrop-blur-md transition-all duration-200 ease-out will-change-transform will-change-opacity ${
                         waitingForInteraction && (currentStepData.demoType === 'interactive-lesson' || currentStepData.demoType === 'interactive-settings')
                             ? 'pointer-events-auto' 
                             : ''
