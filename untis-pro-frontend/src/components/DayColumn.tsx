@@ -392,7 +392,7 @@ const DayColumn: FC<DayColumnProps> = ({
                             {/* Indicators + room label (desktop) */}
                             <div className="absolute top-1 right-1 hidden sm:flex flex-col items-end gap-1">
                                 {room && (
-                                    <div className="hidden sm:block text-[11px] leading-tight whitespace-nowrap drop-shadow-sm">
+                                    <div className={`hidden sm:block text-[11px] leading-tight whitespace-nowrap drop-shadow-sm ${cancelled ? 'lesson-cancelled-room' : ''}`}>
                                         {(() => {
                                             const roomInfo =
                                                 getRoomDisplayText(l);
@@ -638,7 +638,7 @@ const DayColumn: FC<DayColumnProps> = ({
                                 <div className="flex flex-col items-center justify-center text-center gap-0.5 h-full sm:hidden px-0.5">
                                     {/* Info preview removed from mobile timetable view */}
                                     <div
-                                        className="font-semibold leading-snug w-full whitespace-nowrap truncate"
+                                        className={`font-semibold leading-snug w-full whitespace-nowrap truncate ${cancelled ? 'lesson-cancelled-subject' : ''}`}
                                         style={{
                                             fontSize:
                                                 'clamp(12px, 3.5vw, 15px)',
@@ -650,7 +650,7 @@ const DayColumn: FC<DayColumnProps> = ({
                                         if (!l.te || l.te.length === 0)
                                             return null;
                                         return (
-                                            <div className="text-[11px] leading-tight truncate max-w-full flex flex-wrap justify-center gap-x-1">
+                                            <div className={`text-[11px] leading-tight truncate max-w-full flex flex-wrap justify-center gap-x-1 ${cancelled ? 'lesson-cancelled-teacher' : ''}`}>
                                                 {l.te.map((t, i) => (
                                                     <span
                                                         key={i}
@@ -679,7 +679,7 @@ const DayColumn: FC<DayColumnProps> = ({
                                             return null;
                                         // Only show short room codes in mobile timetable view
                                         return (
-                                            <div className="text-[11px] leading-tight truncate max-w-full">
+                                            <div className={`text-[11px] leading-tight truncate max-w-full ${cancelled ? 'lesson-cancelled-room' : ''}`}>
                                                 <div
                                                     className={
                                                         roomInfo.hasChanges
@@ -705,16 +705,13 @@ const DayColumn: FC<DayColumnProps> = ({
                                         reserveBottom={reservedBottomPx}
                                         className="min-w-0 self-stretch"
                                     >
-                                        <div className="font-semibold leading-tight text-[13px]">
+                                        <div className={`font-semibold leading-tight text-[13px] ${cancelled ? 'lesson-cancelled-subject' : ''}`}>
                                             {displaySubject}
                                         </div>
-                                        {/* Show timeframe unless cancelled/irregular AND this is a single (non-overlapping) lesson. */}
+                                        {/* Show timeframe unless lesson is cancelled or irregular. */}
                                         {canShowTimeFrame &&
-                                            !(
-                                                (cancelled || irregular) &&
-                                                b.colCount === 2
-                                            ) && (
-                                                <div className="opacity-90 sm:mt-0 leading-tight text-[12px]">
+                                            !(cancelled || irregular) && (
+                                                <div className={`opacity-90 sm:mt-0 leading-tight text-[12px] ${cancelled ? 'lesson-cancelled-time' : ''}`}>
                                                     <span className="whitespace-nowrap">
                                                         {fmtHM(b.startMin)}–
                                                         {fmtHM(b.endMin)}
@@ -725,7 +722,7 @@ const DayColumn: FC<DayColumnProps> = ({
                                             if (!l.te || l.te.length === 0)
                                                 return null;
                                             return (
-                                                <div className="leading-tight text-[12px] flex flex-wrap gap-x-1">
+                                                <div className={`leading-tight text-[12px] flex flex-wrap gap-x-1 ${cancelled ? 'lesson-cancelled-teacher' : ''}`}>
                                                     {l.te.map((t, i) => (
                                                         <span
                                                             key={i}
