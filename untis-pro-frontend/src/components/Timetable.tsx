@@ -566,21 +566,45 @@ export default function Timetable({
                     // Swiping left - animate to show next week fully
                     setTranslateX(-containerWidth);
                     
-                    // After animation completes, change data and reset position
+                    // Wait for animation to complete, then seamlessly transition
                     setTimeout(() => {
+                        // Change data and reset position simultaneously to avoid visual jump
                         onWeekNavigate?.('next');
+                        // Reset position immediately without transition to avoid snap-back
+                        if (slidingTrackRef.current) {
+                            slidingTrackRef.current.style.transition = 'none';
+                        }
                         setTranslateX(0);
-                        setIsAnimating(false);
+                        
+                        // Re-enable transitions after the reset
+                        setTimeout(() => {
+                            if (slidingTrackRef.current) {
+                                slidingTrackRef.current.style.transition = '';
+                            }
+                            setIsAnimating(false);
+                        }, 16); // Next frame
                     }, 300);
                 } else {
                     // Swiping right - animate to show previous week fully  
                     setTranslateX(containerWidth);
                     
-                    // After animation completes, change data and reset position
+                    // Wait for animation to complete, then seamlessly transition
                     setTimeout(() => {
+                        // Change data and reset position simultaneously to avoid visual jump
                         onWeekNavigate?.('prev');
+                        // Reset position immediately without transition to avoid snap-back
+                        if (slidingTrackRef.current) {
+                            slidingTrackRef.current.style.transition = 'none';
+                        }
                         setTranslateX(0);
-                        setIsAnimating(false);
+                        
+                        // Re-enable transitions after the reset
+                        setTimeout(() => {
+                            if (slidingTrackRef.current) {
+                                slidingTrackRef.current.style.transition = '';
+                            }
+                            setIsAnimating(false);
+                        }, 16); // Next frame
                     }, 300);
                 }
             } else {
