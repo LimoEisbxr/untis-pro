@@ -568,44 +568,52 @@ export default function Timetable({
                     
                     // Wait for animation to complete, then seamlessly transition
                     setTimeout(() => {
-                        // Change data and reset position simultaneously to avoid visual jump
-                        onWeekNavigate?.('next');
-                        // Reset position immediately without transition to avoid snap-back
+                        // Disable transitions first
                         if (slidingTrackRef.current) {
                             slidingTrackRef.current.style.transition = 'none';
                         }
-                        setTranslateX(0);
                         
-                        // Re-enable transitions after the reset
-                        setTimeout(() => {
-                            if (slidingTrackRef.current) {
-                                slidingTrackRef.current.style.transition = '';
-                            }
-                            setIsAnimating(false);
-                        }, 16); // Next frame
-                    }, 300);
+                        // Change data and reset position simultaneously using requestAnimationFrame
+                        // to ensure the DOM updates are batched properly
+                        requestAnimationFrame(() => {
+                            onWeekNavigate?.('next');
+                            setTranslateX(0);
+                            
+                            // Re-enable transitions on the next frame to avoid visible jump
+                            requestAnimationFrame(() => {
+                                if (slidingTrackRef.current) {
+                                    slidingTrackRef.current.style.transition = '';
+                                }
+                                setIsAnimating(false);
+                            });
+                        });
+                    }, 320); // Slightly longer to ensure animation completes
                 } else {
                     // Swiping right - animate to show previous week fully  
                     setTranslateX(containerWidth);
                     
                     // Wait for animation to complete, then seamlessly transition
                     setTimeout(() => {
-                        // Change data and reset position simultaneously to avoid visual jump
-                        onWeekNavigate?.('prev');
-                        // Reset position immediately without transition to avoid snap-back
+                        // Disable transitions first
                         if (slidingTrackRef.current) {
                             slidingTrackRef.current.style.transition = 'none';
                         }
-                        setTranslateX(0);
                         
-                        // Re-enable transitions after the reset
-                        setTimeout(() => {
-                            if (slidingTrackRef.current) {
-                                slidingTrackRef.current.style.transition = '';
-                            }
-                            setIsAnimating(false);
-                        }, 16); // Next frame
-                    }, 300);
+                        // Change data and reset position simultaneously using requestAnimationFrame
+                        // to ensure the DOM updates are batched properly
+                        requestAnimationFrame(() => {
+                            onWeekNavigate?.('prev');
+                            setTranslateX(0);
+                            
+                            // Re-enable transitions on the next frame to avoid visible jump
+                            requestAnimationFrame(() => {
+                                if (slidingTrackRef.current) {
+                                    slidingTrackRef.current.style.transition = '';
+                                }
+                                setIsAnimating(false);
+                            });
+                        });
+                    }, 320); // Slightly longer to ensure animation completes
                 }
             } else {
                 // Snap back to current position
