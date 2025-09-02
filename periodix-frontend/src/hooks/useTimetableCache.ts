@@ -455,6 +455,10 @@ export function useTimetableCache() {
     return {
         getTimetableData,
         invalidateCache,
-        getCacheStats
+        getCacheStats,
+        getCachedData: (userId: string, weekStartStr: string, weekEndStr: string) => {
+            const cacheKey = generateCacheKey(userId, weekStartStr, weekEndStr);
+            return getCachedData(cacheKey);
+        }
     };
 }

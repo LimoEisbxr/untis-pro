@@ -224,6 +224,7 @@ export default function Timetable({
     token,
     viewingUserId,
     onWeekNavigate,
+    getAdjacentWeekData,
     onLessonModalStateChange,
     isOnboardingActive,
 }: {
@@ -241,6 +242,7 @@ export default function Timetable({
     token?: string;
     viewingUserId?: string; // if admin is viewing a student
     onWeekNavigate?: (direction: 'prev' | 'next') => void; // optional external navigation handler
+    getAdjacentWeekData?: (direction: 'prev' | 'next') => TimetableResponse | null; // function to get cached data for adjacent weeks
     onLessonModalStateChange?: (isOpen: boolean) => void; // callback for onboarding
     isOnboardingActive?: boolean;
     // Extended: allow passing current offset when color set
@@ -470,62 +472,199 @@ export default function Timetable({
         [monday]
     );
 
-    // Swipe gestures (mobile) to navigate weeks
+    // Multi-week data for sliding animation
+    const prevWeekMonday = useMemo(() => addDays(monday, -7), [monday]);
+    const nextWeekMonday = useMemo(() => addDays(monday, 7), [monday]);
+    
+    const prevWeekDays = useMemo(
+        () => Array.from({ length: 5 }, (_, i) => addDays(prevWeekMonday, i)),
+        [prevWeekMonday]
+    );
+    
+    const nextWeekDays = useMemo(
+        () => Array.from({ length: 5 }, (_, i) => addDays(nextWeekMonday, i)),
+        [nextWeekMonday]
+    );
+
+    // Advanced swipe animation for smooth week navigation
     const touchStartX = useRef<number | null>(null);
     const touchStartY = useRef<number | null>(null);
-    const SWIPE_THRESHOLD = 60; // px
-    const SWIPE_MAX_OFF_AXIS = 80; // allow some vertical movement
+    const touchStartTime = useRef<number | null>(null);
+    const [translateX, setTranslateX] = useState(0); // Current transform offset
+    const [isDragging, setIsDragging] = useState(false);
+    const [isAnimating, setIsAnimating] = useState(false);
     const containerRef = useRef<HTMLDivElement | null>(null);
+    const slidingTrackRef = useRef<HTMLDivElement | null>(null);
+    
+    const SWIPE_THRESHOLD = 80; // px - distance needed to commit to navigation
+    const VELOCITY_THRESHOLD = 0.3; // px/ms - speed needed for fast swipe
+    const SWIPE_MAX_OFF_AXIS = 100; // allow some vertical movement
+    
     useEffect(() => {
         const el = containerRef.current;
         if (!el) return;
         let skipSwipe = false;
         const INTERACTIVE_SELECTOR =
             'input,textarea,select,button,[contenteditable="true"],[role="textbox"]';
+            
         const handleTouchStart = (e: TouchEvent) => {
-            if (e.touches.length !== 1) return;
+            if (e.touches.length !== 1 || isAnimating) return;
             const target = e.target as HTMLElement | null;
-            // Ignore swipe if user starts on an interactive control to allow focusing
+            // Ignore swipe if user starts on an interactive control
             if (
                 target &&
                 (target.closest(INTERACTIVE_SELECTOR) ||
                     target.tagName === 'INPUT')
             ) {
                 skipSwipe = true;
-                touchStartX.current = null;
-                touchStartY.current = null;
-                return; // let the browser handle focus normally
+                return;
             }
+            
             skipSwipe = false;
+            setIsDragging(true);
             touchStartX.current = e.touches[0].clientX;
             touchStartY.current = e.touches[0].clientY;
+            touchStartTime.current = Date.now();
         };
+        
+        const handleTouchMove = (e: TouchEvent) => {
+            if (skipSwipe || !isDragging || touchStartX.current == null || touchStartY.current == null) return;
+            
+            const currentX = e.touches[0].clientX;
+            const currentY = e.touches[0].clientY;
+            const dx = currentX - touchStartX.current;
+            const dy = currentY - touchStartY.current;
+            
+            // Check if this is more of a vertical scroll
+            if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 20) {
+                skipSwipe = true;
+                setIsDragging(false);
+                setTranslateX(0);
+                return;
+            }
+            
+            // Prevent default only for horizontal swipes to avoid conflicts with scrolling
+            if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 10) {
+                e.preventDefault();
+            }
+            
+            // Update transform with resistance at boundaries
+            const containerWidth = el.getBoundingClientRect().width;
+            let newTranslateX = dx;
+            
+            // Add resistance when going beyond normal bounds
+            if (newTranslateX > containerWidth * 0.3) {
+                newTranslateX = containerWidth * 0.3 + (newTranslateX - containerWidth * 0.3) * 0.3;
+            } else if (newTranslateX < -containerWidth * 0.3) {
+                newTranslateX = -containerWidth * 0.3 + (newTranslateX + containerWidth * 0.3) * 0.3;
+            }
+            
+            setTranslateX(newTranslateX);
+        };
+        
         const handleTouchEnd = (e: TouchEvent) => {
             if (skipSwipe) {
                 skipSwipe = false;
+                setIsDragging(false);
+                setTranslateX(0);
                 return;
             }
-            if (touchStartX.current == null || touchStartY.current == null)
+            
+            if (!isDragging || touchStartX.current == null || touchStartY.current == null || touchStartTime.current == null) {
+                setIsDragging(false);
+                setTranslateX(0);
                 return;
+            }
+            
             const dx = e.changedTouches[0].clientX - touchStartX.current;
             const dy = e.changedTouches[0].clientY - touchStartY.current;
-            if (
-                Math.abs(dx) > SWIPE_THRESHOLD &&
-                Math.abs(dy) < SWIPE_MAX_OFF_AXIS
-            ) {
-                if (dx < 0) onWeekNavigate?.('next');
-                else onWeekNavigate?.('prev');
+            const dt = Date.now() - touchStartTime.current;
+            const velocity = Math.abs(dx) / dt; // px/ms
+            
+            setIsDragging(false);
+            
+            // Determine if we should navigate or snap back
+            const shouldNavigate = Math.abs(dx) > SWIPE_THRESHOLD || velocity > VELOCITY_THRESHOLD;
+            const isHorizontalSwipe = Math.abs(dx) > Math.abs(dy) && Math.abs(dy) < SWIPE_MAX_OFF_AXIS;
+            
+            if (shouldNavigate && isHorizontalSwipe) {
+                setIsAnimating(true);
+                
+                const containerWidth = el.getBoundingClientRect().width;
+                
+                if (dx < 0) {
+                    // Swiping left - animate to show next week fully
+                    setTranslateX(-containerWidth);
+                    
+                    // Wait for animation to complete, then seamlessly transition
+                    setTimeout(() => {
+                        // Disable transitions first
+                        if (slidingTrackRef.current) {
+                            slidingTrackRef.current.style.transition = 'none';
+                        }
+                        
+                        // Change data and reset position simultaneously using requestAnimationFrame
+                        // to ensure the DOM updates are batched properly
+                        requestAnimationFrame(() => {
+                            onWeekNavigate?.('next');
+                            setTranslateX(0);
+                            
+                            // Re-enable transitions on the next frame to avoid visible jump
+                            requestAnimationFrame(() => {
+                                if (slidingTrackRef.current) {
+                                    slidingTrackRef.current.style.transition = '';
+                                }
+                                setIsAnimating(false);
+                            });
+                        });
+                    }, 320); // Slightly longer to ensure animation completes
+                } else {
+                    // Swiping right - animate to show previous week fully  
+                    setTranslateX(containerWidth);
+                    
+                    // Wait for animation to complete, then seamlessly transition
+                    setTimeout(() => {
+                        // Disable transitions first
+                        if (slidingTrackRef.current) {
+                            slidingTrackRef.current.style.transition = 'none';
+                        }
+                        
+                        // Change data and reset position simultaneously using requestAnimationFrame
+                        // to ensure the DOM updates are batched properly
+                        requestAnimationFrame(() => {
+                            onWeekNavigate?.('prev');
+                            setTranslateX(0);
+                            
+                            // Re-enable transitions on the next frame to avoid visible jump
+                            requestAnimationFrame(() => {
+                                if (slidingTrackRef.current) {
+                                    slidingTrackRef.current.style.transition = '';
+                                }
+                                setIsAnimating(false);
+                            });
+                        });
+                    }, 320); // Slightly longer to ensure animation completes
+                }
+            } else {
+                // Snap back to current position
+                setTranslateX(0);
             }
+            
             touchStartX.current = null;
             touchStartY.current = null;
+            touchStartTime.current = null;
         };
+        
         el.addEventListener('touchstart', handleTouchStart, { passive: true });
-        el.addEventListener('touchend', handleTouchEnd);
+        el.addEventListener('touchmove', handleTouchMove, { passive: false });
+        el.addEventListener('touchend', handleTouchEnd, { passive: true });
+        
         return () => {
             el.removeEventListener('touchstart', handleTouchStart);
+            el.removeEventListener('touchmove', handleTouchMove);
             el.removeEventListener('touchend', handleTouchEnd);
         };
-    }, [onWeekNavigate]);
+    }, [onWeekNavigate, isDragging, isAnimating]);
 
     // Track current time and compute line position
     const [now, setNow] = useState<Date>(() => new Date());
@@ -567,6 +706,54 @@ export default function Timetable({
         }
         return byDay;
     }, [data?.payload, days]);
+
+    // Process previous week's data
+    const prevWeekLessonsByDay = useMemo(() => {
+        const byDay: Record<string, Lesson[]> = {};
+        for (const d of prevWeekDays) byDay[fmtLocal(d)] = [];
+        
+        const prevWeekData = getAdjacentWeekData?.('prev');
+        const lessons = Array.isArray(prevWeekData?.payload)
+            ? (prevWeekData?.payload as Lesson[])
+            : [];
+        
+        for (const l of lessons) {
+            const dStr = yyyymmddToISO(l.date);
+            if (byDay[dStr]) byDay[dStr].push(l);
+        }
+        for (const k of Object.keys(byDay)) {
+            byDay[k].sort(
+                (a, b) => a.startTime - b.startTime || a.endTime - b.endTime
+            );
+            // Apply lesson merging after sorting
+            byDay[k] = mergeLessons(byDay[k]);
+        }
+        return byDay;
+    }, [prevWeekDays, getAdjacentWeekData]);
+
+    // Process next week's data
+    const nextWeekLessonsByDay = useMemo(() => {
+        const byDay: Record<string, Lesson[]> = {};
+        for (const d of nextWeekDays) byDay[fmtLocal(d)] = [];
+        
+        const nextWeekData = getAdjacentWeekData?.('next');
+        const lessons = Array.isArray(nextWeekData?.payload)
+            ? (nextWeekData?.payload as Lesson[])
+            : [];
+        
+        for (const l of lessons) {
+            const dStr = yyyymmddToISO(l.date);
+            if (byDay[dStr]) byDay[dStr].push(l);
+        }
+        for (const k of Object.keys(byDay)) {
+            byDay[k].sort(
+                (a, b) => a.startTime - b.startTime || a.endTime - b.endTime
+            );
+            // Apply lesson merging after sorting
+            byDay[k] = mergeLessons(byDay[k]);
+        }
+        return byDay;
+    }, [nextWeekDays, getAdjacentWeekData]);
 
     const hasLessons = useMemo(
         () => Object.values(lessonsByDay).some((arr) => arr.length > 0),
@@ -675,150 +862,216 @@ export default function Timetable({
             </div>
 
             <div className="overflow-hidden w-full">
-                <div
-                    className="grid gap-x-1 sm:gap-x-3 w-full relative"
-                    style={{
-                        gridTemplateColumns: `${axisWidth}px repeat(5, 1fr)`,
-                    }}
-                >
-                    {/* Grid header placeholders */}
-                    <div />
-                    {days.map((d) => (
-                        <div
-                            key={fmtLocal(d)}
-                            className="px-0 first:pl-0 last:pr-0 sm:px-1.5 sm:first:pl-3 sm:last:pr-3 h-0"
+                {/* New sliding layout structure */}
+                <div className="flex w-full relative">
+                    {/* Fixed TimeAxis - stays in place */}
+                    <div style={{ width: `${axisWidth}px` }}>
+                        <TimeAxis
+                            START_MIN={START_MIN}
+                            END_MIN={END_MIN}
+                            SCALE={SCALE}
+                            DAY_HEADER_PX={DAY_HEADER_PX}
+                            BOTTOM_PAD_PX={BOTTOM_PAD_PX}
+                            internalHeaderPx={internalHeaderPx}
                         />
-                    ))}
-
-                    {/* Current time line overlay */}
-                    {showNowLine && (
+                    </div>
+                    
+                    {/* Sliding container for day columns */}
+                    <div className="flex-1 overflow-hidden relative">
+                        {/* Subtle overlay during dragging to indicate interaction */}
+                        {isDragging && (
+                            <div className="absolute inset-0 bg-black/5 dark:bg-white/5 z-20 pointer-events-none transition-opacity duration-150" />
+                        )}
                         <div
-                            aria-hidden
-                            className="pointer-events-none absolute -translate-y-1/2 z-40"
+                            ref={slidingTrackRef}
+                            className="flex transition-transform duration-300 ease-out"
                             style={{
-                                top: nowY,
-                                left: `calc(${axisWidth}px + 0.25rem)`, // axis width + gap (responsive gap handled by CSS)
-                                right: '0.25rem',
+                                transform: `translateX(calc(-33.333% + ${translateX}px))`, // Start with current week centered
+                                width: '300%', // 3 weeks side by side
+                                transition: isDragging ? 'none' : 'transform 300ms ease-out'
                             }}
                         >
-                            <div className="relative w-full">
-                                {/* Base thin line spanning full width with subtle glow - centered to align with thick overlay */}
-                                <div className="h-[1px] w-full bg-gradient-to-r from-rose-500 via-fuchsia-500 to-pink-500 shadow-[0_0_4px_rgba(244,63,94,0.4)] -translate-y-1/2" />
-
-                                {/* Seamless thicker overlay for current day with tapered edges */}
-                                <div
-                                    className="absolute top-0 h-[3px] -translate-y-1/2"
-                                    style={{
-                                        left: `${
-                                            (days.findIndex(
-                                                (d) => fmtLocal(d) === todayISO
-                                            ) /
-                                                5) *
-                                            100
-                                        }%`,
-                                        width: '20%',
-                                        background: `linear-gradient(to right, 
-                                            transparent 0%, 
-                                            rgba(244,63,94,0.3) 2%, 
-                                            rgb(244,63,94) 8%, 
-                                            rgb(217,70,239) 50%, 
-                                            rgb(236,72,153) 92%, 
-                                            rgba(236,72,153,0.3) 98%, 
-                                            transparent 100%
-                                        )`,
-                                        filter: 'drop-shadow(0 0 6px rgba(244,63,94,0.6))',
-                                    }}
-                                />
-
-                                {/* Additional glow effect for seamless blending */}
-                                <div
-                                    className="absolute top-0 h-[5px] -translate-y-1/2 opacity-40"
-                                    style={{
-                                        left: `${
-                                            (days.findIndex(
-                                                (d) => fmtLocal(d) === todayISO
-                                            ) /
-                                                5) *
-                                            100
-                                        }%`,
-                                        width: '20%',
-                                        background: `linear-gradient(to right, 
-                                            transparent 0%, 
-                                            rgba(244,63,94,0.1) 5%, 
-                                            rgba(244,63,94,0.6) 50%, 
-                                            rgba(244,63,94,0.1) 95%, 
-                                            transparent 100%
-                                        )`,
-                                        filter: 'blur(1px)',
-                                    }}
-                                />
-
-                                {/* Time indicator dot and label positioned for current day */}
-                                <div
-                                    className="absolute top-1/2 -translate-y-1/2"
-                                    style={{
-                                        left: `${
-                                            (days.findIndex(
-                                                (d) => fmtLocal(d) === todayISO
-                                            ) /
-                                                5) *
-                                            100
-                                        }%`,
-                                    }}
-                                >
-                                    {/* <div
-                                        className="h-2 w-2 rounded-full bg-rose-500 ring-2 ring-white/80 dark:ring-slate-900/60 shadow-lg -translate-x-1/2"
+                            {/* Previous Week */}
+                            <div className="w-1/3 flex gap-x-1 sm:gap-x-3 relative">
+                                {/* Week separator line - left side */}
+                                <div className="absolute right-0 top-0 bottom-0 w-px bg-slate-200 dark:bg-slate-700 opacity-30 z-10" />
+                                {prevWeekDays.map((d) => {
+                                    const key = fmtLocal(d);
+                                    const items = prevWeekLessonsByDay[key] || [];
+                                    return (
+                                        <div key={key} className="flex-1">
+                                            <DayColumn
+                                                day={d}
+                                                keyStr={key}
+                                                items={items}
+                                                START_MIN={START_MIN}
+                                                END_MIN={END_MIN}
+                                                SCALE={SCALE}
+                                                DAY_HEADER_PX={DAY_HEADER_PX}
+                                                BOTTOM_PAD_PX={BOTTOM_PAD_PX}
+                                                lessonColors={lessonColors}
+                                                defaultLessonColors={defaultLessonColors}
+                                                onLessonClick={handleLessonClick}
+                                                isToday={false}
+                                                gradientOffsets={gradientOffsets}
+                                                hideHeader
+                                            />
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                            
+                            {/* Current Week */}
+                            <div className="w-1/3 flex gap-x-1 sm:gap-x-3 relative">
+                                {/* Current time line overlay - only show on current week */}
+                                {showNowLine && (
+                                    <div
+                                        aria-hidden
+                                        className="pointer-events-none absolute -translate-y-1/2 z-40"
                                         style={{
-                                            filter: 'drop-shadow(0 0 4px rgba(244,63,94,0.8))',
+                                            top: nowY,
+                                            left: '0.25rem',
+                                            right: '0.25rem',
                                         }}
-                                    /> */}
-                                    <div className="absolute -top-[15px] -translate-x-1/2 whitespace-nowrap">
-                                        <span
-                                            className="rounded-full bg-rose-500/95 px-1 py-[1px] text-[10px] font-semibold text-white shadow-lg"
-                                            style={{
-                                                filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))',
-                                            }}
-                                        >
-                                            {fmtHM(nowMin)}
-                                        </span>
+                                    >
+                                        <div className="relative w-full">
+                                            {/* Base thin line spanning full width with subtle glow */}
+                                            <div className="h-[1px] w-full bg-gradient-to-r from-rose-500 via-fuchsia-500 to-pink-500 shadow-[0_0_4px_rgba(244,63,94,0.4)] -translate-y-1/2" />
+
+                                            {/* Seamless thicker overlay for current day with tapered edges */}
+                                            <div
+                                                className="absolute top-0 h-[3px] -translate-y-1/2"
+                                                style={{
+                                                    left: `${
+                                                        (days.findIndex(
+                                                            (d) => fmtLocal(d) === todayISO
+                                                        ) /
+                                                            5) *
+                                                        100
+                                                    }%`,
+                                                    width: '20%',
+                                                    background: `linear-gradient(to right, 
+                                                        transparent 0%, 
+                                                        rgba(244,63,94,0.3) 2%, 
+                                                        rgb(244,63,94) 8%, 
+                                                        rgb(217,70,239) 50%, 
+                                                        rgb(236,72,153) 92%, 
+                                                        rgba(236,72,153,0.3) 98%, 
+                                                        transparent 100%
+                                                    )`,
+                                                    filter: 'drop-shadow(0 0 6px rgba(244,63,94,0.6))',
+                                                }}
+                                            />
+
+                                            {/* Additional glow effect for seamless blending */}
+                                            <div
+                                                className="absolute top-0 h-[5px] -translate-y-1/2 opacity-40"
+                                                style={{
+                                                    left: `${
+                                                        (days.findIndex(
+                                                            (d) => fmtLocal(d) === todayISO
+                                                        ) /
+                                                            5) *
+                                                        100
+                                                    }%`,
+                                                    width: '20%',
+                                                    background: `linear-gradient(to right, 
+                                                        transparent 0%, 
+                                                        rgba(244,63,94,0.1) 5%, 
+                                                        rgba(244,63,94,0.6) 50%, 
+                                                        rgba(244,63,94,0.1) 95%, 
+                                                        transparent 100%
+                                                    )`,
+                                                    filter: 'blur(1px)',
+                                                }}
+                                            />
+
+                                            {/* Time indicator dot and label positioned for current day */}
+                                            <div
+                                                className="absolute top-1/2 -translate-y-1/2"
+                                                style={{
+                                                    left: `${
+                                                        (days.findIndex(
+                                                            (d) => fmtLocal(d) === todayISO
+                                                        ) /
+                                                            5) *
+                                                        100
+                                                    }%`,
+                                                }}
+                                            >
+                                                <div className="absolute -top-[15px] -translate-x-1/2 whitespace-nowrap">
+                                                    <span
+                                                        className="rounded-full bg-rose-500/95 px-1 py-[1px] text-[10px] font-semibold text-white shadow-lg"
+                                                        style={{
+                                                            filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))',
+                                                        }}
+                                                    >
+                                                        {fmtHM(nowMin)}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
-                                </div>
+                                )}
+                                
+                                {days.map((d) => {
+                                    const key = fmtLocal(d);
+                                    const items = lessonsByDay[key] || [];
+                                    const isToday = key === todayISO;
+                                    return (
+                                        <div key={key} className="flex-1">
+                                            <DayColumn
+                                                day={d}
+                                                keyStr={key}
+                                                items={items}
+                                                START_MIN={START_MIN}
+                                                END_MIN={END_MIN}
+                                                SCALE={SCALE}
+                                                DAY_HEADER_PX={DAY_HEADER_PX}
+                                                BOTTOM_PAD_PX={BOTTOM_PAD_PX}
+                                                lessonColors={lessonColors}
+                                                defaultLessonColors={defaultLessonColors}
+                                                onLessonClick={handleLessonClick}
+                                                isToday={isToday}
+                                                gradientOffsets={gradientOffsets}
+                                                hideHeader
+                                            />
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                            
+                            {/* Next Week */}
+                            <div className="w-1/3 flex gap-x-1 sm:gap-x-3 relative">
+                                {/* Week separator line - left side */}
+                                <div className="absolute left-0 top-0 bottom-0 w-px bg-slate-200 dark:bg-slate-700 opacity-30 z-10" />
+                                {nextWeekDays.map((d) => {
+                                    const key = fmtLocal(d);
+                                    const items = nextWeekLessonsByDay[key] || [];
+                                    return (
+                                        <div key={key} className="flex-1">
+                                            <DayColumn
+                                                day={d}
+                                                keyStr={key}
+                                                items={items}
+                                                START_MIN={START_MIN}
+                                                END_MIN={END_MIN}
+                                                SCALE={SCALE}
+                                                DAY_HEADER_PX={DAY_HEADER_PX}
+                                                BOTTOM_PAD_PX={BOTTOM_PAD_PX}
+                                                lessonColors={lessonColors}
+                                                defaultLessonColors={defaultLessonColors}
+                                                onLessonClick={handleLessonClick}
+                                                isToday={false}
+                                                gradientOffsets={gradientOffsets}
+                                                hideHeader
+                                            />
+                                        </div>
+                                    );
+                                })}
                             </div>
                         </div>
-                    )}
-
-                    <TimeAxis
-                        START_MIN={START_MIN}
-                        END_MIN={END_MIN}
-                        SCALE={SCALE}
-                        DAY_HEADER_PX={DAY_HEADER_PX}
-                        BOTTOM_PAD_PX={BOTTOM_PAD_PX}
-                        internalHeaderPx={internalHeaderPx}
-                    />
-                    {days.map((d) => {
-                        const key = fmtLocal(d);
-                        const items = lessonsByDay[key] || [];
-                        const isToday = key === todayISO;
-                        return (
-                            <DayColumn
-                                key={key}
-                                day={d}
-                                keyStr={key}
-                                items={items}
-                                START_MIN={START_MIN}
-                                END_MIN={END_MIN}
-                                SCALE={SCALE}
-                                DAY_HEADER_PX={DAY_HEADER_PX}
-                                BOTTOM_PAD_PX={BOTTOM_PAD_PX}
-                                lessonColors={lessonColors}
-                                defaultLessonColors={defaultLessonColors}
-                                onLessonClick={handleLessonClick}
-                                isToday={isToday}
-                                gradientOffsets={gradientOffsets}
-                                hideHeader
-                            />
-                        );
-                    })}
+                    </div>
                 </div>
             </div>
 
