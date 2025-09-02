@@ -1,4 +1,5 @@
 import type { FC } from 'react';
+import { useEffect, useState } from 'react';
 import { DEFAULT_PERIODS } from '../utils/periods';
 import { fmtHM, untisToMinutes } from '../utils/dates';
 
@@ -22,11 +23,24 @@ const TimeAxis: FC<TimeAxisProps> = ({
     const timesHeight = (END_MIN - START_MIN) * SCALE;
     const headerPx = internalHeaderPx ?? DAY_HEADER_PX;
 
+    // Detect mobile (tailwind sm breakpoint <640px) to match DayColumn's padding behavior
+    const [isMobile, setIsMobile] = useState<boolean>(false);
+    useEffect(() => {
+        const mq = window.matchMedia('(max-width: 639px)');
+        const update = () => setIsMobile(mq.matches);
+        update();
+        mq.addEventListener('change', update);
+        return () => mq.removeEventListener('change', update);
+    }, []);
+
+    // Use the same padding as DayColumn to ensure alignment
+    const PAD_TOP = isMobile ? 2 : 4;
+
     // Build unique timestamp labels (dedupe touching boundaries) with a minimum vertical gap.
     const timeLabelPositions = (() => {
         const minGapPx = 15;
-        const toY = (min: number) => (min - START_MIN) * SCALE;
-        const maxY = (END_MIN - START_MIN) * SCALE;
+        const toY = (min: number) => Math.round((min - START_MIN) * SCALE) + PAD_TOP;
+        const maxY = Math.round((END_MIN - START_MIN) * SCALE) + PAD_TOP;
         type L = { y: number; label: string };
         const labels: L[] = [];
         let prevEnd: number | null = null;
@@ -111,8 +125,8 @@ const TimeAxis: FC<TimeAxisProps> = ({
                                     className="absolute left-0 right-0 -translate-y-1/2 select-none text-slate-400 dark:text-slate-500 text-center"
                                     style={{
                                         top:
-                                            ((sMin + eMin) / 2 - START_MIN) *
-                                                SCALE +
+                                            Math.round(((sMin + eMin) / 2 - START_MIN) *
+                                                SCALE) + PAD_TOP +
                                             headerPx,
                                         fontSize: 22,
                                         fontWeight: 800,
