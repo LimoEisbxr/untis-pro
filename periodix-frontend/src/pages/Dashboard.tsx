@@ -4,6 +4,7 @@ import MoonIcon from '../components/MoonIcon';
 import SettingsModal from '../components/SettingsModal';
 import NotificationBell from '../components/NotificationBell';
 import NotificationPanel from '../components/NotificationPanel';
+import OnboardingModal from '../components/OnboardingModal';
 import {
     API_BASE,
     getLessonColors,
@@ -120,6 +121,10 @@ export default function Dashboard({
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [isNotificationPanelOpen, setIsNotificationPanelOpen] =
         useState(false);
+
+    // Onboarding state
+    const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
+    const [isLessonModalOpen, setIsLessonModalOpen] = useState(false);
 
     // Derive a friendly info message for admin users when their own timetable isn't available
     const adminInfoMessage = useMemo(() => {
@@ -423,6 +428,18 @@ export default function Dashboard({
         return () => clearInterval(interval);
     }, [loadNotifications]);
 
+    // Check if user should see onboarding
+    useEffect(() => {
+        const hasSeenOnboarding = localStorage.getItem('untis-pro-onboarding-completed');
+        if (!hasSeenOnboarding) {
+            // Delay showing onboarding slightly to let the dashboard load
+            const timer = setTimeout(() => {
+                setIsOnboardingOpen(true);
+            }, 1000);
+            return () => clearTimeout(timer);
+        }
+    }, []);
+
     useEffect(() => {
         const q = queryText.trim();
         if (!q) {
@@ -491,6 +508,22 @@ export default function Dashboard({
             clearTimeout(h);
         };
     }, [queryText, token]);
+
+    const handleOnboardingComplete = () => {
+        localStorage.setItem('untis-pro-onboarding-completed', 'true');
+        setIsOnboardingOpen(false);
+    };
+
+    // Development helper - expose function to reset onboarding
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            (window as Window & typeof globalThis & { resetOnboarding?: () => void }).resetOnboarding = () => {
+                localStorage.removeItem('untis-pro-onboarding-completed');
+                setIsOnboardingOpen(true);
+                console.log('Onboarding reset - modal will show');
+            };
+        }
+    }, []);
 
     // Close the search dropdown on outside click or Escape (desktop only)
     useEffect(() => {
@@ -884,6 +917,8 @@ export default function Dashboard({
                                 }
                             }}
                             getAdjacentWeekData={getAdjacentWeekData}
+                            onLessonModalStateChange={setIsLessonModalOpen}
+                            isOnboardingActive={isOnboardingOpen}
                         />
                     </div>
                 </section>
@@ -1206,6 +1241,15 @@ export default function Dashboard({
                 isOpen={isNotificationPanelOpen}
                 onClose={() => setIsNotificationPanelOpen(false)}
                 onNotificationUpdate={loadNotifications}
+            />
+
+            <OnboardingModal
+                isOpen={isOnboardingOpen}
+                onClose={() => setIsOnboardingOpen(false)}
+                onComplete={handleOnboardingComplete}
+                isSettingsModalOpen={isSettingsModalOpen}
+                onOpenSettings={() => setIsSettingsModalOpen(true)}
+                isLessonModalOpen={isLessonModalOpen}
             />
         </div>
     );
