@@ -326,9 +326,13 @@ const DayColumn: FC<DayColumnProps> = ({
                     // We need space for: subject (~16px) + teacher (~14px) + time (~14px) + margins
                     // Only show time if we have sufficient space for subject + teacher + time (minimum 50px total)
                     const MIN_TIME_DISPLAY_HEIGHT = isMobile ? 55 : 55;
+                    // Second threshold for very compact layout: move teacher to same row as subject
+                    const MIN_COMPACT_DISPLAY_HEIGHT = isMobile ? 35 : 35;
                     const availableSpace = heightPx - reservedBottomPx;
                     const canShowTimeFrame =
                         !isMobile && availableSpace >= MIN_TIME_DISPLAY_HEIGHT;
+                    const shouldUseCompactLayout =
+                        !isMobile && availableSpace < MIN_TIME_DISPLAY_HEIGHT && availableSpace >= MIN_COMPACT_DISPLAY_HEIGHT;
 
                     // Compute content padding so mobile remains centered when icons exist
                     // Desktop readability fix:
@@ -696,7 +700,7 @@ const DayColumn: FC<DayColumnProps> = ({
                                     })()}
                                     {/* Removed lstext preview in timetable (mobile) */}
                                 </div>
-                                {/* Original flexible desktop layout */}
+                                {/* Desktop layout - adaptive based on available space */}
                                 <div className="hidden sm:flex flex-col sm:flex-row items-stretch justify-between gap-1.5 sm:gap-2 min-w-0 h-full">
                                     <FitText
                                         mode="both"
@@ -705,39 +709,71 @@ const DayColumn: FC<DayColumnProps> = ({
                                         reserveBottom={reservedBottomPx}
                                         className="min-w-0 self-stretch"
                                     >
-                                        <div className={`font-semibold leading-tight text-[13px] ${cancelled ? 'lesson-cancelled-subject' : ''}`}>
-                                            {displaySubject}
-                                        </div>
-                                        {/* Show timeframe unless lesson is cancelled or irregular. */}
-                                        {canShowTimeFrame &&
-                                            !(cancelled || irregular) && (
-                                                <div className={`opacity-90 sm:mt-0 leading-tight text-[12px] ${cancelled ? 'lesson-cancelled-time' : ''}`}>
-                                                    <span className="whitespace-nowrap">
-                                                        {fmtHM(b.startMin)}–
-                                                        {fmtHM(b.endMin)}
-                                                    </span>
+                                        {shouldUseCompactLayout ? (
+                                            // Compact layout: subject and teacher on same line
+                                            <div className="flex flex-wrap items-baseline gap-x-2">
+                                                <div className={`font-semibold leading-tight text-[13px] ${cancelled ? 'lesson-cancelled-subject' : ''}`}>
+                                                    {displaySubject}
                                                 </div>
-                                            )}
-                                        {(() => {
-                                            if (!l.te || l.te.length === 0)
-                                                return null;
-                                            return (
-                                                <div className={`leading-tight text-[12px] flex flex-wrap gap-x-1 ${cancelled ? 'lesson-cancelled-teacher' : ''}`}>
-                                                    {l.te.map((t, i) => (
-                                                        <span
-                                                            key={i}
-                                                            className={
-                                                                t.orgname
-                                                                    ? 'change-highlight-inline'
-                                                                    : undefined
-                                                            }
-                                                        >
-                                                            {t.name}
-                                                        </span>
-                                                    ))}
+                                                {(() => {
+                                                    if (!l.te || l.te.length === 0)
+                                                        return null;
+                                                    return (
+                                                        <div className={`leading-tight text-[12px] flex flex-wrap gap-x-1 ${cancelled ? 'lesson-cancelled-teacher' : ''}`}>
+                                                            {l.te.map((t, i) => (
+                                                                <span
+                                                                    key={i}
+                                                                    className={
+                                                                        t.orgname
+                                                                            ? 'change-highlight-inline'
+                                                                            : undefined
+                                                                    }
+                                                                >
+                                                                    {t.name}
+                                                                </span>
+                                                            ))}
+                                                        </div>
+                                                    );
+                                                })()}
+                                            </div>
+                                        ) : (
+                                            // Normal layout: subject, time, teacher in separate rows
+                                            <>
+                                                <div className={`font-semibold leading-tight text-[13px] ${cancelled ? 'lesson-cancelled-subject' : ''}`}>
+                                                    {displaySubject}
                                                 </div>
-                                            );
-                                        })()}
+                                                {/* Show timeframe unless lesson is cancelled or irregular. */}
+                                                {canShowTimeFrame &&
+                                                    !(cancelled || irregular) && (
+                                                        <div className={`opacity-90 sm:mt-0 leading-tight text-[12px] ${cancelled ? 'lesson-cancelled-time' : ''}`}>
+                                                            <span className="whitespace-nowrap">
+                                                                {fmtHM(b.startMin)}–
+                                                                {fmtHM(b.endMin)}
+                                                            </span>
+                                                        </div>
+                                                    )}
+                                                {(() => {
+                                                    if (!l.te || l.te.length === 0)
+                                                        return null;
+                                                    return (
+                                                        <div className={`leading-tight text-[12px] flex flex-wrap gap-x-1 ${cancelled ? 'lesson-cancelled-teacher' : ''}`}>
+                                                            {l.te.map((t, i) => (
+                                                                <span
+                                                                    key={i}
+                                                                    className={
+                                                                        t.orgname
+                                                                            ? 'change-highlight-inline'
+                                                                            : undefined
+                                                                    }
+                                                                >
+                                                                    {t.name}
+                                                                </span>
+                                                            ))}
+                                                        </div>
+                                                    );
+                                                })()}
+                                            </>
+                                        )}
                                     </FitText>
                                 </div>
                                 {/* Info/Notes preview (desktop) */}
