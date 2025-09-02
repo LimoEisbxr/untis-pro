@@ -328,13 +328,18 @@ const DayColumn: FC<DayColumnProps> = ({
                     const MIN_TIME_DISPLAY_HEIGHT = isMobile ? 56 : 56;
                     // Second threshold for very compact layout: move teacher to same row as subject
                     const MIN_COMPACT_DISPLAY_HEIGHT = isMobile ? 45 : 45;
+                    // Separate threshold for cancelled/irregular lessons (they can use compact layout more aggressively)
+                    const MIN_COMPACT_DISPLAY_HEIGHT_CANCELLED_IRREGULAR = isMobile ? 40 : 40;
                     const availableSpace = heightPx - reservedBottomPx;
                     const canShowTimeFrame =
                         !isMobile && availableSpace >= MIN_TIME_DISPLAY_HEIGHT;
+                    
+                    // Use different compact layout thresholds for cancelled/irregular vs normal lessons
+                    const compactThreshold = (cancelled || irregular) 
+                        ? MIN_COMPACT_DISPLAY_HEIGHT_CANCELLED_IRREGULAR 
+                        : MIN_COMPACT_DISPLAY_HEIGHT;
                     const shouldUseCompactLayout =
-                        !isMobile &&
-                        availableSpace < MIN_TIME_DISPLAY_HEIGHT &&
-                        availableSpace <= MIN_COMPACT_DISPLAY_HEIGHT;
+                        !isMobile && availableSpace <= compactThreshold;
 
                     // Compute content padding so mobile remains centered when icons exist
                     // Desktop readability fix:
