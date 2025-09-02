@@ -39,9 +39,9 @@ const TimeAxis: FC<TimeAxisProps> = ({
     // Build unique timestamp labels (dedupe touching boundaries) with a minimum vertical gap.
     const timeLabelPositions = (() => {
         const minGapPx = 15;
-        // Simple positioning with PAD_TOP offset to match DayColumn alignment
-        const toY = (min: number) => (min - START_MIN) * SCALE + PAD_TOP;
-        const maxY = (END_MIN - START_MIN) * SCALE + PAD_TOP;
+        // Use exact same positioning calculation as DayColumn to prevent misalignment
+        const toY = (min: number) => Math.round((min - START_MIN) * SCALE + headerPx) + PAD_TOP;
+        const maxY = Math.round((END_MIN - START_MIN) * SCALE + headerPx) + PAD_TOP;
         type L = { y: number; label: string };
         const labels: L[] = [];
         let prevEnd: number | null = null;
@@ -103,12 +103,12 @@ const TimeAxis: FC<TimeAxisProps> = ({
             >
                 <div className="mx-1 h-full rounded-md sm:ring-1 sm:ring-slate-900/10 sm:dark:ring-white/10 sm:border sm:border-slate-300/50 sm:dark:border-slate-600/50 shadow-sm overflow-hidden bg-gradient-to-b from-slate-50/85 via-slate-100/80 to-sky-50/70 dark:bg-slate-800/40 dark:bg-none relative">
                     {timeLabelPositions.map((t, i) => {
-                        // Remove extra top offset to ensure perfect alignment
+                        // Position labels directly without adding headerPx since it's already included in toY calculation
                         return (
                             <div
                                 key={i}
                                 className="absolute left-0 right-0 -translate-y-1/2 text-[11px] leading-none text-slate-500 dark:text-slate-400 select-none text-center"
-                                style={{ top: t.y + headerPx }}
+                                style={{ top: t.y }}
                             >
                                 {t.label}
                             </div>
@@ -117,6 +117,9 @@ const TimeAxis: FC<TimeAxisProps> = ({
                     {DEFAULT_PERIODS.map((p) => {
                         const sMin = untisToMinutes(p.start);
                         const eMin = untisToMinutes(p.end);
+                        const centerMin = (sMin + eMin) / 2;
+                        // Use same positioning calculation as DayColumn for perfect alignment
+                        const centerY = Math.round((centerMin - START_MIN) * SCALE + headerPx) + PAD_TOP;
                         return (
                             <div
                                 key={p.number}
@@ -125,9 +128,7 @@ const TimeAxis: FC<TimeAxisProps> = ({
                                 <div
                                     className="absolute left-0 right-0 -translate-y-1/2 select-none text-slate-400 dark:text-slate-500 text-center"
                                     style={{
-                                        top:
-                                            ((sMin + eMin) / 2 - START_MIN) *
-                                                SCALE + headerPx + PAD_TOP,
+                                        top: centerY,
                                         fontSize: 22,
                                         fontWeight: 800,
                                     }}
