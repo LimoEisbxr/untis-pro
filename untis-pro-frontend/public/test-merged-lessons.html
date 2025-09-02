@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Merged Lesson Timeframe Testing</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Lesson styling for cancelled/irregular lessons */
+        .lesson-cancelled-subject {
+            text-decoration: line-through;
+            text-decoration-color: currentColor;
+            text-decoration-thickness: 1.5px;
+            opacity: 0.75;
+        }
+        .lesson-cancelled-teacher {
+            text-decoration: line-through;
+            text-decoration-color: currentColor;
+            text-decoration-thickness: 1.5px;
+            opacity: 0.7;
+        }
+        .lesson-cancelled-time {
+            text-decoration: line-through;
+            text-decoration-color: currentColor;
+            text-decoration-thickness: 1.5px;
+            opacity: 0.65;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-slate-50 via-slate-100 to-sky-50 min-h-screen p-8">
+    <div class="max-w-6xl mx-auto">
+        <h1 class="text-3xl font-bold text-slate-800 mb-2">Merged Lesson Timeframe Testing</h1>
+        <p class="text-slate-600 mb-8">This page demonstrates the new timeframe display feature for merged cancelled/irregular lessons.</p>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+            <!-- Normal merged lessons (showing timeframe) -->
+            <div class="bg-white rounded-lg p-6 shadow-sm border border-slate-200">
+                <h2 class="text-xl font-semibold text-blue-600 mb-4">Normal Merged Lesson</h2>
+                <p class="text-slate-600 mb-4 text-sm">Double lesson showing timeframe as usual</p>
+                
+                <!-- Normal merged Mathematics lesson (>55px height) -->
+                <div class="relative rounded-md p-2 text-xs ring-1 ring-slate-900/10 shadow-lg bg-gradient-to-r from-blue-400 to-blue-600 text-white cursor-pointer mb-4" style="height: 70px;">
+                    <div class="absolute top-1 right-1 flex flex-col items-end gap-1">
+                        <div class="text-[11px] leading-tight whitespace-nowrap drop-shadow-sm text-white">Room 101</div>
+                    </div>
+                    <div class="flex flex-col h-full" style="padding-bottom: 6px; padding-right: 88px; padding-left: 0;">
+                        <div class="font-semibold leading-tight text-[13px]">Mathematics | Algebra</div>
+                        <div class="opacity-90 mt-0 leading-tight text-[12px]">
+                            <span class="whitespace-nowrap">08:00–09:30</span>
+                        </div>
+                        <div class="leading-tight text-[12px] flex flex-wrap gap-x-1">
+                            <span>Dr. Smith</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Cancelled merged lessons -->
+            <div class="bg-white rounded-lg p-6 shadow-sm border border-slate-200">
+                <h2 class="text-xl font-semibold text-red-600 mb-4">Cancelled Merged Lesson</h2>
+                <p class="text-slate-600 mb-4 text-sm">Double lesson showing crossed-out timeframe</p>
+                
+                <!-- Cancelled merged History lesson (>55px height) -->
+                <div class="relative rounded-md p-2 text-xs border-2 border-rose-600 shadow-lg text-white cursor-pointer mb-4" 
+                     style="height: 70px; background: linear-gradient(to right, rgba(239, 68, 68, 0.6), rgba(239, 68, 68, 0.55), rgba(239, 68, 68, 0.6)), linear-gradient(to right, rgb(96, 165, 250), rgb(37, 99, 235));">
+                    <div class="absolute top-1 right-1 flex flex-col items-end gap-1">
+                        <div class="text-[11px] leading-tight whitespace-nowrap drop-shadow-sm text-white">Room 105</div>
+                    </div>
+                    <div class="flex flex-col h-full" style="padding-bottom: 6px; padding-right: 88px; padding-left: 0;">
+                        <div class="font-semibold leading-tight text-[13px] lesson-cancelled-subject">History | World War II</div>
+                        <div class="opacity-90 mt-0 leading-tight text-[12px] lesson-cancelled-time">
+                            <span class="whitespace-nowrap">10:00–11:30</span>
+                        </div>
+                        <div class="leading-tight text-[12px] lesson-cancelled-teacher flex flex-wrap gap-x-1">
+                            <span>Ms. Johnson</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+            <!-- Irregular merged lessons -->
+            <div class="bg-white rounded-lg p-6 shadow-sm border border-slate-200">
+                <h2 class="text-xl font-semibold text-emerald-600 mb-4">Irregular Merged Lesson</h2>
+                <p class="text-slate-600 mb-4 text-sm">Double lesson showing normal timeframe (no crossing out)</p>
+                
+                <!-- Irregular merged Physical Ed lesson (>55px height) -->
+                <div class="relative rounded-md p-2 text-xs border-2 border-emerald-500 shadow-lg text-white cursor-pointer mb-4" 
+                     style="height: 70px; background: linear-gradient(to right, rgba(16, 185, 129, 0.6), rgba(16, 185, 129, 0.55), rgba(16, 185, 129, 0.6)), linear-gradient(to right, rgb(251, 146, 60), rgb(234, 88, 12));">
+                    <div class="absolute top-1 right-1 flex flex-col items-end gap-1">
+                        <div class="text-[11px] leading-tight whitespace-nowrap drop-shadow-sm text-white">Gym</div>
+                    </div>
+                    <div class="flex flex-col h-full" style="padding-bottom: 6px; padding-right: 88px; padding-left: 0;">
+                        <div class="font-semibold leading-tight text-[13px]">Physical Ed | Swimming</div>
+                        <div class="opacity-90 mt-0 leading-tight text-[12px]">
+                            <span class="whitespace-nowrap">13:00–14:30</span>
+                        </div>
+                        <div class="leading-tight text-[12px] flex flex-wrap gap-x-1">
+                            <span>Coach Wilson</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Comparison: Regular single cancelled lesson (no timeframe) -->
+            <div class="bg-white rounded-lg p-6 shadow-sm border border-slate-200">
+                <h2 class="text-xl font-semibold text-gray-600 mb-4">Single Cancelled Lesson</h2>
+                <p class="text-slate-600 mb-4 text-sm">Single lesson (no merge) - timeframe still hidden as before</p>
+                
+                <!-- Single cancelled Science lesson (>55px height) -->
+                <div class="relative rounded-md p-2 text-xs border-2 border-rose-600 shadow-lg text-white cursor-pointer mb-4" 
+                     style="height: 70px; background: linear-gradient(to right, rgba(239, 68, 68, 0.6), rgba(239, 68, 68, 0.55), rgba(239, 68, 68, 0.6)), linear-gradient(to right, rgb(168, 85, 247), rgb(139, 69, 19));">
+                    <div class="absolute top-1 right-1 flex flex-col items-end gap-1">
+                        <div class="text-[11px] leading-tight whitespace-nowrap drop-shadow-sm text-white">Lab B</div>
+                    </div>
+                    <div class="flex flex-col h-full" style="padding-bottom: 6px; padding-right: 88px; padding-left: 0;">
+                        <div class="font-semibold leading-tight text-[13px] lesson-cancelled-subject">Science</div>
+                        <!-- No timeframe for single cancelled lessons -->
+                        <div class="leading-tight text-[12px] lesson-cancelled-teacher flex flex-wrap gap-x-1">
+                            <span>Dr. Brown</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Feature Explanation -->
+        <div class="bg-white rounded-lg p-6 shadow-sm border border-slate-200">
+            <h2 class="text-xl font-semibold text-slate-800 mb-4">New Feature: Timeframe for Merged Cancelled/Irregular Lessons</h2>
+            
+            <div class="space-y-4">
+                <div class="flex items-start p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div class="w-4 h-4 bg-blue-500 rounded-full mr-3 mt-0.5"></div>
+                    <div>
+                        <div class="font-medium text-blue-800">Normal Merged Lessons</div>
+                        <div class="text-blue-700 text-sm">Double/triple lessons show timeframe as usual (e.g., "08:00–09:30")</div>
+                    </div>
+                </div>
+                
+                <div class="flex items-start p-4 bg-red-50 border border-red-200 rounded-lg">
+                    <div class="w-4 h-4 bg-red-500 rounded-full mr-3 mt-0.5"></div>
+                    <div>
+                        <div class="font-medium text-red-800">NEW: Cancelled Merged Lessons</div>
+                        <div class="text-red-700 text-sm">Now show timeframe with crossed-out styling (e.g., <span class="lesson-cancelled-time">"10:00–11:30"</span>)</div>
+                    </div>
+                </div>
+                
+                <div class="flex items-start p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
+                    <div class="w-4 h-4 bg-emerald-500 rounded-full mr-3 mt-0.5"></div>
+                    <div>
+                        <div class="font-medium text-emerald-800">NEW: Irregular Merged Lessons</div>
+                        <div class="text-emerald-700 text-sm">Now show timeframe with normal styling (e.g., "13:00–14:30")</div>
+                    </div>
+                </div>
+                
+                <div class="flex items-start p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                    <div class="w-4 h-4 bg-gray-500 rounded-full mr-3 mt-0.5"></div>
+                    <div>
+                        <div class="font-medium text-gray-800">Single Cancelled/Irregular Lessons</div>
+                        <div class="text-gray-700 text-sm">Unchanged - timeframe remains hidden to save space</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <div class="flex items-center gap-2 text-yellow-800 mb-2">
+                    <div class="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                    <span class="font-medium">Key Detection: Merged Lessons</span>
+                </div>
+                <p class="text-yellow-700 text-sm">Lessons are detected as "merged" when they contain the merge separator " | " in either the subject name or lesson text. This indicates double or triple lessons that have been combined.</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
