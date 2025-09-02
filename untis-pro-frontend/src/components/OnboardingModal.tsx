@@ -153,10 +153,10 @@ export default function OnboardingModal({
         },
         {
             title: "Share & View Timetables",
-            description: "Use the search feature to find and view other students' timetables. Perfect for coordinating study groups or finding shared free periods.",
+            description: "Use the search feature to find and view other students' timetables. Perfect for coordinating study groups or finding shared free periods. The search bar is located at the top of the page.",
             target: 'input[placeholder*="Student"], #mobile-search-input',
             position: 'bottom',
-            demoType: 'type',
+            demoType: 'highlight',
             icon: (
                 <svg className="w-12 h-12 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
@@ -263,18 +263,19 @@ export default function OnboardingModal({
             setModalOnboardingSteps(lessonModalSteps);
             setModalStepIndex(0);
         } else if (!isLessonModalOpen && inModalOnboarding && modalOnboardingSteps === lessonModalSteps) {
-            // End lesson modal onboarding
+            // End lesson modal onboarding and continue with main tour
             setInModalOnboarding(false);
             setModalOnboardingSteps([]);
             setModalStepIndex(0);
-            // Continue with main onboarding
             setWaitingForInteraction(false);
             setHasInteracted(false);
-            if (currentStep < steps.length - 1) {
-                setShouldAdvanceStep(true);
-            } else {
-                return; // Don't auto-complete on last step
-            }
+            
+            // Continue with main onboarding after a short delay to ensure state is cleaned up
+            setTimeout(() => {
+                if (currentStep < steps.length - 1) {
+                    setCurrentStep(currentStep + 1);
+                }
+            }, 100);
         }
     }, [isLessonModalOpen, currentStepData, hasInteracted, inModalOnboarding, modalOnboardingSteps, lessonModalSteps, currentStep, steps.length]);
 
@@ -286,18 +287,19 @@ export default function OnboardingModal({
             setModalOnboardingSteps(settingsModalSteps);
             setModalStepIndex(0);
         } else if (!isSettingsModalOpen && inModalOnboarding && modalOnboardingSteps === settingsModalSteps) {
-            // End settings modal onboarding
+            // End settings modal onboarding and continue with main tour
             setInModalOnboarding(false);
             setModalOnboardingSteps([]);
             setModalStepIndex(0);
-            // Continue with main onboarding
             setWaitingForInteraction(false);
             setHasInteracted(false);
-            if (currentStep < steps.length - 1) {
-                setShouldAdvanceStep(true);
-            } else {
-                return; // Don't auto-complete on last step
-            }
+            
+            // Continue with main onboarding after a short delay to ensure state is cleaned up
+            setTimeout(() => {
+                if (currentStep < steps.length - 1) {
+                    setCurrentStep(currentStep + 1);
+                }
+            }, 100);
         }
     }, [isSettingsModalOpen, currentStepData, hasInteracted, inModalOnboarding, modalOnboardingSteps, settingsModalSteps, currentStep, steps.length]);
 
@@ -516,8 +518,9 @@ export default function OnboardingModal({
                 setInModalOnboarding(false);
                 setModalOnboardingSteps([]);
                 setModalStepIndex(0);
-                // Don't close the modal here - let the user close it naturally
-                // The modal will close and trigger the main tour continuation
+                // Don't advance the main tour here - let the modal close naturally
+                // which will trigger the continuation logic in the useEffect hooks
+                return;
             }
             return;
         }
@@ -610,7 +613,7 @@ export default function OnboardingModal({
                         ? 'bg-black/20' 
                         : 'backdrop-blur-sm bg-black/60'
                 }`}
-                onClick={waitingForInteraction ? undefined : onClose}
+                onClick={waitingForInteraction || inModalOnboarding ? undefined : onClose}
                 style={{
                     maskImage: highlightedElement 
                         ? `radial-gradient(ellipse at center, transparent 0%, transparent 40%, black 70%)` 
@@ -693,23 +696,7 @@ export default function OnboardingModal({
                 </div>
             )}
 
-            {/* Typing animation for search demo */}
-            {highlightedElement && currentStepData.demoType === 'type' && (
-                <div
-                    className="absolute pointer-events-none z-10"
-                    style={{
-                        left: `${highlightedElement.getBoundingClientRect().left + 10}px`,
-                        top: `${highlightedElement.getBoundingClientRect().bottom + 10}px`,
-                    }}
-                >
-                    <div className="bg-slate-900 text-white px-3 py-2 rounded-lg text-sm font-mono animate-pulse">
-                        <span className="opacity-60">Try typing: "</span>
-                        <span className="text-sky-300">john</span>
-                        <span className="opacity-60">"</span>
-                        <span className="animate-pulse">|</span>
-                    </div>
-                </div>
-            )}
+            {/* Typing animation for search demo - removed as per feedback */}
 
             {/* Modal positioned based on highlighted element */}
             <div
