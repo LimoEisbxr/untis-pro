@@ -1,5 +1,5 @@
 """
-Generate an app logo SVG with a centered "U" and a circular ring around it, both filled with the app's 3-color gradient.
+Generate an app logo SVG with a centered "P" and a circular ring around it, both filled with the app's 3-color gradient.
 Optionally rasterize PNGs at multiple sizes (requires cairosvg and pillow).
 
 Defaults follow the gradient used in the frontend: from indigo-600 via sky-600 to emerald-600.
@@ -31,11 +31,11 @@ class LogoSpec:
     size: int = 512  # canvas width/height in px
     ring_thickness: float = 12.0  # thickness of the outer ring (as px)
     ring_margin: float = 8.0  # margin from the SVG edge to the OUTER edge of the ring (px)
-    gap: float = 10.0  # gap between U and ring (px)
+    gap: float = 10.0  # gap between letter and ring (px)
     font_family: str = "Inter, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, 'Helvetica Neue', Arial, 'Apple Color Emoji', 'Segoe UI Emoji'"
-    # Weight/thickness of the U glyph as stroke-width (% of size)
+    # Weight/thickness of the letter glyph as stroke-width (% of size)
     u_weight_pct: float = 0.12
-    # Overall U size scale relative to the available inner circle area (0-1)
+    # Overall letter size scale relative to the available inner circle area (0-1)
     u_scale: float = 0.6
 
     def gradient_stops(self, colors: Iterable[str] = DEFAULT_COLORS) -> str:
@@ -62,16 +62,16 @@ def make_svg(spec: LogoSpec, colors: Iterable[str] = DEFAULT_COLORS) -> str:
     ring_outer_r = max(0.0, (s / 2) - spec.ring_margin)
     ring_inner_r = max(0.0, ring_outer_r - spec.ring_thickness)
 
-    # U geometry: small, centered U inside inner ring, with a minimum gap to the ring
+    # Letter geometry: centered P inside inner ring, with a minimum gap to the ring
     # Compute available square inside inner circle after accounting for gap
     available_d = max(0.0, 2 * ring_inner_r - 2 * spec.gap)
-    # Target U box size (width/height) using u_scale; keep a square for aesthetics
+    # Target letter box size (width/height) using u_scale; keep a square for aesthetics
     u_box = max(0.0, available_d * max(0.0, min(1.0, spec.u_scale)))
 
-    # U stroke width based on spec percentage (relative to canvas size)
+    # Stroke width based on spec percentage (relative to canvas size)
     u_stroke = max(1.0, s * spec.u_weight_pct)
 
-    # Ensure U box is large enough to hold the stroke
+    # Ensure box is large enough to hold the stroke
     u_box = max(u_box, u_stroke * 3)
 
     # Centered bounding box
@@ -80,8 +80,30 @@ def make_svg(spec: LogoSpec, colors: Iterable[str] = DEFAULT_COLORS) -> str:
     top_y = cy - u_box / 2
     bottom_y = cy + u_box / 2
 
-    # Bottom arc radius to create a rounded U; keep within box and account for stroke
-    radius = max(1.0, u_box / 2 - u_stroke / 2)
+    # Refined P proportions:
+    # - Add inner padding to avoid touching the ring and reduce visual width
+    # - Bowl width ~60% of inner width
+    # - Bowl height ~58% of inner height (top half), radius derived from both
+    pad = u_box * 0.12
+    eff_left = left_x + pad
+    eff_right = right_x - pad
+    eff_top = top_y + pad
+    eff_bottom = bottom_y - pad
+    eff_w = max(1.0, eff_right - eff_left)
+    eff_h = max(1.0, eff_bottom - eff_top)
+
+    stem_x = eff_left
+    bowl_w = max(u_stroke * 2.0, eff_w * 0.60)
+    x_right = eff_left + bowl_w
+
+    # Radius constrained by bowl width and desired bowl height fraction
+    r_w = bowl_w / 2.0
+    r_h = (eff_h * 0.58) / 2.0
+    r = max(1.0, min(r_w, r_h) - (u_stroke / 2.0))
+
+    bowl_bottom_y = eff_top + 2.0 * r
+    # Clamp bowl bottom within effective box
+    bowl_bottom_y = min(bowl_bottom_y, eff_bottom - u_stroke / 2.0)
 
     gradient_id = "grad"
 
@@ -103,11 +125,12 @@ def make_svg(spec: LogoSpec, colors: Iterable[str] = DEFAULT_COLORS) -> str:
   <!-- Outer ring using stroke -->
   <circle cx=\"{cx}\" cy=\"{cy}\" r=\"{(ring_outer_r + ring_inner_r)/2}\" fill=\"none\" stroke=\"url(#{gradient_id}-stroke)\" stroke-width=\"{(ring_outer_r - ring_inner_r)}\" stroke-linecap=\"round\"/>
 
-    <!-- U letter as a stroked path, centered -->
-    <path d=\"M {left_x} {top_y}
-                     L {left_x} {bottom_y - radius}
-                     A {radius} {radius} 0 0 0 {right_x} {bottom_y - radius}
-                     L {right_x} {top_y}\"
+  <!-- P letter as a stroked path, centered and refined -->
+  <path d=\"M {stem_x} {eff_bottom}
+           L {stem_x} {eff_top}
+           L {x_right - r} {eff_top}
+           A {r} {r} 0 0 1 {x_right - r} {bowl_bottom_y}
+           L {stem_x} {bowl_bottom_y}\"
         fill=\"none\" stroke=\"url(#{gradient_id})\" stroke-width=\"{u_stroke}\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>
 </svg>
 """.strip()
@@ -141,11 +164,11 @@ def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
     p.add_argument("--colors", type=str, nargs="*", default=list(DEFAULT_COLORS), help="Three hex colors for the gradient")
     p.add_argument("--ring", type=float, default=12.0, help="Ring thickness in px")
     p.add_argument("--ring-margin", type=float, default=8.0, help="Margin from SVG edge to ring outer edge in px")
-    p.add_argument("--gap", type=float, default=10.0, help="Minimum gap between U and ring in px")
-    p.add_argument("--uweight", type=float, default=0.12, help="U stroke width as a fraction of size (0-1)")
-    p.add_argument("--uscale", type=float, default=0.6, help="Overall U size relative to inner circle area (0-1)")
+    p.add_argument("--gap", type=float, default=10.0, help="Minimum gap between letter and ring in px")
+    p.add_argument("--uweight", type=float, default=0.12, help="Letter stroke width as a fraction of size (0-1)")
+    p.add_argument("--uscale", type=float, default=0.6, help="Overall letter size relative to inner circle area (0-1)")
     p.add_argument("--only-canonical", action="store_true", help="Write only a single 'logo.svg' without size-suffixed variants")
-    p.add_argument("--profile", choices=["default", "icon"], default="default", help="Profile preset: 'icon' gives thicker ring & smaller U for app icons")
+    p.add_argument("--profile", choices=["default", "icon"], default="default", help="Profile preset: 'icon' gives thicker ring & smaller letter for app icons")
     return p.parse_args(argv)
 
 

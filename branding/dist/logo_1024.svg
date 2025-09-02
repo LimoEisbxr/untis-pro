@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="Periodix logo">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4f46e5"/>
+<stop offset="50%" stop-color="#0284c7"/>
+<stop offset="100%" stop-color="#059669"/>
+    </linearGradient>
+    <!-- Create a gradient stroke via a path painted once -->
+    <linearGradient id="grad-stroke" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4f46e5"/>
+<stop offset="50%" stop-color="#0284c7"/>
+<stop offset="100%" stop-color="#059669"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background transparent -->
+  <rect width="100%" height="100%" fill="none"/>
+
+  <!-- Outer ring using stroke -->
+  <circle cx="512.0" cy="512.0" r="498.0" fill="none" stroke="url(#grad-stroke)" stroke-width="12.0" stroke-linecap="round"/>
+
+  <!-- P letter as a stroked path, centered -->
+  <path d="M 222.8 801.2
+           L 222.8 222.8
+           L 642.1400000000001 222.8
+           A 159.06 159.06 0 0 1 642.1400000000001 540.9200000000001
+           L 222.8 540.9200000000001"
+        fill="none" stroke="url(#grad)" stroke-width="122.88" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
