@@ -508,7 +508,7 @@ export default function Dashboard({
             <header className="header-blur">
                 <div className="mx-auto flex max-w-screen-2xl items-center justify-between p-4">
                     <div className="logo-text text-xl sm:text-2xl">
-                        Untis Pro
+                        Periodix
                     </div>
                     <div className="flex items-center">
                         <div className="text-sm text-slate-600 dark:text-slate-300 mr-4">

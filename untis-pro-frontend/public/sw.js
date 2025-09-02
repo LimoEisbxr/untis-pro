@@ -29,9 +29,9 @@ self.addEventListener('activate', (event) => {
 // Handle push notifications
 self.addEventListener('push', (event) => {
     console.log('Push notification received:', event);
-    
+
     let notificationData = {
-        title: 'Untis Pro',
+        title: 'Periodix',
         body: 'You have a new notification',
         icon: '/icon-192.png',
         badge: '/icon-192.png',
@@ -63,13 +63,13 @@ self.addEventListener('push', (event) => {
                 {
                     action: 'view',
                     title: 'View',
-                    icon: '/icon-192.png'
+                    icon: '/icon-192.png',
                 },
                 {
                     action: 'dismiss',
-                    title: 'Dismiss'
-                }
-            ]
+                    title: 'Dismiss',
+                },
+            ],
         })
     );
 });
@@ -77,7 +77,7 @@ self.addEventListener('push', (event) => {
 // Handle notification clicks
 self.addEventListener('notificationclick', (event) => {
     console.log('Notification clicked:', event);
-    
+
     event.notification.close();
 
     if (event.action === 'dismiss') {
@@ -86,19 +86,24 @@ self.addEventListener('notificationclick', (event) => {
 
     // Open or focus the app when notification is clicked
     event.waitUntil(
-        clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-            // Try to focus existing tab
-            for (const client of clientList) {
-                if (client.url.includes(self.location.origin) && 'focus' in client) {
-                    return client.focus();
+        clients
+            .matchAll({ type: 'window', includeUncontrolled: true })
+            .then((clientList) => {
+                // Try to focus existing tab
+                for (const client of clientList) {
+                    if (
+                        client.url.includes(self.location.origin) &&
+                        'focus' in client
+                    ) {
+                        return client.focus();
+                    }
                 }
-            }
-            
-            // Open new tab if no existing tab found
-            if (clients.openWindow) {
-                return clients.openWindow('/');
-            }
-        })
+
+                // Open new tab if no existing tab found
+                if (clients.openWindow) {
+                    return clients.openWindow('/');
+                }
+            })
     );
 });
 

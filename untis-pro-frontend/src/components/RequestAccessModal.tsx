@@ -89,8 +89,18 @@ export default function RequestAccessModal({
                             onClick={onClose}
                             className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
                         >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            <svg
+                                className="w-5 h-5"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M6 18L18 6M6 6l12 12"
+                                />
                             </svg>
                         </button>
                     </div>
@@ -99,17 +109,26 @@ export default function RequestAccessModal({
                         <>
                             <div className="mb-6 text-sm text-slate-700 dark:text-slate-300">
                                 <p className="mb-3">
-                                    Your account <strong className="text-slate-900 dark:text-slate-100">{username}</strong> is 
-                                    not currently authorized to access Untis Pro. You can request access and an administrator 
-                                    will review your request.
+                                    Your account{' '}
+                                    <strong className="text-slate-900 dark:text-slate-100">
+                                        {username}
+                                    </strong>{' '}
+                                    is not currently authorized to access
+                                    Periodix. You can request access and an
+                                    administrator will review your request.
                                 </p>
                                 <p>
-                                    Once your request is approved, you'll be able to sign in with your regular Untis credentials.
+                                    Once your request is approved, you'll be
+                                    able to sign in with your regular Untis
+                                    credentials.
                                 </p>
                             </div>
 
                             <div className="mb-4">
-                                <label htmlFor="message" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                                <label
+                                    htmlFor="message"
+                                    className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2"
+                                >
                                     Optional message (why do you need access?)
                                 </label>
                                 <textarea
@@ -146,7 +165,9 @@ export default function RequestAccessModal({
                                     className="btn-primary flex-1"
                                     disabled={loading}
                                 >
-                                    {loading ? 'Requesting...' : 'Request Access'}
+                                    {loading
+                                        ? 'Requesting...'
+                                        : 'Request Access'}
                                 </button>
                             </div>
                         </>
@@ -154,16 +175,27 @@ export default function RequestAccessModal({
                         <>
                             <div className="text-center py-4">
                                 <div className="w-16 h-16 mx-auto mb-4 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
-                                    <svg className="w-8 h-8 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                    <svg
+                                        className="w-8 h-8 text-green-600 dark:text-green-400"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={2}
+                                            d="M5 13l4 4L19 7"
+                                        />
                                     </svg>
                                 </div>
                                 <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2">
                                     Request Submitted!
                                 </h3>
                                 <p className="text-sm text-slate-600 dark:text-slate-400 mb-6">
-                                    Your access request has been sent to the administrators. 
-                                    You'll be able to sign in once your request is approved.
+                                    Your access request has been sent to the
+                                    administrators. You'll be able to sign in
+                                    once your request is approved.
                                 </p>
                             </div>
                             <button

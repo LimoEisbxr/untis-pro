@@ -86,7 +86,7 @@ def make_svg(spec: LogoSpec, colors: Iterable[str] = DEFAULT_COLORS) -> str:
     gradient_id = "grad"
 
     svg = f"""
-<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 {s} {s}\" role=\"img\" aria-label=\"Untis Pro logo\">
+<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 {s} {s}\" role=\"img\" aria-label=\"Periodix logo\">
   <defs>
     <linearGradient id=\"{gradient_id}\" x1=\"0%\" y1=\"0%\" x2=\"100%\" y2=\"100%\">
       {spec.gradient_stops(colors)}
@@ -134,7 +134,7 @@ def export_pngs(svg_content: str, size: int, out_path: str) -> None:
 
 
 def parse_args(argv: List[str] | None = None) -> argparse.Namespace:
-    p = argparse.ArgumentParser(description="Generate SVG/PNGs for the Untis Pro logo")
+    p = argparse.ArgumentParser(description="Generate SVG/PNGs for the Periodix logo")
     p.add_argument("--sizes", type=int, nargs="*", default=[256, 512, 1024], help="Output sizes in px (canvas width/height)")
     p.add_argument("--out", type=str, default="branding/dist", help="Output directory")
     p.add_argument("--png", action="store_true", help="Also export PNGs for each size (requires cairosvg)")

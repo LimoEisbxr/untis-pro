@@ -1,4 +1,4 @@
-// Prisma schema for Untis Pro backend
+// Prisma schema for Periodix backend
 // Auto-migrated to keep DB in sync
 
 generator client {
@@ -22,7 +22,7 @@ model User {
     untisSecretNonce      Bytes? // AES-GCM nonce
     untisSecretKeyVersion Int?    @default(1) // Version of master key used
 
-    displayName String?
+    displayName   String?
     isUserManager Boolean @default(false) // Can manage users but is not full admin
 
     // Sharing preferences
@@ -118,26 +118,26 @@ model Homework {
     id        String   @id @default(uuid())
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
-    
+
     // WebUntis homework ID
-    untisId   Int
-    
+    untisId Int
+
     // User who owns this homework
-    userId    String
-    user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-    
+    userId String
+    user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
     // Homework details from WebUntis
-    lessonId  Int?     // Associated lesson ID from WebUntis
-    date      Int      // Due date in yyyymmdd format
+    lessonId  Int? // Associated lesson ID from WebUntis
+    date      Int // Due date in yyyymmdd format
     subjectId Int
-    subject   String   // Subject name
-    text      String   // Homework description
-    remark    String?  // Additional remarks
-    completed Boolean  @default(false)
-    
+    subject   String // Subject name
+    text      String // Homework description
+    remark    String? // Additional remarks
+    completed Boolean @default(false)
+
     // Metadata
     fetchedAt DateTime @default(now())
-    
+
     // Composite unique constraint: homework should be unique per user
     @@unique([userId, untisId])
 }
@@ -146,30 +146,30 @@ model Exam {
     id        String   @id @default(uuid())
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
-    
+
     // WebUntis exam ID
-    untisId   Int
-    
+    untisId Int
+
     // User who owns this exam
-    userId    String
-    user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-    
+    userId String
+    user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
     // Exam details from WebUntis
-    date      Int      // Exam date in yyyymmdd format
-    startTime Int      // Start time in HHmm format
-    endTime   Int      // End time in HHmm format
+    date      Int // Exam date in yyyymmdd format
+    startTime Int // Start time in HHmm format
+    endTime   Int // End time in HHmm format
     subjectId Int
-    subject   String   // Subject name
-    name      String   // Exam name
-    text      String?  // Additional exam information
-    
+    subject   String // Subject name
+    name      String // Exam name
+    text      String? // Additional exam information
+
     // Related entities (stored as JSON for flexibility)
-    teachers  Json?    // Array of teacher objects
-    rooms     Json?    // Array of room objects
-    
+    teachers Json? // Array of teacher objects
+    rooms    Json? // Array of room objects
+
     // Metadata
     fetchedAt DateTime @default(now())
-    
+
     // Composite unique constraint: exam should be unique per user
     @@unique([userId, untisId])
 }
@@ -186,7 +186,7 @@ model AccessRequest {
     id        String   @id @default(uuid())
     createdAt DateTime @default(now())
     username  String   @unique
-    message   String?  // Optional message from user explaining why they need access
+    message   String? // Optional message from user explaining why they need access
 }
 
 // Notification system models
@@ -200,14 +200,14 @@ model Notification {
     user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
     // Notification details
-    type      String  // 'timetable_change', 'access_request', etc.
-    title     String
-    message   String
-    data      Json?   // Additional structured data
+    type    String // 'timetable_change', 'access_request', etc.
+    title   String
+    message String
+    data    Json? // Additional structured data
 
     // Status
-    read      Boolean @default(false)
-    sent      Boolean @default(false) // For push notifications
+    read      Boolean   @default(false)
+    sent      Boolean   @default(false) // For push notifications
     expiresAt DateTime?
 
     @@index([userId, createdAt])
@@ -225,13 +225,13 @@ model NotificationSettings {
 
     // General notification preferences
     browserNotificationsEnabled Boolean @default(true)
-    pushNotificationsEnabled     Boolean @default(false)
+    pushNotificationsEnabled    Boolean @default(false)
 
     // Notification type preferences
-    timetableChangesEnabled   Boolean @default(true)
-    accessRequestsEnabled     Boolean @default(true) // Only relevant for user managers
-    irregularLessonsEnabled   Boolean @default(true)
-    cancelledLessonsEnabled   Boolean @default(true)
+    timetableChangesEnabled Boolean @default(true)
+    accessRequestsEnabled   Boolean @default(true) // Only relevant for user managers
+    irregularLessonsEnabled Boolean @default(true)
+    cancelledLessonsEnabled Boolean @default(true)
 
     // Time scope preferences for notifications
     cancelledLessonsTimeScope String @default("day") // "day" | "week"
@@ -250,15 +250,15 @@ model NotificationSubscription {
     userId   String
     user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
     endpoint String @unique // Push subscription endpoint
-    
+
     // Push subscription details
     p256dh String // Public key
     auth   String // Auth secret
-    
+
     // Device metadata
-    userAgent String?
+    userAgent  String?
     deviceType String? // 'mobile', 'desktop', 'tablet'
-    
+
     // Status
     active Boolean @default(true)
 
@@ -272,11 +272,11 @@ model AdminNotificationSettings {
 
     // Fetch timing settings (in minutes)
     timetableFetchInterval Int @default(30) // How often to check for timetable changes
-    
+
     // Notification settings
-    enableTimetableNotifications Boolean @default(true)
+    enableTimetableNotifications     Boolean @default(true)
     enableAccessRequestNotifications Boolean @default(true)
-    
+
     // Single row constraint
     @@unique([id])
 }

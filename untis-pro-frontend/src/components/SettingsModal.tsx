@@ -36,7 +36,11 @@ import {
     getAdminNotificationSettings,
     updateAdminNotificationSettings,
 } from '../api';
-import { subscribeToPushNotifications as apiSubscribeToPush, unsubscribeFromPushNotifications as apiUnsubscribeFromPush, getVapidPublicKey } from '../api';
+import {
+    subscribeToPushNotifications as apiSubscribeToPush,
+    unsubscribeFromPushNotifications as apiUnsubscribeFromPush,
+    getVapidPublicKey,
+} from '../api';
 import {
     requestNotificationPermission,
     getNotificationPermission,
@@ -174,23 +178,31 @@ export default function SettingsModal({
     // iOS < 16 can't do web push (we use 16 baseline though push really 16.4+; keep messaging simple)
     const iosTooOld = isIOS() && !!iosVersion && iosVersion < 16;
     // Track if we've attempted to request permission (persisted) to distinguish true denial vs never asked
-    const [permissionAttempted, setPermissionAttempted] = useState<boolean>(() => {
-        try {
-            return localStorage.getItem('notificationPermissionAttempted') === '1';
-        } catch {
-            return false;
+    const [permissionAttempted, setPermissionAttempted] = useState<boolean>(
+        () => {
+            try {
+                return (
+                    localStorage.getItem('notificationPermissionAttempted') ===
+                    '1'
+                );
+            } catch {
+                return false;
+            }
         }
-    });
+    );
 
     // Whether we should show the Enable button (allow retry if we believe never actually prompted)
     const canShowPermissionButton =
-        (notificationPermission === 'default' || (notificationPermission === 'denied' && !permissionAttempted)) &&
+        (notificationPermission === 'default' ||
+            (notificationPermission === 'denied' && !permissionAttempted)) &&
         !iosNeedsInstall &&
         !iosTooOld;
 
     const notificationPermissionMessage = () => {
-        if (!isNotificationSupported()) return 'Notifications not supported in this browser.';
-        if (notificationPermission === 'granted') return 'Notifications enabled.';
+        if (!isNotificationSupported())
+            return 'Notifications not supported in this browser.';
+        if (notificationPermission === 'granted')
+            return 'Notifications enabled.';
         if (notificationPermission === 'denied') {
             if (isIOS()) {
                 if (iosNeedsInstall) {
@@ -199,13 +211,14 @@ export default function SettingsModal({
                 if (!permissionAttempted) {
                     return 'Not requested yet. Tap Enable to ask for notification permission.';
                 }
-                return 'Blocked. Open iOS Settings > Notifications > Untis Pro and allow notifications (or reinstall the PWA to retry).';
+                return 'Blocked. Open iOS Settings > Notifications > Periodix and allow notifications (or reinstall the PWA to retry).';
             }
             return 'Blocked in browser settings.';
         }
         // permission === 'default'
         if (iosTooOld) return 'Update iOS (>=16) to enable push notifications.';
-        if (iosNeedsInstall) return 'Install app (Share > Add to Home Screen) to enable push notifications.';
+        if (iosNeedsInstall)
+            return 'Install app (Share > Add to Home Screen) to enable push notifications.';
         return 'Click Enable to allow notifications.';
     };
 
@@ -798,7 +811,10 @@ export default function SettingsModal({
             if (!permissionAttempted) {
                 setPermissionAttempted(true);
                 try {
-                    localStorage.setItem('notificationPermissionAttempted', '1');
+                    localStorage.setItem(
+                        'notificationPermissionAttempted',
+                        '1'
+                    );
                 } catch {
                     // ignore persistence errors (private mode etc.)
                 }
@@ -823,49 +839,51 @@ export default function SettingsModal({
     const arrayBufferToBase64 = (buffer: ArrayBuffer) => {
         const bytes = new Uint8Array(buffer);
         let binary = '';
-        for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+        for (let i = 0; i < bytes.byteLength; i++)
+            binary += String.fromCharCode(bytes[i]);
         return btoa(binary);
     };
 
-    const ensurePushSubscription = async (): Promise<PushSubscription | null> => {
-        if (!('serviceWorker' in navigator)) return null;
-        const reg = await navigator.serviceWorker.ready;
-        let sub = await reg.pushManager.getSubscription();
-        if (!sub) {
+    const ensurePushSubscription =
+        async (): Promise<PushSubscription | null> => {
+            if (!('serviceWorker' in navigator)) return null;
+            const reg = await navigator.serviceWorker.ready;
+            let sub = await reg.pushManager.getSubscription();
+            if (!sub) {
+                try {
+                    // Get VAPID public key from backend
+                    const { publicKey } = await getVapidPublicKey();
+                    sub = await utilsSubscribeToPush(publicKey);
+                    if (!sub) {
+                        throw new Error('Failed to create push subscription');
+                    }
+                } catch (e) {
+                    console.warn('Push subscribe failed', e);
+                    throw e;
+                }
+            }
             try {
-                // Get VAPID public key from backend
-                const { publicKey } = await getVapidPublicKey();
-                sub = await utilsSubscribeToPush(publicKey);
-                if (!sub) {
-                    throw new Error('Failed to create push subscription');
+                const endpoint = sub.endpoint;
+                const p256dh = sub.getKey('p256dh');
+                const auth = sub.getKey('auth');
+                if (p256dh && auth) {
+                    await apiSubscribeToPush(token, {
+                        endpoint,
+                        p256dh: arrayBufferToBase64(p256dh),
+                        auth: arrayBufferToBase64(auth),
+                        userAgent: navigator.userAgent,
+                        deviceType: /mobile/i.test(navigator.userAgent)
+                            ? 'mobile'
+                            : /tablet|ipad/i.test(navigator.userAgent)
+                            ? 'tablet'
+                            : 'desktop',
+                    });
                 }
             } catch (e) {
-                console.warn('Push subscribe failed', e);
-                throw e;
+                console.warn('Backend push subscription register failed', e);
             }
-        }
-        try {
-            const endpoint = sub.endpoint;
-            const p256dh = sub.getKey('p256dh');
-            const auth = sub.getKey('auth');
-            if (p256dh && auth) {
-                await apiSubscribeToPush(token, {
-                    endpoint,
-                    p256dh: arrayBufferToBase64(p256dh),
-                    auth: arrayBufferToBase64(auth),
-                    userAgent: navigator.userAgent,
-                    deviceType: /mobile/i.test(navigator.userAgent)
-                        ? 'mobile'
-                        : /tablet|ipad/i.test(navigator.userAgent)
-                        ? 'tablet'
-                        : 'desktop',
-                });
-            }
-        } catch (e) {
-            console.warn('Backend push subscription register failed', e);
-        }
-        return sub;
-    };
+            return sub;
+        };
 
     const disablePushSubscription = async () => {
         if (!('serviceWorker' in navigator)) return;
@@ -901,10 +919,15 @@ export default function SettingsModal({
                 if (isStandalonePWA() && !iosTooOld && !iosNeedsInstall) {
                     try {
                         await ensurePushSubscription();
-                        await handleUpdateNotificationSettings({ pushNotificationsEnabled: true });
+                        await handleUpdateNotificationSettings({
+                            pushNotificationsEnabled: true,
+                        });
                     } catch (err) {
                         // PWA notifications failed, but browser notifications are still enabled
-                        console.warn('PWA notifications failed, using browser notifications only:', err);
+                        console.warn(
+                            'PWA notifications failed, using browser notifications only:',
+                            err
+                        );
                     }
                 }
             } else {
@@ -917,7 +940,9 @@ export default function SettingsModal({
             }
         } catch (e) {
             setNotificationError(
-                e instanceof Error ? e.message : 'Failed to update notification settings'
+                e instanceof Error
+                    ? e.message
+                    : 'Failed to update notification settings'
             );
         }
     };
@@ -2011,12 +2036,12 @@ export default function SettingsModal({
                                                                 Notifications
                                                             </h4>
                                                             <p className="text-sm text-slate-600 dark:text-slate-400">
-                                                                {notificationPermission === 'granted' 
-                                                                    ? isStandalonePWA() 
-                                                                        ? 'PWA push notifications (background) enabled' 
+                                                                {notificationPermission ===
+                                                                'granted'
+                                                                    ? isStandalonePWA()
+                                                                        ? 'PWA push notifications (background) enabled'
                                                                         : 'Browser notifications (tab must be open) enabled'
-                                                                    : notificationPermissionMessage()
-                                                                }
+                                                                    : notificationPermissionMessage()}
                                                             </p>
                                                         </div>
                                                         {canShowPermissionButton && (
@@ -2041,7 +2066,9 @@ export default function SettingsModal({
                                                                         e
                                                                     ) =>
                                                                         handleToggleNotifications(
-                                                                            e.target.checked
+                                                                            e
+                                                                                .target
+                                                                                .checked
                                                                         )
                                                                     }
                                                                     className="sr-only peer"
@@ -2053,224 +2080,280 @@ export default function SettingsModal({
                                                 </div>
                                             )}
 
-                                            {notificationPermission === 'granted' && notificationSettings.browserNotificationsEnabled && (
-                                                <div className="space-y-3 ml-4 pl-4 border-l-2 border-slate-200 dark:border-slate-700">
-                                                    <div className="flex items-center justify-between">
-                                                        <div>
-                                                            <h5 className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                                                                Cancelled
-                                                                Lessons
-                                                            </h5>
-                                                            <p className="text-xs text-slate-600 dark:text-slate-400">
-                                                                When lessons are
-                                                                cancelled
-                                                            </p>
-                                                        </div>
-                                                        <label className="relative inline-flex items-center cursor-pointer">
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={
-                                                                    notificationSettings.cancelledLessonsEnabled
-                                                                }
-                                                                onChange={(e) =>
-                                                                    handleUpdateNotificationSettings(
-                                                                        {
-                                                                            cancelledLessonsEnabled:
-                                                                                e
-                                                                                    .target
-                                                                                    .checked,
-                                                                        }
-                                                                    )
-                                                                }
-                                                                className="sr-only peer"
-                                                            />
-                                                            <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600"></div>
-                                                        </label>
-                                                    </div>
-
-                                                    {/* Time scope for cancelled lessons (User Manager) */}
-                                                    {notificationSettings.cancelledLessonsEnabled && (
-                                                        <div className="ml-4 pl-4 border-l border-slate-200 dark:border-slate-600">
-                                                            <p className="text-xs font-medium text-slate-700 dark:text-slate-300 mb-2">
-                                                                Notify me for cancelled lessons:
-                                                            </p>
-                                                            <div className="flex gap-4">
-                                                                <label className="flex items-center cursor-pointer">
-                                                                    <input
-                                                                        type="radio"
-                                                                        name="umCancelledScope"
-                                                                        value="day"
-                                                                        checked={notificationSettings.cancelledLessonsTimeScope === 'day'}
-                                                                        onChange={() => handleUpdateNotificationSettings({
-                                                                            cancelledLessonsTimeScope: 'day'
-                                                                        })}
-                                                                        className="w-4 h-4 text-indigo-600 border-slate-300 dark:border-slate-600 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:ring-2"
-                                                                    />
-                                                                    <span className="ml-2 text-xs text-slate-600 dark:text-slate-400">
-                                                                        Today only
-                                                                    </span>
-                                                                </label>
-                                                                <label className="flex items-center cursor-pointer">
-                                                                    <input
-                                                                        type="radio"
-                                                                        name="umCancelledScope"
-                                                                        value="week"
-                                                                        checked={notificationSettings.cancelledLessonsTimeScope === 'week'}
-                                                                        onChange={() => handleUpdateNotificationSettings({
-                                                                            cancelledLessonsTimeScope: 'week'
-                                                                        })}
-                                                                        className="w-4 h-4 text-indigo-600 border-slate-300 dark:border-slate-600 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:ring-2"
-                                                                    />
-                                                                    <span className="ml-2 text-xs text-slate-600 dark:text-slate-400">
-                                                                        This week
-                                                                    </span>
-                                                                </label>
+                                            {notificationPermission ===
+                                                'granted' &&
+                                                notificationSettings.browserNotificationsEnabled && (
+                                                    <div className="space-y-3 ml-4 pl-4 border-l-2 border-slate-200 dark:border-slate-700">
+                                                        <div className="flex items-center justify-between">
+                                                            <div>
+                                                                <h5 className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                                                                    Cancelled
+                                                                    Lessons
+                                                                </h5>
+                                                                <p className="text-xs text-slate-600 dark:text-slate-400">
+                                                                    When lessons
+                                                                    are
+                                                                    cancelled
+                                                                </p>
                                                             </div>
+                                                            <label className="relative inline-flex items-center cursor-pointer">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={
+                                                                        notificationSettings.cancelledLessonsEnabled
+                                                                    }
+                                                                    onChange={(
+                                                                        e
+                                                                    ) =>
+                                                                        handleUpdateNotificationSettings(
+                                                                            {
+                                                                                cancelledLessonsEnabled:
+                                                                                    e
+                                                                                        .target
+                                                                                        .checked,
+                                                                            }
+                                                                        )
+                                                                    }
+                                                                    className="sr-only peer"
+                                                                />
+                                                                <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600"></div>
+                                                            </label>
                                                         </div>
-                                                    )}
 
-                                                    <div className="flex items-center justify-between">
-                                                        <div>
-                                                            <h5 className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                                                                Irregular
-                                                                Lessons
-                                                            </h5>
-                                                            <p className="text-xs text-slate-600 dark:text-slate-400">
-                                                                When lessons
-                                                                have schedule
-                                                                changes
-                                                            </p>
-                                                        </div>
-                                                        <label className="relative inline-flex items-center cursor-pointer">
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={
-                                                                    notificationSettings.irregularLessonsEnabled
-                                                                }
-                                                                onChange={(e) =>
-                                                                    handleUpdateNotificationSettings(
-                                                                        {
-                                                                            irregularLessonsEnabled:
-                                                                                e
-                                                                                    .target
-                                                                                    .checked,
-                                                                        }
-                                                                    )
-                                                                }
-                                                                className="sr-only peer"
-                                                            />
-                                                            <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600"></div>
-                                                        </label>
-                                                    </div>
-
-                                                    {/* Time scope for irregular lessons (User Manager) */}
-                                                    {notificationSettings.irregularLessonsEnabled && (
-                                                        <div className="ml-4 pl-4 border-l border-slate-200 dark:border-slate-600">
-                                                            <p className="text-xs font-medium text-slate-700 dark:text-slate-300 mb-2">
-                                                                Notify me for irregular lessons:
-                                                            </p>
-                                                            <div className="flex gap-4">
-                                                                <label className="flex items-center cursor-pointer">
-                                                                    <input
-                                                                        type="radio"
-                                                                        name="umIrregularScope"
-                                                                        value="day"
-                                                                        checked={notificationSettings.irregularLessonsTimeScope === 'day'}
-                                                                        onChange={() => handleUpdateNotificationSettings({
-                                                                            irregularLessonsTimeScope: 'day'
-                                                                        })}
-                                                                        className="w-4 h-4 text-indigo-600 border-slate-300 dark:border-slate-600 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:ring-2"
-                                                                    />
-                                                                    <span className="ml-2 text-xs text-slate-600 dark:text-slate-400">
-                                                                        Today only
-                                                                    </span>
-                                                                </label>
-                                                                <label className="flex items-center cursor-pointer">
-                                                                    <input
-                                                                        type="radio"
-                                                                        name="umIrregularScope"
-                                                                        value="week"
-                                                                        checked={notificationSettings.irregularLessonsTimeScope === 'week'}
-                                                                        onChange={() => handleUpdateNotificationSettings({
-                                                                            irregularLessonsTimeScope: 'week'
-                                                                        })}
-                                                                        className="w-4 h-4 text-indigo-600 border-slate-300 dark:border-slate-600 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:ring-2"
-                                                                    />
-                                                                    <span className="ml-2 text-xs text-slate-600 dark:text-slate-400">
-                                                                        This week
-                                                                    </span>
-                                                                </label>
+                                                        {/* Time scope for cancelled lessons (User Manager) */}
+                                                        {notificationSettings.cancelledLessonsEnabled && (
+                                                            <div className="ml-4 pl-4 border-l border-slate-200 dark:border-slate-600">
+                                                                <p className="text-xs font-medium text-slate-700 dark:text-slate-300 mb-2">
+                                                                    Notify me
+                                                                    for
+                                                                    cancelled
+                                                                    lessons:
+                                                                </p>
+                                                                <div className="flex gap-4">
+                                                                    <label className="flex items-center cursor-pointer">
+                                                                        <input
+                                                                            type="radio"
+                                                                            name="umCancelledScope"
+                                                                            value="day"
+                                                                            checked={
+                                                                                notificationSettings.cancelledLessonsTimeScope ===
+                                                                                'day'
+                                                                            }
+                                                                            onChange={() =>
+                                                                                handleUpdateNotificationSettings(
+                                                                                    {
+                                                                                        cancelledLessonsTimeScope:
+                                                                                            'day',
+                                                                                    }
+                                                                                )
+                                                                            }
+                                                                            className="w-4 h-4 text-indigo-600 border-slate-300 dark:border-slate-600 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:ring-2"
+                                                                        />
+                                                                        <span className="ml-2 text-xs text-slate-600 dark:text-slate-400">
+                                                                            Today
+                                                                            only
+                                                                        </span>
+                                                                    </label>
+                                                                    <label className="flex items-center cursor-pointer">
+                                                                        <input
+                                                                            type="radio"
+                                                                            name="umCancelledScope"
+                                                                            value="week"
+                                                                            checked={
+                                                                                notificationSettings.cancelledLessonsTimeScope ===
+                                                                                'week'
+                                                                            }
+                                                                            onChange={() =>
+                                                                                handleUpdateNotificationSettings(
+                                                                                    {
+                                                                                        cancelledLessonsTimeScope:
+                                                                                            'week',
+                                                                                    }
+                                                                                )
+                                                                            }
+                                                                            className="w-4 h-4 text-indigo-600 border-slate-300 dark:border-slate-600 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:ring-2"
+                                                                        />
+                                                                        <span className="ml-2 text-xs text-slate-600 dark:text-slate-400">
+                                                                            This
+                                                                            week
+                                                                        </span>
+                                                                    </label>
+                                                                </div>
                                                             </div>
-                                                        </div>
-                                                    )}
+                                                        )}
 
-                                                    <div className="flex items-center justify-between">
-                                                        <div>
-                                                            <h5 className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                                                                Timetable
-                                                                Changes
-                                                            </h5>
-                                                            <p className="text-xs text-slate-600 dark:text-slate-400">
-                                                                General
-                                                                timetable
-                                                                updates
-                                                            </p>
+                                                        <div className="flex items-center justify-between">
+                                                            <div>
+                                                                <h5 className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                                                                    Irregular
+                                                                    Lessons
+                                                                </h5>
+                                                                <p className="text-xs text-slate-600 dark:text-slate-400">
+                                                                    When lessons
+                                                                    have
+                                                                    schedule
+                                                                    changes
+                                                                </p>
+                                                            </div>
+                                                            <label className="relative inline-flex items-center cursor-pointer">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={
+                                                                        notificationSettings.irregularLessonsEnabled
+                                                                    }
+                                                                    onChange={(
+                                                                        e
+                                                                    ) =>
+                                                                        handleUpdateNotificationSettings(
+                                                                            {
+                                                                                irregularLessonsEnabled:
+                                                                                    e
+                                                                                        .target
+                                                                                        .checked,
+                                                                            }
+                                                                        )
+                                                                    }
+                                                                    className="sr-only peer"
+                                                                />
+                                                                <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600"></div>
+                                                            </label>
                                                         </div>
-                                                        <label className="relative inline-flex items-center cursor-pointer">
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={
-                                                                    notificationSettings.timetableChangesEnabled
-                                                                }
-                                                                onChange={(e) =>
-                                                                    handleUpdateNotificationSettings(
-                                                                        {
-                                                                            timetableChangesEnabled:
-                                                                                e
-                                                                                    .target
-                                                                                    .checked,
-                                                                        }
-                                                                    )
-                                                                }
-                                                                className="sr-only peer"
-                                                            />
-                                                            <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600"></div>
-                                                        </label>
-                                                    </div>
 
-                                                    <div className="flex items-center justify-between">
-                                                        <div>
-                                                            <h5 className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                                                                Access Requests
-                                                            </h5>
-                                                            <p className="text-xs text-slate-600 dark:text-slate-400">
-                                                                New user access
-                                                                requests
-                                                            </p>
+                                                        {/* Time scope for irregular lessons (User Manager) */}
+                                                        {notificationSettings.irregularLessonsEnabled && (
+                                                            <div className="ml-4 pl-4 border-l border-slate-200 dark:border-slate-600">
+                                                                <p className="text-xs font-medium text-slate-700 dark:text-slate-300 mb-2">
+                                                                    Notify me
+                                                                    for
+                                                                    irregular
+                                                                    lessons:
+                                                                </p>
+                                                                <div className="flex gap-4">
+                                                                    <label className="flex items-center cursor-pointer">
+                                                                        <input
+                                                                            type="radio"
+                                                                            name="umIrregularScope"
+                                                                            value="day"
+                                                                            checked={
+                                                                                notificationSettings.irregularLessonsTimeScope ===
+                                                                                'day'
+                                                                            }
+                                                                            onChange={() =>
+                                                                                handleUpdateNotificationSettings(
+                                                                                    {
+                                                                                        irregularLessonsTimeScope:
+                                                                                            'day',
+                                                                                    }
+                                                                                )
+                                                                            }
+                                                                            className="w-4 h-4 text-indigo-600 border-slate-300 dark:border-slate-600 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:ring-2"
+                                                                        />
+                                                                        <span className="ml-2 text-xs text-slate-600 dark:text-slate-400">
+                                                                            Today
+                                                                            only
+                                                                        </span>
+                                                                    </label>
+                                                                    <label className="flex items-center cursor-pointer">
+                                                                        <input
+                                                                            type="radio"
+                                                                            name="umIrregularScope"
+                                                                            value="week"
+                                                                            checked={
+                                                                                notificationSettings.irregularLessonsTimeScope ===
+                                                                                'week'
+                                                                            }
+                                                                            onChange={() =>
+                                                                                handleUpdateNotificationSettings(
+                                                                                    {
+                                                                                        irregularLessonsTimeScope:
+                                                                                            'week',
+                                                                                    }
+                                                                                )
+                                                                            }
+                                                                            className="w-4 h-4 text-indigo-600 border-slate-300 dark:border-slate-600 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:ring-2"
+                                                                        />
+                                                                        <span className="ml-2 text-xs text-slate-600 dark:text-slate-400">
+                                                                            This
+                                                                            week
+                                                                        </span>
+                                                                    </label>
+                                                                </div>
+                                                            </div>
+                                                        )}
+
+                                                        <div className="flex items-center justify-between">
+                                                            <div>
+                                                                <h5 className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                                                                    Timetable
+                                                                    Changes
+                                                                </h5>
+                                                                <p className="text-xs text-slate-600 dark:text-slate-400">
+                                                                    General
+                                                                    timetable
+                                                                    updates
+                                                                </p>
+                                                            </div>
+                                                            <label className="relative inline-flex items-center cursor-pointer">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={
+                                                                        notificationSettings.timetableChangesEnabled
+                                                                    }
+                                                                    onChange={(
+                                                                        e
+                                                                    ) =>
+                                                                        handleUpdateNotificationSettings(
+                                                                            {
+                                                                                timetableChangesEnabled:
+                                                                                    e
+                                                                                        .target
+                                                                                        .checked,
+                                                                            }
+                                                                        )
+                                                                    }
+                                                                    className="sr-only peer"
+                                                                />
+                                                                <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600"></div>
+                                                            </label>
                                                         </div>
-                                                        <label className="relative inline-flex items-center cursor-pointer">
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={
-                                                                    notificationSettings.accessRequestsEnabled
-                                                                }
-                                                                onChange={(e) =>
-                                                                    handleUpdateNotificationSettings(
-                                                                        {
-                                                                            accessRequestsEnabled:
-                                                                                e
-                                                                                    .target
-                                                                                    .checked,
-                                                                        }
-                                                                    )
-                                                                }
-                                                                className="sr-only peer"
-                                                            />
-                                                            <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600"></div>
-                                                        </label>
+
+                                                        <div className="flex items-center justify-between">
+                                                            <div>
+                                                                <h5 className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                                                                    Access
+                                                                    Requests
+                                                                </h5>
+                                                                <p className="text-xs text-slate-600 dark:text-slate-400">
+                                                                    New user
+                                                                    access
+                                                                    requests
+                                                                </p>
+                                                            </div>
+                                                            <label className="relative inline-flex items-center cursor-pointer">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={
+                                                                        notificationSettings.accessRequestsEnabled
+                                                                    }
+                                                                    onChange={(
+                                                                        e
+                                                                    ) =>
+                                                                        handleUpdateNotificationSettings(
+                                                                            {
+                                                                                accessRequestsEnabled:
+                                                                                    e
+                                                                                        .target
+                                                                                        .checked,
+                                                                            }
+                                                                        )
+                                                                    }
+                                                                    className="sr-only peer"
+                                                                />
+                                                                <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600"></div>
+                                                            </label>
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            )}
+                                                )}
                                         </div>
                                     )
                                 )}
@@ -2335,7 +2418,8 @@ export default function SettingsModal({
                                                             value={searchQuery}
                                                             onChange={(e) =>
                                                                 setSearchQuery(
-                                                                    e.target.value
+                                                                    e.target
+                                                                        .value
                                                                 )
                                                             }
                                                             className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 placeholder:text-slate-500 dark:placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -2346,7 +2430,8 @@ export default function SettingsModal({
                                                             </div>
                                                         )}
                                                     </div>
-                                                    {searchResults.length > 0 && (
+                                                    {searchResults.length >
+                                                        0 && (
                                                         <div className="mt-2 border border-slate-200 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 max-h-40 overflow-y-auto">
                                                             {searchResults.map(
                                                                 (result) => (
@@ -2402,17 +2487,19 @@ export default function SettingsModal({
                                                     <label className="block text-sm font-medium mb-2 text-slate-900 dark:text-slate-100">
                                                         Sharing with
                                                     </label>
-                                                    {settings.sharingWith.length ===
-                                                    0 ? (
+                                                    {settings.sharingWith
+                                                        .length === 0 ? (
                                                         <p className="text-sm text-slate-500 dark:text-slate-400 text-center py-4 bg-slate-50 dark:bg-slate-700 rounded-md">
-                                                            You're not sharing your
-                                                            timetable with anyone
-                                                            yet.
+                                                            You're not sharing
+                                                            your timetable with
+                                                            anyone yet.
                                                         </p>
                                                     ) : (
                                                         <div className="space-y-2">
                                                             {settings.sharingWith.map(
-                                                                (sharedUser) => (
+                                                                (
+                                                                    sharedUser
+                                                                ) => (
                                                                     <div
                                                                         key={
                                                                             sharedUser.id
@@ -2467,8 +2554,9 @@ export default function SettingsModal({
                                         ) : (
                                             <div className="text-center p-4 bg-slate-50 dark:bg-slate-700 rounded-md mt-4">
                                                 <p className="text-slate-600 dark:text-slate-400">
-                                                    Timetable sharing is currently
-                                                    disabled by an administrator.
+                                                    Timetable sharing is
+                                                    currently disabled by an
+                                                    administrator.
                                                 </p>
                                             </div>
                                         )}
@@ -2552,12 +2640,12 @@ export default function SettingsModal({
                                                                     Notifications
                                                                 </h4>
                                                                 <p className="text-sm text-slate-600 dark:text-slate-400">
-                                                                    {notificationPermission === 'granted' 
-                                                                        ? isStandalonePWA() 
-                                                                            ? 'PWA push notifications (background) enabled' 
+                                                                    {notificationPermission ===
+                                                                    'granted'
+                                                                        ? isStandalonePWA()
+                                                                            ? 'PWA push notifications (background) enabled'
                                                                             : 'Browser notifications (tab must be open) enabled'
-                                                                        : notificationPermissionMessage()
-                                                                    }
+                                                                        : notificationPermissionMessage()}
                                                                 </p>
                                                             </div>
                                                             {canShowPermissionButton && (
@@ -2582,7 +2670,9 @@ export default function SettingsModal({
                                                                             e
                                                                         ) =>
                                                                             handleToggleNotifications(
-                                                                                e.target.checked
+                                                                                e
+                                                                                    .target
+                                                                                    .checked
                                                                             )
                                                                         }
                                                                         className="sr-only peer"
@@ -2595,225 +2685,36 @@ export default function SettingsModal({
                                                 )}
 
                                                 {/* Notification type preferences */}
-                                                {notificationPermission === 'granted' && notificationSettings.browserNotificationsEnabled && (
-                                                    <div className="space-y-3 ml-4 pl-4 border-l-2 border-slate-200 dark:border-slate-700">
-                                                        <div className="flex items-center justify-between">
-                                                            <div>
-                                                                <h5 className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                                                                    Cancelled
-                                                                    Lessons
-                                                                </h5>
-                                                                <p className="text-xs text-slate-600 dark:text-slate-400">
-                                                                    When your
-                                                                    lessons are
-                                                                    cancelled
-                                                                </p>
-                                                            </div>
-                                                            <label className="relative inline-flex items-center cursor-pointer">
-                                                                <input
-                                                                    type="checkbox"
-                                                                    checked={
-                                                                        notificationSettings.cancelledLessonsEnabled
-                                                                    }
-                                                                    onChange={(
-                                                                        e
-                                                                    ) =>
-                                                                        handleUpdateNotificationSettings(
-                                                                            {
-                                                                                cancelledLessonsEnabled:
-                                                                                    e
-                                                                                        .target
-                                                                                        .checked,
-                                                                            }
-                                                                        )
-                                                                    }
-                                                                    className="sr-only peer"
-                                                                />
-                                                                <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600"></div>
-                                                            </label>
-                                                        </div>
-
-                                                        {/* Time scope for cancelled lessons */}
-                                                        {notificationSettings.cancelledLessonsEnabled && (
-                                                            <div className="ml-4 pl-4 border-l border-slate-200 dark:border-slate-600">
-                                                                <p className="text-xs font-medium text-slate-700 dark:text-slate-300 mb-2">
-                                                                    Notify me for cancelled lessons:
-                                                                </p>
-                                                                <div className="flex gap-4">
-                                                                    <label className="flex items-center cursor-pointer">
-                                                                        <input
-                                                                            type="radio"
-                                                                            name="cancelledScope"
-                                                                            value="day"
-                                                                            checked={notificationSettings.cancelledLessonsTimeScope === 'day'}
-                                                                            onChange={() => handleUpdateNotificationSettings({
-                                                                                cancelledLessonsTimeScope: 'day'
-                                                                            })}
-                                                                            className="w-4 h-4 text-indigo-600 border-slate-300 dark:border-slate-600 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:ring-2"
-                                                                        />
-                                                                        <span className="ml-2 text-xs text-slate-600 dark:text-slate-400">
-                                                                            Today only
-                                                                        </span>
-                                                                    </label>
-                                                                    <label className="flex items-center cursor-pointer">
-                                                                        <input
-                                                                            type="radio"
-                                                                            name="cancelledScope"
-                                                                            value="week"
-                                                                            checked={notificationSettings.cancelledLessonsTimeScope === 'week'}
-                                                                            onChange={() => handleUpdateNotificationSettings({
-                                                                                cancelledLessonsTimeScope: 'week'
-                                                                            })}
-                                                                            className="w-4 h-4 text-indigo-600 border-slate-300 dark:border-slate-600 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:ring-2"
-                                                                        />
-                                                                        <span className="ml-2 text-xs text-slate-600 dark:text-slate-400">
-                                                                            This week
-                                                                        </span>
-                                                                    </label>
-                                                                </div>
-                                                            </div>
-                                                        )}
-
-                                                        <div className="flex items-center justify-between">
-                                                            <div>
-                                                                <h5 className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                                                                    Irregular
-                                                                    Lessons
-                                                                </h5>
-                                                                <p className="text-xs text-slate-600 dark:text-slate-400">
-                                                                    When lessons
-                                                                    have
-                                                                    schedule
-                                                                    changes
-                                                                </p>
-                                                            </div>
-                                                            <label className="relative inline-flex items-center cursor-pointer">
-                                                                <input
-                                                                    type="checkbox"
-                                                                    checked={
-                                                                        notificationSettings.irregularLessonsEnabled
-                                                                    }
-                                                                    onChange={(
-                                                                        e
-                                                                    ) =>
-                                                                        handleUpdateNotificationSettings(
-                                                                            {
-                                                                                irregularLessonsEnabled:
-                                                                                    e
-                                                                                        .target
-                                                                                        .checked,
-                                                                            }
-                                                                        )
-                                                                    }
-                                                                    className="sr-only peer"
-                                                                />
-                                                                <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600"></div>
-                                                            </label>
-                                                        </div>
-
-                                                        {/* Time scope for irregular lessons */}
-                                                        {notificationSettings.irregularLessonsEnabled && (
-                                                            <div className="ml-4 pl-4 border-l border-slate-200 dark:border-slate-600">
-                                                                <p className="text-xs font-medium text-slate-700 dark:text-slate-300 mb-2">
-                                                                    Notify me for irregular lessons:
-                                                                </p>
-                                                                <div className="flex gap-4">
-                                                                    <label className="flex items-center cursor-pointer">
-                                                                        <input
-                                                                            type="radio"
-                                                                            name="irregularScope"
-                                                                            value="day"
-                                                                            checked={notificationSettings.irregularLessonsTimeScope === 'day'}
-                                                                            onChange={() => handleUpdateNotificationSettings({
-                                                                                irregularLessonsTimeScope: 'day'
-                                                                            })}
-                                                                            className="w-4 h-4 text-indigo-600 border-slate-300 dark:border-slate-600 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:ring-2"
-                                                                        />
-                                                                        <span className="ml-2 text-xs text-slate-600 dark:text-slate-400">
-                                                                            Today only
-                                                                        </span>
-                                                                    </label>
-                                                                    <label className="flex items-center cursor-pointer">
-                                                                        <input
-                                                                            type="radio"
-                                                                            name="irregularScope"
-                                                                            value="week"
-                                                                            checked={notificationSettings.irregularLessonsTimeScope === 'week'}
-                                                                            onChange={() => handleUpdateNotificationSettings({
-                                                                                irregularLessonsTimeScope: 'week'
-                                                                            })}
-                                                                            className="w-4 h-4 text-indigo-600 border-slate-300 dark:border-slate-600 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:ring-2"
-                                                                        />
-                                                                        <span className="ml-2 text-xs text-slate-600 dark:text-slate-400">
-                                                                            This week
-                                                                        </span>
-                                                                    </label>
-                                                                </div>
-                                                            </div>
-                                                        )}
-
-                                                        <div className="flex items-center justify-between">
-                                                            <div>
-                                                                <h5 className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                                                                    Timetable
-                                                                    Changes
-                                                                </h5>
-                                                                <p className="text-xs text-slate-600 dark:text-slate-400">
-                                                                    General
-                                                                    timetable
-                                                                    updates
-                                                                </p>
-                                                            </div>
-                                                            <label className="relative inline-flex items-center cursor-pointer">
-                                                                <input
-                                                                    type="checkbox"
-                                                                    checked={
-                                                                        notificationSettings.timetableChangesEnabled
-                                                                    }
-                                                                    onChange={(
-                                                                        e
-                                                                    ) =>
-                                                                        handleUpdateNotificationSettings(
-                                                                            {
-                                                                                timetableChangesEnabled:
-                                                                                    e
-                                                                                        .target
-                                                                                        .checked,
-                                                                            }
-                                                                        )
-                                                                    }
-                                                                    className="sr-only peer"
-                                                                />
-                                                                <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600"></div>
-                                                            </label>
-                                                        </div>
-
-                                                        {(user.isUserManager ||
-                                                            user.isAdmin) && (
+                                                {notificationPermission ===
+                                                    'granted' &&
+                                                    notificationSettings.browserNotificationsEnabled && (
+                                                        <div className="space-y-3 ml-4 pl-4 border-l-2 border-slate-200 dark:border-slate-700">
                                                             <div className="flex items-center justify-between">
                                                                 <div>
                                                                     <h5 className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                                                                        Access
-                                                                        Requests
+                                                                        Cancelled
+                                                                        Lessons
                                                                     </h5>
                                                                     <p className="text-xs text-slate-600 dark:text-slate-400">
-                                                                        New user
-                                                                        access
-                                                                        requests
+                                                                        When
+                                                                        your
+                                                                        lessons
+                                                                        are
+                                                                        cancelled
                                                                     </p>
                                                                 </div>
                                                                 <label className="relative inline-flex items-center cursor-pointer">
                                                                     <input
                                                                         type="checkbox"
                                                                         checked={
-                                                                            notificationSettings.accessRequestsEnabled
+                                                                            notificationSettings.cancelledLessonsEnabled
                                                                         }
                                                                         onChange={(
                                                                             e
                                                                         ) =>
                                                                             handleUpdateNotificationSettings(
                                                                                 {
-                                                                                    accessRequestsEnabled:
+                                                                                    cancelledLessonsEnabled:
                                                                                         e
                                                                                             .target
                                                                                             .checked,
@@ -2825,9 +2726,246 @@ export default function SettingsModal({
                                                                     <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600"></div>
                                                                 </label>
                                                             </div>
-                                                        )}
-                                                    </div>
-                                                )}
+
+                                                            {/* Time scope for cancelled lessons */}
+                                                            {notificationSettings.cancelledLessonsEnabled && (
+                                                                <div className="ml-4 pl-4 border-l border-slate-200 dark:border-slate-600">
+                                                                    <p className="text-xs font-medium text-slate-700 dark:text-slate-300 mb-2">
+                                                                        Notify
+                                                                        me for
+                                                                        cancelled
+                                                                        lessons:
+                                                                    </p>
+                                                                    <div className="flex gap-4">
+                                                                        <label className="flex items-center cursor-pointer">
+                                                                            <input
+                                                                                type="radio"
+                                                                                name="cancelledScope"
+                                                                                value="day"
+                                                                                checked={
+                                                                                    notificationSettings.cancelledLessonsTimeScope ===
+                                                                                    'day'
+                                                                                }
+                                                                                onChange={() =>
+                                                                                    handleUpdateNotificationSettings(
+                                                                                        {
+                                                                                            cancelledLessonsTimeScope:
+                                                                                                'day',
+                                                                                        }
+                                                                                    )
+                                                                                }
+                                                                                className="w-4 h-4 text-indigo-600 border-slate-300 dark:border-slate-600 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:ring-2"
+                                                                            />
+                                                                            <span className="ml-2 text-xs text-slate-600 dark:text-slate-400">
+                                                                                Today
+                                                                                only
+                                                                            </span>
+                                                                        </label>
+                                                                        <label className="flex items-center cursor-pointer">
+                                                                            <input
+                                                                                type="radio"
+                                                                                name="cancelledScope"
+                                                                                value="week"
+                                                                                checked={
+                                                                                    notificationSettings.cancelledLessonsTimeScope ===
+                                                                                    'week'
+                                                                                }
+                                                                                onChange={() =>
+                                                                                    handleUpdateNotificationSettings(
+                                                                                        {
+                                                                                            cancelledLessonsTimeScope:
+                                                                                                'week',
+                                                                                        }
+                                                                                    )
+                                                                                }
+                                                                                className="w-4 h-4 text-indigo-600 border-slate-300 dark:border-slate-600 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:ring-2"
+                                                                            />
+                                                                            <span className="ml-2 text-xs text-slate-600 dark:text-slate-400">
+                                                                                This
+                                                                                week
+                                                                            </span>
+                                                                        </label>
+                                                                    </div>
+                                                                </div>
+                                                            )}
+
+                                                            <div className="flex items-center justify-between">
+                                                                <div>
+                                                                    <h5 className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                                                                        Irregular
+                                                                        Lessons
+                                                                    </h5>
+                                                                    <p className="text-xs text-slate-600 dark:text-slate-400">
+                                                                        When
+                                                                        lessons
+                                                                        have
+                                                                        schedule
+                                                                        changes
+                                                                    </p>
+                                                                </div>
+                                                                <label className="relative inline-flex items-center cursor-pointer">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={
+                                                                            notificationSettings.irregularLessonsEnabled
+                                                                        }
+                                                                        onChange={(
+                                                                            e
+                                                                        ) =>
+                                                                            handleUpdateNotificationSettings(
+                                                                                {
+                                                                                    irregularLessonsEnabled:
+                                                                                        e
+                                                                                            .target
+                                                                                            .checked,
+                                                                                }
+                                                                            )
+                                                                        }
+                                                                        className="sr-only peer"
+                                                                    />
+                                                                    <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600"></div>
+                                                                </label>
+                                                            </div>
+
+                                                            {/* Time scope for irregular lessons */}
+                                                            {notificationSettings.irregularLessonsEnabled && (
+                                                                <div className="ml-4 pl-4 border-l border-slate-200 dark:border-slate-600">
+                                                                    <p className="text-xs font-medium text-slate-700 dark:text-slate-300 mb-2">
+                                                                        Notify
+                                                                        me for
+                                                                        irregular
+                                                                        lessons:
+                                                                    </p>
+                                                                    <div className="flex gap-4">
+                                                                        <label className="flex items-center cursor-pointer">
+                                                                            <input
+                                                                                type="radio"
+                                                                                name="irregularScope"
+                                                                                value="day"
+                                                                                checked={
+                                                                                    notificationSettings.irregularLessonsTimeScope ===
+                                                                                    'day'
+                                                                                }
+                                                                                onChange={() =>
+                                                                                    handleUpdateNotificationSettings(
+                                                                                        {
+                                                                                            irregularLessonsTimeScope:
+                                                                                                'day',
+                                                                                        }
+                                                                                    )
+                                                                                }
+                                                                                className="w-4 h-4 text-indigo-600 border-slate-300 dark:border-slate-600 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:ring-2"
+                                                                            />
+                                                                            <span className="ml-2 text-xs text-slate-600 dark:text-slate-400">
+                                                                                Today
+                                                                                only
+                                                                            </span>
+                                                                        </label>
+                                                                        <label className="flex items-center cursor-pointer">
+                                                                            <input
+                                                                                type="radio"
+                                                                                name="irregularScope"
+                                                                                value="week"
+                                                                                checked={
+                                                                                    notificationSettings.irregularLessonsTimeScope ===
+                                                                                    'week'
+                                                                                }
+                                                                                onChange={() =>
+                                                                                    handleUpdateNotificationSettings(
+                                                                                        {
+                                                                                            irregularLessonsTimeScope:
+                                                                                                'week',
+                                                                                        }
+                                                                                    )
+                                                                                }
+                                                                                className="w-4 h-4 text-indigo-600 border-slate-300 dark:border-slate-600 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:ring-2"
+                                                                            />
+                                                                            <span className="ml-2 text-xs text-slate-600 dark:text-slate-400">
+                                                                                This
+                                                                                week
+                                                                            </span>
+                                                                        </label>
+                                                                    </div>
+                                                                </div>
+                                                            )}
+
+                                                            <div className="flex items-center justify-between">
+                                                                <div>
+                                                                    <h5 className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                                                                        Timetable
+                                                                        Changes
+                                                                    </h5>
+                                                                    <p className="text-xs text-slate-600 dark:text-slate-400">
+                                                                        General
+                                                                        timetable
+                                                                        updates
+                                                                    </p>
+                                                                </div>
+                                                                <label className="relative inline-flex items-center cursor-pointer">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={
+                                                                            notificationSettings.timetableChangesEnabled
+                                                                        }
+                                                                        onChange={(
+                                                                            e
+                                                                        ) =>
+                                                                            handleUpdateNotificationSettings(
+                                                                                {
+                                                                                    timetableChangesEnabled:
+                                                                                        e
+                                                                                            .target
+                                                                                            .checked,
+                                                                                }
+                                                                            )
+                                                                        }
+                                                                        className="sr-only peer"
+                                                                    />
+                                                                    <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600"></div>
+                                                                </label>
+                                                            </div>
+
+                                                            {(user.isUserManager ||
+                                                                user.isAdmin) && (
+                                                                <div className="flex items-center justify-between">
+                                                                    <div>
+                                                                        <h5 className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                                                                            Access
+                                                                            Requests
+                                                                        </h5>
+                                                                        <p className="text-xs text-slate-600 dark:text-slate-400">
+                                                                            New
+                                                                            user
+                                                                            access
+                                                                            requests
+                                                                        </p>
+                                                                    </div>
+                                                                    <label className="relative inline-flex items-center cursor-pointer">
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            checked={
+                                                                                notificationSettings.accessRequestsEnabled
+                                                                            }
+                                                                            onChange={(
+                                                                                e
+                                                                            ) =>
+                                                                                handleUpdateNotificationSettings(
+                                                                                    {
+                                                                                        accessRequestsEnabled:
+                                                                                            e
+                                                                                                .target
+                                                                                                .checked,
+                                                                                    }
+                                                                                )
+                                                                            }
+                                                                            className="sr-only peer"
+                                                                        />
+                                                                        <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600"></div>
+                                                                    </label>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
                                             </div>
                                         )
                                     )}
