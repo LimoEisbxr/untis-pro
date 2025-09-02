@@ -246,17 +246,18 @@ export default function Dashboard({
     }, [loadUser, loadMine, selectedUser, user.id]);
 
     // Load user's lesson colors
+    const loadLessonColors = useCallback(async () => {
+        try {
+            const { colors, offsets } = await getLessonColors(token);
+            setLessonColors(colors);
+            setLessonOffsets(offsets || {});
+        } catch (error) {
+            console.error('Failed to load lesson colors:', error);
+            // Don't show error to user for colors, just use defaults
+        }
+    }, [token]);
+
     useEffect(() => {
-        const loadLessonColors = async () => {
-            try {
-                const { colors, offsets } = await getLessonColors(token);
-                setLessonColors(colors);
-                setLessonOffsets(offsets || {});
-            } catch (error) {
-                console.error('Failed to load lesson colors:', error);
-                // Don't show error to user for colors, just use defaults
-            }
-        };
         const loadDefaults = async () => {
             try {
                 const defaults = await getDefaultLessonColors(token);
@@ -267,7 +268,7 @@ export default function Dashboard({
         };
         loadLessonColors();
         loadDefaults();
-    }, [token]);
+    }, [token, loadLessonColors]);
 
     // Handle lesson color changes
     const handleColorChange = useCallback(
@@ -1219,6 +1220,7 @@ export default function Dashboard({
                 isOpen={isSettingsModalOpen}
                 onClose={() => setIsSettingsModalOpen(false)}
                 onUserUpdate={onUserUpdate}
+                onColorsRefresh={loadLessonColors}
             />
 
             <NotificationPanel

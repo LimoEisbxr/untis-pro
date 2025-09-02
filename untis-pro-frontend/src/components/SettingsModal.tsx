@@ -54,12 +54,14 @@ export default function SettingsModal({
     isOpen,
     onClose,
     onUserUpdate,
+    onColorsRefresh,
 }: {
     token: string;
     user: User;
     isOpen: boolean;
     onClose: () => void;
     onUserUpdate?: (u: User) => void;
+    onColorsRefresh?: () => void;
 }) {
     // Close/open animation state with enter transition
     const [showModal, setShowModal] = useState(false);
@@ -533,6 +535,12 @@ export default function SettingsModal({
                     ignoreAdminColors: enabled,
                 });
             }
+            
+            // Refresh lesson colors to reflect the new preference
+            if (onColorsRefresh) {
+                onColorsRefresh();
+            }
+            
             setColorPrefsSaved(true);
             setTimeout(() => setColorPrefsSaved(false), 3000);
         } catch (e) {
