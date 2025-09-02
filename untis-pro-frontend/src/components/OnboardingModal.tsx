@@ -633,13 +633,9 @@ export default function OnboardingModal({
                         : 'backdrop-blur-sm bg-black/60'
                 }`}
                 onClick={(e) => {
-                    // Prevent all backdrop clicks during interactive steps and modal onboarding
-                    if (waitingForInteraction || inModalOnboarding) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        return;
-                    }
-                    onClose();
+                    // Prevent all backdrop clicks to avoid accidentally closing the onboarding
+                    e.preventDefault();
+                    e.stopPropagation();
                 }}
                 style={{
                     maskImage: highlightedElement 
