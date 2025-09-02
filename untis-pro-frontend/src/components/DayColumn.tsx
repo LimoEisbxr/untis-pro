@@ -708,12 +708,9 @@ const DayColumn: FC<DayColumnProps> = ({
                                         <div className={`font-semibold leading-tight text-[13px] ${cancelled ? 'lesson-cancelled-subject' : ''}`}>
                                             {displaySubject}
                                         </div>
-                                        {/* Show timeframe unless cancelled/irregular AND this is a single (non-overlapping) lesson. */}
+                                        {/* Show timeframe unless lesson is cancelled or irregular. */}
                                         {canShowTimeFrame &&
-                                            !(
-                                                (cancelled || irregular) &&
-                                                b.colCount === 1
-                                            ) && (
+                                            !(cancelled || irregular) && (
                                                 <div className={`opacity-90 sm:mt-0 leading-tight text-[12px] ${cancelled ? 'lesson-cancelled-time' : ''}`}>
                                                     <span className="whitespace-nowrap">
                                                         {fmtHM(b.startMin)}–
