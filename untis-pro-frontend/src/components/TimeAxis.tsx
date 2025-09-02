@@ -39,8 +39,13 @@ const TimeAxis: FC<TimeAxisProps> = ({
     // Build unique timestamp labels (dedupe touching boundaries) with a minimum vertical gap.
     const timeLabelPositions = (() => {
         const minGapPx = 15;
-        // Use exact same positioning calculation as DayColumn to prevent misalignment
-        const toY = (min: number) => Math.round((min - START_MIN) * SCALE + headerPx) + PAD_TOP;
+        // Position calculation matching DayColumn logic
+        // For lesson starts: align with lesson block top
+        const toStartY = (min: number) => Math.round((min - START_MIN) * SCALE + headerPx) + PAD_TOP;
+        // For lesson ends: align with lesson block bottom (accounting for padding and gap budget)
+        const PAD_BOTTOM = isMobile ? 2 : 4;
+        const GAP_BUDGET = isMobile ? 1 : 2;
+        const toEndY = (min: number) => Math.round((min - START_MIN) * SCALE + headerPx) - PAD_BOTTOM - GAP_BUDGET;
         const maxY = Math.round((END_MIN - START_MIN) * SCALE + headerPx) + PAD_TOP;
         type L = { y: number; label: string };
         const labels: L[] = [];
@@ -50,9 +55,9 @@ const TimeAxis: FC<TimeAxisProps> = ({
             const s = untisToMinutes(p.start);
             const e = untisToMinutes(p.end);
             if (i === 0 || prevEnd === null || s !== prevEnd) {
-                labels.push({ y: toY(s), label: fmtHM(s) });
+                labels.push({ y: toStartY(s), label: fmtHM(s) });
             }
-            labels.push({ y: toY(e), label: fmtHM(e) });
+            labels.push({ y: toEndY(e), label: fmtHM(e) });
             prevEnd = e;
         }
         labels.sort((a, b) => a.y - b.y);
@@ -117,9 +122,12 @@ const TimeAxis: FC<TimeAxisProps> = ({
                     {DEFAULT_PERIODS.map((p) => {
                         const sMin = untisToMinutes(p.start);
                         const eMin = untisToMinutes(p.end);
-                        const centerMin = (sMin + eMin) / 2;
-                        // Use same positioning calculation as DayColumn for perfect alignment
-                        const centerY = Math.round((centerMin - START_MIN) * SCALE + headerPx) + PAD_TOP;
+                        // Calculate center based on actual lesson block positioning (not just time midpoint)
+                        const PAD_BOTTOM = isMobile ? 2 : 4;
+                        const GAP_BUDGET = isMobile ? 1 : 2;
+                        const lessonTop = Math.round((sMin - START_MIN) * SCALE + headerPx) + PAD_TOP;
+                        const lessonBottom = Math.round((eMin - START_MIN) * SCALE + headerPx) - PAD_BOTTOM - GAP_BUDGET;
+                        const centerY = (lessonTop + lessonBottom) / 2;
                         return (
                             <div
                                 key={p.number}
