@@ -58,4 +58,4 @@ python branding\generate_logo.py --only-canonical --out branding\dist --uscale 0
 Wrote branding\dist\logo.svg
 ```
 
-This produces `branding/dist/logo.svg`, which is copied to `untis-pro-frontend/src/assets/logo.svg` and referenced in `untis-pro-frontend/index.html` as the favicon.
+This produces `branding/dist/logo.svg`, which is copied to `periodix-frontend/src/assets/logo.svg` and referenced in `periodix-frontend/index.html` as the favicon.

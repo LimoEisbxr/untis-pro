@@ -1,10 +1,11 @@
-untis-pro-backend/package-lock.json
-/untis-pro-backend/node_modules
-untis-pro-frontend/package-lock.json
+periodix-backend/package-lock.json
+/periodix-backend/node_modules
+periodix-frontend/package-lock.json
 example_week_lessons.json
 example_untis_package_usage.ts
-#/untis-pro-backend/prisma/migrations
+#/periodix-backend/prisma/migrations
 .env
-untis-pro-frontend/.env.example
+periodix-frontend/.env.example
 .env.save
 handy-commands.txt
+branding/Inter_28pt-SemiBold.ttf

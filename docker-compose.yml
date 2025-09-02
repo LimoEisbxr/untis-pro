@@ -8,7 +8,7 @@ services:
             # Pulled from .env (POSTGRES_USER / POSTGRES_PASSWORD); defaults keep dev simple
             POSTGRES_USER: ${POSTGRES_USER:-postgres}
             POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-            POSTGRES_DB: untis_pro
+            POSTGRES_DB: periodix
         ports:
             - '6666:5432'
         volumes:
@@ -21,7 +21,7 @@ services:
 
     backend:
         build:
-            context: ./untis-pro-backend
+            context: ./periodix-backend
             dockerfile: Dockerfile
         depends_on:
             db:
@@ -30,10 +30,10 @@ services:
             - .env
         environment:
             # Use dynamic credentials so changing them in .env propagates
-            DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/untis_pro?schema=public
+            DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/periodix?schema=public
             JWT_SECRET: ${JWT_SECRET}
             PORT: ${PORT}
-            UNTIS_MASTER_KEY: ${UNTIS_MASTER_KEY}
+            PERIODIX_MASTER_KEY: ${PERIODIX_MASTER_KEY}
             # Do not override CORS_ORIGIN so env file or runtime env controls it; if unset, backend reflects Origin
             CORS_ORIGIN: ${CORS_ORIGIN}
             # Skip prisma generate at runtime because it's already done in build stage; set to 0 to force regenerate
@@ -50,7 +50,7 @@ services:
 
     frontend:
         build:
-            context: ./untis-pro-frontend
+            context: ./periodix-frontend
             dockerfile: Dockerfile
         depends_on:
             backend:
