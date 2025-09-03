@@ -504,7 +504,7 @@ export default function Timetable({
     const [isAnimatingOut, setIsAnimatingOut] = useState(false);
     const [pullDistance, setPullDistance] = useState(0);
     const [isPulling, setIsPulling] = useState(false);
-    const refreshThreshold = 60; // Distance needed to trigger refresh
+    const refreshThreshold = 100; // Distance needed to trigger refresh
     
     const SWIPE_THRESHOLD = 80; // px - distance needed to commit to navigation
     const VELOCITY_THRESHOLD = 0.3; // px/ms - speed needed for fast swipe
