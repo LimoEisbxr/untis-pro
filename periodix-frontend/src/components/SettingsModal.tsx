@@ -1123,7 +1123,16 @@ export default function SettingsModal({
                             </nav>
                         </div>
 
-                        {/* Tab Content - will be implemented next */}
+                        {/* Tab Content */}
+                        <div>
+                            <p className="text-slate-600 dark:text-slate-400">
+                                Tab content for "{activeTab}" will be implemented here.
+                                Current user type: {user.isAdmin ? 'Admin' : user.isUserManager ? 'User Manager' : 'Regular User'}
+                            </p>
+                        </div>
+                    </div>
+                    {false ? (
+                        // Admin User Management Section
                         <>
                             {userManagementLoading ? (
                                 <div className="p-6 text-center text-slate-600 dark:text-slate-400">
@@ -2407,9 +2416,11 @@ export default function SettingsModal({
                                         </div>
                                     )
                                 )}
+                                    </div>
 
                                 {/* Sharing Settings for User Managers */}
-                                {loading ? (
+                                <div className={activeTab === 'sharing' ? 'block' : 'hidden'}>
+                                    {loading ? (
                                     <div className="text-center text-slate-600 dark:text-slate-400 pt-6">
                                         Loading sharing settings...
                                     </div>
@@ -2692,7 +2703,8 @@ export default function SettingsModal({
                                     </div>
 
                                     {/* Notification Settings */}
-                                    {notificationLoading ? (
+                                    <div className={activeTab === 'notifications' ? 'block' : 'hidden'}>
+                                        {notificationLoading ? (
                                         <div className="text-center text-slate-600 dark:text-slate-400">
                                             Loading notification settings...
                                         </div>
@@ -3220,11 +3232,11 @@ export default function SettingsModal({
                                         </div>
                                     )}
                                 </div>
+                                </div>
                             ) : null}
                         </>
                     )}
                 </div>
-            </div>
 
             {/* User Manager Grant/Revoke Confirmation Modal */}
             {showConfirmUserManager && (
