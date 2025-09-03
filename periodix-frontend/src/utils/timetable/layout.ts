@@ -121,11 +121,10 @@ export function easeOutCubic(t: number): number {
  * Week navigation animation configuration
  */
 export const ANIMATION_CONFIG = {
-    DURATION: 250, // ms - reduced from 300 for snappier feel
-    MOMENTUM_DURATION: 350, // ms - duration for momentum-based animations
-    EASING: easeOutCubic, // changed from easeOutQuart for smoother feel
-    RUBBER_BAND_RESISTANCE: 0.25, // Resistance when dragging beyond bounds (reduced from 0.3)
-    SMOOTH_THRESHOLD: 0.15, // threshold for smooth animation completion
+    DURATION: 300, // ms - smooth animation duration
+    EASING: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)', // CSS easing for smooth transitions
+    RUBBER_BAND_RESISTANCE: 0.15, // Reduced resistance for more natural feel
+    MAX_DRAG_RATIO: 0.5, // Maximum drag distance as ratio of container width
 } as const;
 
 /**
@@ -136,7 +135,7 @@ export function applyRubberBandResistance(
     containerWidth: number,
     resistance: number = ANIMATION_CONFIG.RUBBER_BAND_RESISTANCE
 ): number {
-    const maxOffset = containerWidth * 0.35; // Increased from 0.3 for better feel
+    const maxOffset = containerWidth * ANIMATION_CONFIG.MAX_DRAG_RATIO;
     
     if (Math.abs(offset) <= maxOffset) {
         return offset;
@@ -144,7 +143,7 @@ export function applyRubberBandResistance(
     
     const sign = offset > 0 ? 1 : -1;
     const excess = Math.abs(offset) - maxOffset;
-    // Use exponential decay for more natural feel
+    // Use exponential decay for more natural feel with reduced resistance
     const resistedExcess = maxOffset * (1 - Math.exp(-excess / (containerWidth * resistance)));
     
     return sign * (maxOffset + resistedExcess);

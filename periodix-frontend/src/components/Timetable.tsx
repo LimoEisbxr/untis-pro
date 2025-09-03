@@ -500,10 +500,15 @@ export default function Timetable({
     const [isAnimating, setIsAnimating] = useState(false);
     const containerRef = useRef<HTMLDivElement | null>(null);
     const slidingTrackRef = useRef<HTMLDivElement | null>(null);
+    const animationRef = useRef<number | null>(null);
     
     useEffect(() => {
         const el = containerRef.current;
         if (!el) return;
+        
+        // Capture the ref at the beginning of the effect
+        const currentAnimationRef = animationRef.current;
+        
         let skipSwipe = false;
         let wheelDeltaX = 0;
         let wheelDeltaY = 0;
@@ -559,6 +564,45 @@ export default function Timetable({
             setTranslateX(newTranslateX);
         };
         
+        const performNavigation = (direction: 'prev' | 'next') => {
+            if (isAnimating) return;
+            
+            setIsAnimating(true);
+            const containerWidth = el.getBoundingClientRect().width;
+            const targetX = direction === 'next' ? -containerWidth : containerWidth;
+            
+            // Smooth CSS-based animation to target position
+            setTranslateX(targetX);
+            
+            // Use a single transitionend event listener for precise timing
+            const handleTransitionEnd = (e: TransitionEvent) => {
+                if (e.target === slidingTrackRef.current && e.propertyName === 'transform') {
+                    slidingTrackRef.current?.removeEventListener('transitionend', handleTransitionEnd);
+                    
+                    // Instantly reset position and update data with no visible transition
+                    if (slidingTrackRef.current) {
+                        slidingTrackRef.current.style.transition = 'none';
+                    }
+                    
+                    // Use requestAnimationFrame to ensure the transition is disabled before data change
+                    requestAnimationFrame(() => {
+                        onWeekNavigate?.(direction);
+                        setTranslateX(0);
+                        
+                        // Re-enable transitions on next frame
+                        requestAnimationFrame(() => {
+                            if (slidingTrackRef.current) {
+                                slidingTrackRef.current.style.transition = '';
+                            }
+                            setIsAnimating(false);
+                        });
+                    });
+                }
+            };
+            
+            slidingTrackRef.current?.addEventListener('transitionend', handleTransitionEnd);
+        };
+        
         const handleTouchEnd = (e: TouchEvent) => {
             if (skipSwipe) {
                 skipSwipe = false;
@@ -587,39 +631,8 @@ export default function Timetable({
                 touchStartTime.current
             );
             
-            if (navigation.shouldNavigate) {
-                setIsAnimating(true);
-                
-                const containerWidth = el.getBoundingClientRect().width;
-                const animationDuration = navigation.momentum > 1 ? ANIMATION_CONFIG.MOMENTUM_DURATION : ANIMATION_CONFIG.DURATION;
-                
-                // Calculate smoother target position based on momentum
-                const baseTarget = navigation.direction === 'next' ? -containerWidth : containerWidth;
-                const momentumOffset = navigation.momentum * 20; // Add slight momentum offset
-                const targetX = baseTarget + (navigation.direction === 'next' ? -momentumOffset : momentumOffset);
-                
-                setTranslateX(targetX * 0.85); // Smoother transition, don't go full width
-                
-                // Use requestAnimationFrame for smoother timing
-                requestAnimationFrame(() => {
-                    setTimeout(() => {
-                        if (slidingTrackRef.current) {
-                            slidingTrackRef.current.style.transition = 'none';
-                        }
-                        
-                        requestAnimationFrame(() => {
-                            onWeekNavigate?.(navigation.direction!);
-                            setTranslateX(0);
-                            
-                            requestAnimationFrame(() => {
-                                if (slidingTrackRef.current) {
-                                    slidingTrackRef.current.style.transition = '';
-                                }
-                                setIsAnimating(false);
-                            });
-                        });
-                    }, animationDuration);
-                });
+            if (navigation.shouldNavigate && navigation.direction) {
+                performNavigation(navigation.direction);
             } else {
                 // Snap back to current position
                 setTranslateX(0);
@@ -660,38 +673,11 @@ export default function Timetable({
                 e.preventDefault();
                 
                 // Determine if we've accumulated enough delta for navigation
-                const WHEEL_THRESHOLD = 100; // Adjust based on testing
+                const WHEEL_THRESHOLD = 100;
                 
                 if (Math.abs(wheelDeltaX) > WHEEL_THRESHOLD) {
-                    setIsAnimating(true);
-                    
-                    const containerWidth = el.getBoundingClientRect().width;
                     const direction = wheelDeltaX > 0 ? 'next' : 'prev';
-                    const targetTranslateX = wheelDeltaX > 0 ? -containerWidth : containerWidth;
-                    
-                    setTranslateX(targetTranslateX);
-                    
-                    // Wait for animation to complete, then seamlessly transition
-                    setTimeout(() => {
-                        // Disable transitions first
-                        if (slidingTrackRef.current) {
-                            slidingTrackRef.current.style.transition = 'none';
-                        }
-                        
-                        // Change data and reset position simultaneously using requestAnimationFrame
-                        requestAnimationFrame(() => {
-                            onWeekNavigate?.(direction);
-                            setTranslateX(0);
-                            
-                            // Re-enable transitions on the next frame to avoid visible jump
-                            requestAnimationFrame(() => {
-                                if (slidingTrackRef.current) {
-                                    slidingTrackRef.current.style.transition = '';
-                                }
-                                setIsAnimating(false);
-                            });
-                        });
-                    }, 320);
+                    performNavigation(direction);
                     
                     // Reset wheel delta after navigation
                     wheelDeltaX = 0;
@@ -719,6 +705,10 @@ export default function Timetable({
             el.removeEventListener('wheel', handleWheel);
             if (wheelTimeout) {
                 clearTimeout(wheelTimeout);
+            }
+            // Use the captured ref value for cleanup
+            if (currentAnimationRef) {
+                cancelAnimationFrame(currentAnimationRef);
             }
         };
     }, [onWeekNavigate, isDragging, isAnimating]);
@@ -945,7 +935,7 @@ export default function Timetable({
                             style={{
                                 transform: `translateX(calc(-33.333% + ${translateX}px))`, // Start with current week centered
                                 width: '300%', // 3 weeks side by side
-                                transition: isDragging ? 'none' : `transform ${ANIMATION_CONFIG.DURATION}ms cubic-bezier(0.25, 0.46, 0.45, 0.94)`
+                                transition: isDragging ? 'none' : `transform ${ANIMATION_CONFIG.DURATION}ms ${ANIMATION_CONFIG.EASING}`
                             }}
                         >
                             {/* Previous Week */}
