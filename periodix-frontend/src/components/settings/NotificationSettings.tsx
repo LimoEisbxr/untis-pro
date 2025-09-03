@@ -51,6 +51,9 @@ export default function NotificationSettings({ token, user, isVisible }: Notific
         !iosNeedsInstall &&
         !iosTooOld;
 
+    // Check if user can toggle notifications (has permission and setting is enabled)
+    const canToggleNotifications = notificationPermission === 'granted' && notificationSettings?.browserNotificationsEnabled !== undefined;
+
     const notificationPermissionMessage = () => {
         if (!isNotificationSupported()) return 'Notifications not supported in this browser.';
         if (notificationPermission === 'granted') return 'Notifications enabled.';
@@ -59,12 +62,11 @@ export default function NotificationSettings({ token, user, isVisible }: Notific
                 if (iosNeedsInstall) {
                     return 'Install first (Share > Add to Home Screen), then open the app and tap Enable.';
                 }
-                if (!permissionAttempted) {
-                    return 'Not requested yet. Tap Enable to ask for notification permission.';
-                }
-                return 'Blocked. Open iOS Settings > Notifications > Periodix and allow notifications (or reinstall the PWA to retry).';
+                // Allow re-asking on mobile/iOS even if previously denied
+                return 'Tap Enable to request notification permission again.';
             }
-            return 'Blocked in browser settings.';
+            // Allow re-asking on other platforms too
+            return 'Click Enable to request notification permission.';
         }
         // permission === 'default'
         if (iosTooOld) return 'Update iOS (>=16) to enable push notifications.';
@@ -147,16 +149,24 @@ export default function NotificationSettings({ token, user, isVisible }: Notific
         setNotificationError(null);
 
         try {
-            // Track that we've attempted permission
-            setPermissionAttempted(true);
+            // Reset permission attempted flag to allow re-asking
+            setPermissionAttempted(false);
             try {
-                localStorage.setItem('notificationPermissionAttempted', '1');
+                localStorage.removeItem('notificationPermissionAttempted');
             } catch {
                 // Ignore localStorage errors
             }
 
             const permission = await requestNotificationPermission();
             setNotificationPermission(permission);
+
+            // Mark that we've attempted permission
+            setPermissionAttempted(true);
+            try {
+                localStorage.setItem('notificationPermissionAttempted', '1');
+            } catch {
+                // Ignore localStorage errors
+            }
 
             if (permission === 'granted') {
                 // Enable browser notifications automatically when permission is granted
@@ -232,14 +242,14 @@ export default function NotificationSettings({ token, user, isVisible }: Notific
 
                 {notificationLoading ? (
                     <div className="w-5 h-5 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin" />
-                ) : canShowPermissionButton ? (
+                ) : (canShowPermissionButton || notificationPermission === 'denied') ? (
                     <button
                         onClick={handleRequestPermission}
                         className="px-3 py-1 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-500 rounded-md"
                     >
                         Enable
                     </button>
-                ) : notificationPermission === 'granted' && (
+                ) : canToggleNotifications && (
                     <label className="relative inline-flex items-center cursor-pointer">
                         <input
                             type="checkbox"
