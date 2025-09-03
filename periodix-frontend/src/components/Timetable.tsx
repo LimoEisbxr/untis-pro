@@ -227,6 +227,7 @@ export default function Timetable({
     getAdjacentWeekData,
     onLessonModalStateChange,
     isOnboardingActive,
+    onRefresh,
 }: {
     data: TimetableResponse | null;
     weekStart: Date;
@@ -245,6 +246,7 @@ export default function Timetable({
     getAdjacentWeekData?: (direction: 'prev' | 'next') => TimetableResponse | null; // function to get cached data for adjacent weeks
     onLessonModalStateChange?: (isOpen: boolean) => void; // callback for onboarding
     isOnboardingActive?: boolean;
+    onRefresh?: () => Promise<void>; // callback for pull-to-refresh
     // Extended: allow passing current offset when color set
     // (so initial color creation can persist chosen offset)
     // Keeping backwards compatibility (third param optional)
@@ -496,6 +498,14 @@ export default function Timetable({
     const containerRef = useRef<HTMLDivElement | null>(null);
     const slidingTrackRef = useRef<HTMLDivElement | null>(null);
     
+    // Pull-to-refresh state
+    const [isRefreshing, setIsRefreshing] = useState(false);
+    const [isCompletingRefresh, setIsCompletingRefresh] = useState(false);
+    const [isAnimatingOut, setIsAnimatingOut] = useState(false);
+    const [pullDistance, setPullDistance] = useState(0);
+    const [isPulling, setIsPulling] = useState(false);
+    const refreshThreshold = 100; // Distance needed to trigger refresh
+    
     const SWIPE_THRESHOLD = 80; // px - distance needed to commit to navigation
     const VELOCITY_THRESHOLD = 0.3; // px/ms - speed needed for fast swipe
     const SWIPE_MAX_OFF_AXIS = 100; // allow some vertical movement
@@ -511,7 +521,7 @@ export default function Timetable({
             'input,textarea,select,button,[contenteditable="true"],[role="textbox"]';
             
         const handleTouchStart = (e: TouchEvent) => {
-            if (e.touches.length !== 1 || isAnimating) return;
+            if (e.touches.length !== 1 || isAnimating || isRefreshing || isCompletingRefresh || isAnimatingOut) return;
             const target = e.target as HTMLElement | null;
             // Ignore swipe if user starts on an interactive control
             if (
@@ -538,12 +548,40 @@ export default function Timetable({
             const dx = currentX - touchStartX.current;
             const dy = currentY - touchStartY.current;
             
-            // Check if this is more of a vertical scroll
+            // Check if this is a downward swipe at the top of the page
+            const isAtTop = el.scrollTop <= 5; // Allow small tolerance for scroll position
+            const isDownwardSwipe = dy > 0 && Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 20;
+            
+            if (isAtTop && isDownwardSwipe && onRefresh) {
+                // This is a pull-to-refresh gesture
+                e.preventDefault();
+                setIsPulling(true);
+                
+                // Calculate pull distance with resistance
+                let distance = dy;
+                if (distance > refreshThreshold) {
+                    // Add resistance when pulling beyond threshold
+                    distance = refreshThreshold + (dy - refreshThreshold) * 0.3;
+                }
+                
+                setPullDistance(Math.max(0, Math.min(distance, refreshThreshold * 1.5)));
+                return;
+            }
+            
+            // Check if this is more of a vertical scroll (but not pull-to-refresh)
             if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 20) {
                 skipSwipe = true;
                 setIsDragging(false);
                 setTranslateX(0);
+                setIsPulling(false);
+                setPullDistance(0);
                 return;
+            }
+            
+            // Reset pull-to-refresh state if it was a horizontal gesture
+            if (isPulling) {
+                setIsPulling(false);
+                setPullDistance(0);
             }
             
             // Prevent default only for horizontal swipes to avoid conflicts with scrolling
@@ -570,12 +608,16 @@ export default function Timetable({
                 skipSwipe = false;
                 setIsDragging(false);
                 setTranslateX(0);
+                setIsPulling(false);
+                setPullDistance(0);
                 return;
             }
             
             if (!isDragging || touchStartX.current == null || touchStartY.current == null || touchStartTime.current == null) {
                 setIsDragging(false);
                 setTranslateX(0);
+                setIsPulling(false);
+                setPullDistance(0);
                 return;
             }
             
@@ -585,6 +627,44 @@ export default function Timetable({
             const velocity = Math.abs(dx) / dt; // px/ms
             
             setIsDragging(false);
+            
+            // Handle pull-to-refresh
+            if (isPulling && onRefresh && pullDistance >= refreshThreshold) {
+                setIsRefreshing(true);
+                setIsPulling(false);
+                setPullDistance(0);
+                
+                onRefresh().then(() => {
+                    // Start completion phase with loading circle
+                    setIsRefreshing(false);
+                    setIsCompletingRefresh(true);
+                    
+                    // Show completion loading for 1 second, then animate out
+                    setTimeout(() => {
+                        setIsCompletingRefresh(false);
+                        setIsAnimatingOut(true);
+                        
+                        // Complete the animation after flying out
+                        setTimeout(() => {
+                            setIsAnimatingOut(false);
+                        }, 500); // Animation duration
+                    }, 1000); // 1 second loading circle
+                }).catch((error) => {
+                    console.error('Refresh failed:', error);
+                    setIsRefreshing(false);
+                });
+                
+                touchStartX.current = null;
+                touchStartY.current = null;
+                touchStartTime.current = null;
+                return;
+            }
+            
+            // Reset pull-to-refresh state if threshold not reached
+            if (isPulling) {
+                setIsPulling(false);
+                setPullDistance(0);
+            }
             
             // Determine if we should navigate or snap back
             const shouldNavigate = Math.abs(dx) > SWIPE_THRESHOLD || velocity > VELOCITY_THRESHOLD;
@@ -749,7 +829,7 @@ export default function Timetable({
                 clearTimeout(wheelTimeout);
             }
         };
-    }, [onWeekNavigate, isDragging, isAnimating]);
+    }, [onWeekNavigate, isDragging, isAnimating, isPulling, isRefreshing, isCompletingRefresh, isAnimatingOut, onRefresh, pullDistance]);
 
     // Track current time and compute line position
     const [now, setNow] = useState<Date>(() => new Date());
@@ -860,7 +940,7 @@ export default function Timetable({
     return (
         <div
             ref={containerRef}
-            className="w-full overflow-x-hidden pt-[env(safe-area-inset-top)]"
+            className="relative w-full overflow-x-hidden pt-[env(safe-area-inset-top)]"
         >
             {isDeveloperModeEnabled && (
                 <div className="mb-4 flex justify-end px-2">
@@ -894,6 +974,53 @@ export default function Timetable({
                             Developer Mode
                         </span>
                     </button>
+                </div>
+            )}
+
+            {/* Pull-to-refresh indicator - overlaid above everything */}
+            {(isPulling || isRefreshing || isCompletingRefresh || isAnimatingOut) && (
+                <div 
+                    className={`absolute top-0 left-0 right-0 z-50 flex justify-center items-center py-3 transition-all duration-300 ease-out ${
+                        isAnimatingOut ? 'animate-[flyOut_500ms_ease-in_forwards]' : ''
+                    }`}
+                    style={{
+                        transform: isAnimatingOut 
+                            ? 'translateY(-100px)' 
+                            : `translateY(${isPulling ? Math.max(0, pullDistance * 0.8) : 20}px)`,
+                        opacity: isAnimatingOut 
+                            ? 0 
+                            : isPulling 
+                                ? Math.min(1, pullDistance / refreshThreshold) 
+                                : 1,
+                        transition: isAnimatingOut 
+                            ? 'transform 500ms ease-in, opacity 500ms ease-in' 
+                            : 'all 300ms ease-out'
+                    }}
+                >
+                    <div className="flex items-center gap-2 px-4 py-2 bg-white/95 dark:bg-slate-800/95 backdrop-blur rounded-full shadow-lg border border-slate-200/60 dark:border-slate-600/60 text-slate-600 dark:text-slate-400">
+                        {isRefreshing ? (
+                            <>
+                                <div className="animate-spin rounded-full h-5 w-5 border-2 border-sky-600 border-t-transparent"></div>
+                                <span className="text-sm font-medium">Refreshing...</span>
+                            </>
+                        ) : isCompletingRefresh ? (
+                            <>
+                                <div className="animate-spin rounded-full h-5 w-5 border-2 border-green-600 border-t-transparent"></div>
+                                <span className="text-sm font-medium">Complete!</span>
+                            </>
+                        ) : (
+                            <>
+                                <div className={`transition-transform duration-200 ${pullDistance >= refreshThreshold ? 'rotate-180' : ''}`}>
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                                    </svg>
+                                </div>
+                                <span className="text-sm font-medium">
+                                    {pullDistance >= refreshThreshold ? 'Release to refresh' : 'Pull to refresh'}
+                                </span>
+                            </>
+                        )}
+                    </div>
                 </div>
             )}
 
