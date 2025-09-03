@@ -18,6 +18,11 @@ import { setLessonColor } from '../api';
 import LessonModal from './LessonModal';
 import TimeAxis from './TimeAxis';
 import DayColumn from './DayColumn';
+import { 
+    ANIMATION_CONFIG, 
+    shouldNavigateWeek, 
+    applyRubberBandResistance
+} from '../utils/timetable/layout';
 // (Mobile vertical layout removed; keeping original horizontal week view across breakpoints)
 
 /**
@@ -496,10 +501,6 @@ export default function Timetable({
     const containerRef = useRef<HTMLDivElement | null>(null);
     const slidingTrackRef = useRef<HTMLDivElement | null>(null);
     
-    const SWIPE_THRESHOLD = 80; // px - distance needed to commit to navigation
-    const VELOCITY_THRESHOLD = 0.3; // px/ms - speed needed for fast swipe
-    const SWIPE_MAX_OFF_AXIS = 100; // allow some vertical movement
-    
     useEffect(() => {
         const el = containerRef.current;
         if (!el) return;
@@ -551,16 +552,9 @@ export default function Timetable({
                 e.preventDefault();
             }
             
-            // Update transform with resistance at boundaries
+            // Update transform with improved rubber band resistance
             const containerWidth = el.getBoundingClientRect().width;
-            let newTranslateX = dx;
-            
-            // Add resistance when going beyond normal bounds
-            if (newTranslateX > containerWidth * 0.3) {
-                newTranslateX = containerWidth * 0.3 + (newTranslateX - containerWidth * 0.3) * 0.3;
-            } else if (newTranslateX < -containerWidth * 0.3) {
-                newTranslateX = -containerWidth * 0.3 + (newTranslateX + containerWidth * 0.3) * 0.3;
-            }
+            const newTranslateX = applyRubberBandResistance(dx, containerWidth);
             
             setTranslateX(newTranslateX);
         };
@@ -579,40 +573,44 @@ export default function Timetable({
                 return;
             }
             
-            const dx = e.changedTouches[0].clientX - touchStartX.current;
-            const dy = e.changedTouches[0].clientY - touchStartY.current;
-            const dt = Date.now() - touchStartTime.current;
-            const velocity = Math.abs(dx) / dt; // px/ms
+            const currentX = e.changedTouches[0].clientX;
+            const currentY = e.changedTouches[0].clientY;
             
             setIsDragging(false);
             
-            // Determine if we should navigate or snap back
-            const shouldNavigate = Math.abs(dx) > SWIPE_THRESHOLD || velocity > VELOCITY_THRESHOLD;
-            const isHorizontalSwipe = Math.abs(dx) > Math.abs(dy) && Math.abs(dy) < SWIPE_MAX_OFF_AXIS;
+            // Use improved navigation detection
+            const navigation = shouldNavigateWeek(
+                touchStartX.current,
+                touchStartY.current,
+                currentX,
+                currentY,
+                touchStartTime.current
+            );
             
-            if (shouldNavigate && isHorizontalSwipe) {
+            if (navigation.shouldNavigate) {
                 setIsAnimating(true);
                 
                 const containerWidth = el.getBoundingClientRect().width;
+                const animationDuration = navigation.momentum > 1 ? ANIMATION_CONFIG.MOMENTUM_DURATION : ANIMATION_CONFIG.DURATION;
                 
-                if (dx < 0) {
-                    // Swiping left - animate to show next week fully
-                    setTranslateX(-containerWidth);
-                    
-                    // Wait for animation to complete, then seamlessly transition
+                // Calculate smoother target position based on momentum
+                const baseTarget = navigation.direction === 'next' ? -containerWidth : containerWidth;
+                const momentumOffset = navigation.momentum * 20; // Add slight momentum offset
+                const targetX = baseTarget + (navigation.direction === 'next' ? -momentumOffset : momentumOffset);
+                
+                setTranslateX(targetX * 0.85); // Smoother transition, don't go full width
+                
+                // Use requestAnimationFrame for smoother timing
+                requestAnimationFrame(() => {
                     setTimeout(() => {
-                        // Disable transitions first
                         if (slidingTrackRef.current) {
                             slidingTrackRef.current.style.transition = 'none';
                         }
                         
-                        // Change data and reset position simultaneously using requestAnimationFrame
-                        // to ensure the DOM updates are batched properly
                         requestAnimationFrame(() => {
-                            onWeekNavigate?.('next');
+                            onWeekNavigate?.(navigation.direction!);
                             setTranslateX(0);
                             
-                            // Re-enable transitions on the next frame to avoid visible jump
                             requestAnimationFrame(() => {
                                 if (slidingTrackRef.current) {
                                     slidingTrackRef.current.style.transition = '';
@@ -620,34 +618,8 @@ export default function Timetable({
                                 setIsAnimating(false);
                             });
                         });
-                    }, 320); // Slightly longer to ensure animation completes
-                } else {
-                    // Swiping right - animate to show previous week fully  
-                    setTranslateX(containerWidth);
-                    
-                    // Wait for animation to complete, then seamlessly transition
-                    setTimeout(() => {
-                        // Disable transitions first
-                        if (slidingTrackRef.current) {
-                            slidingTrackRef.current.style.transition = 'none';
-                        }
-                        
-                        // Change data and reset position simultaneously using requestAnimationFrame
-                        // to ensure the DOM updates are batched properly
-                        requestAnimationFrame(() => {
-                            onWeekNavigate?.('prev');
-                            setTranslateX(0);
-                            
-                            // Re-enable transitions on the next frame to avoid visible jump
-                            requestAnimationFrame(() => {
-                                if (slidingTrackRef.current) {
-                                    slidingTrackRef.current.style.transition = '';
-                                }
-                                setIsAnimating(false);
-                            });
-                        });
-                    }, 320); // Slightly longer to ensure animation completes
-                }
+                    }, animationDuration);
+                });
             } else {
                 // Snap back to current position
                 setTranslateX(0);
@@ -969,11 +941,11 @@ export default function Timetable({
                         )}
                         <div
                             ref={slidingTrackRef}
-                            className="flex transition-transform duration-300 ease-out"
+                            className="flex ease-out"
                             style={{
                                 transform: `translateX(calc(-33.333% + ${translateX}px))`, // Start with current week centered
                                 width: '300%', // 3 weeks side by side
-                                transition: isDragging ? 'none' : 'transform 300ms ease-out'
+                                transition: isDragging ? 'none' : `transform ${ANIMATION_CONFIG.DURATION}ms cubic-bezier(0.25, 0.46, 0.45, 0.94)`
                             }}
                         >
                             {/* Previous Week */}
