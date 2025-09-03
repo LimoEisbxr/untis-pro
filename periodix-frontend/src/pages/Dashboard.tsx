@@ -86,7 +86,7 @@ export default function Dashboard({
     const [lessonOffsets, setLessonOffsets] = useState<LessonOffsets>({});
 
     // Initialize timetable cache hook
-    const { getTimetableData, getCachedData } = useTimetableCache();
+    const { getTimetableData, getCachedData, invalidateCache } = useTimetableCache();
 
     // Compute the week range based on the selected date
     const weekStartDate = useMemo(() => startOfWeek(new Date(start)), [start]);
@@ -416,6 +416,19 @@ export default function Dashboard({
         },
         [token, selectedUser?.id, user.isAdmin]
     );
+
+    // Handle pull-to-refresh
+    const handleRefresh = useCallback(async () => {
+        // Invalidate cache for current user and reload data
+        invalidateCache(selectedUser?.id || user.id);
+        
+        // Reload the appropriate data
+        if (selectedUser) {
+            await loadUser(selectedUser.id);
+        } else {
+            await loadMine();
+        }
+    }, [invalidateCache, selectedUser, user.id, loadUser, loadMine]);
 
     // Load notifications
     const loadNotifications = useCallback(async () => {
@@ -971,6 +984,7 @@ export default function Dashboard({
                             getAdjacentWeekData={getAdjacentWeekData}
                             onLessonModalStateChange={setIsLessonModalOpen}
                             isOnboardingActive={isOnboardingOpen}
+                            onRefresh={handleRefresh}
                         />
                     </div>
                 </section>
