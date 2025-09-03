@@ -513,7 +513,7 @@ export default function Timetable({
     const [isAnimatingOut, setIsAnimatingOut] = useState(false);
     const [pullDistance, setPullDistance] = useState(0);
     const [isPulling, setIsPulling] = useState(false);
-    const refreshThreshold = 100; // Distance needed to trigger refresh
+    const refreshThreshold = 200; // Distance needed to trigger refresh
 
     const animationRef = useRef<number | null>(null);
     const translateXRef = useRef(0); // keep latest translateX for animation starts
