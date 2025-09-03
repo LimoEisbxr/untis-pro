@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import type { User } from '../../types';
 import {
     getSharingSettings,
     updateSharingEnabled,
@@ -7,17 +6,14 @@ import {
     stopSharingWithUser,
     searchUsersToShare,
     type SharingSettings as SharingSettingsType,
-    updateMyDisplayName,
 } from '../../api';
 
 interface SharingSettingsProps {
     token: string;
-    user: User;
     isVisible: boolean;
-    onUserUpdate?: (u: User) => void;
 }
 
-export default function SharingSettings({ token, user, isVisible, onUserUpdate }: SharingSettingsProps) {
+export default function SharingSettings({ token, isVisible }: SharingSettingsProps) {
     const [settings, setSettings] = useState<SharingSettingsType | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -25,12 +21,6 @@ export default function SharingSettings({ token, user, isVisible, onUserUpdate }
     const [searchResults, setSearchResults] = useState<Array<{ id: string; username: string; displayName?: string }>>([]);
     const [searchLoading, setSearchLoading] = useState(false);
     const searchTimeoutRef = useRef<number | undefined>(undefined);
-
-    // My display name state
-    const [myDisplayName, setMyDisplayName] = useState<string>(user.displayName || user.username);
-    const [savingMyName, setSavingMyName] = useState(false);
-    const [myNameError, setMyNameError] = useState<string | null>(null);
-    const [myNameSaved, setMyNameSaved] = useState(false);
 
     // Load sharing settings when component becomes visible
     useEffect(() => {
@@ -80,28 +70,6 @@ export default function SharingSettings({ token, user, isVisible, onUserUpdate }
             setError(e instanceof Error ? e.message : 'Failed to stop sharing');
         }
     };
-
-    const handleUpdateMyDisplayName = useCallback(async () => {
-        const trimmed = myDisplayName.trim();
-        if (trimmed === (user.displayName || user.username)) {
-            return; // No change
-        }
-
-        setSavingMyName(true);
-        setMyNameError(null);
-        setMyNameSaved(false);
-
-        try {
-            const updatedUser = await updateMyDisplayName(token, trimmed);
-            onUserUpdate?.(updatedUser.user);
-            setMyNameSaved(true);
-            setTimeout(() => setMyNameSaved(false), 2000);
-        } catch (e) {
-            setMyNameError(e instanceof Error ? e.message : 'Failed to update display name');
-        } finally {
-            setSavingMyName(false);
-        }
-    }, [token, myDisplayName, user, onUserUpdate]);
 
     // Search for users to share with
     const handleSearch = useCallback(
@@ -161,68 +129,12 @@ export default function SharingSettings({ token, user, isVisible, onUserUpdate }
         return null;
     }
 
-    return (
-        <div className="p-6 space-y-6">
-            {/* Display Name Section */}
-            <div>
-                <h3 className="font-medium text-slate-900 dark:text-slate-100 mb-3">
-                    Display Name
-                </h3>
-                <div className="space-y-2">
-                    <input
-                        type="text"
-                        value={myDisplayName}
-                        onChange={(e) => setMyDisplayName(e.target.value)}
-                        onBlur={handleUpdateMyDisplayName}
-                        onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                                e.currentTarget.blur();
-                            }
-                        }}
-                        placeholder="Your display name"
-                        className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400"
-                    />
-                    {savingMyName && (
-                        <p className="text-sm text-slate-600 dark:text-slate-400">
-                            Saving...
-                        </p>
-                    )}
-                    {myNameSaved && (
-                        <p className="text-sm text-green-600 dark:text-green-400">
-                            Display name updated!
-                        </p>
-                    )}
-                    {myNameError && (
-                        <p className="text-sm text-red-600 dark:text-red-400">
-                            {myNameError}
-                        </p>
-                    )}
-                </div>
-            </div>
+    // Remove conditional rendering since we handle visibility in parent
 
+    return (
+        <div className="space-y-6">
             {/* Sharing Settings */}
             <div>
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h3 className="font-medium text-slate-900 dark:text-slate-100">
-                            Enable Timetable Sharing
-                        </h3>
-                        <p className="text-sm text-slate-600 dark:text-slate-400">
-                            Allow others to see your timetable
-                        </p>
-                    </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                        <input
-                            type="checkbox"
-                            checked={settings.sharingEnabled}
-                            onChange={(e) => handleToggleSharing(e.target.checked)}
-                            disabled={!settings.globalSharingEnabled}
-                            className="sr-only peer"
-                        />
-                        <div className="relative w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600 peer-disabled:opacity-50"></div>
-                    </label>
-                </div>
-
                 {settings.globalSharingEnabled ? (
                     <>
                         {/* Search and add users */}
@@ -276,7 +188,7 @@ export default function SharingSettings({ token, user, isVisible, onUserUpdate }
                         </div>
 
                         {/* Currently sharing with */}
-                        <div>
+                        <div className="mt-6">
                             <label className="block text-sm font-medium mb-2 text-slate-900 dark:text-slate-100">
                                 Sharing with
                             </label>
@@ -311,6 +223,30 @@ export default function SharingSettings({ token, user, isVisible, onUserUpdate }
                                     ))}
                                 </div>
                             )}
+                        </div>
+
+                        {/* Disable Timetable Sharing - Moved to bottom */}
+                        <div className="mt-8 pt-6 border-t border-slate-200 dark:border-slate-700">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <h3 className="font-medium text-slate-900 dark:text-slate-100">
+                                        Disable Timetable Sharing
+                                    </h3>
+                                    <p className="text-sm text-slate-600 dark:text-slate-400">
+                                        Stop sharing your timetable with people you've already shared with
+                                    </p>
+                                </div>
+                                <label className="relative inline-flex items-center cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={!settings.sharingEnabled}
+                                        onChange={(e) => handleToggleSharing(!e.target.checked)}
+                                        disabled={!settings.globalSharingEnabled}
+                                        className="sr-only peer"
+                                    />
+                                    <div className="relative w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-red-300 dark:peer-focus:ring-red-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-red-600 peer-disabled:opacity-50"></div>
+                                </label>
+                            </div>
                         </div>
                     </>
                 ) : (

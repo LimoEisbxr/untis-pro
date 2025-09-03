@@ -14,6 +14,7 @@ import {
     isIOS,
     getiOSVersion,
     subscribeToPushNotifications as utilsSubscribeToPush,
+    getDeviceType,
 } from '../../utils/notifications';
 
 interface NotificationSettingsProps {
@@ -51,6 +52,9 @@ export default function NotificationSettings({ token, user, isVisible }: Notific
         !iosNeedsInstall &&
         !iosTooOld;
 
+    // Check if user can toggle notifications (has permission and setting is enabled)
+    const canToggleNotifications = notificationPermission === 'granted' && notificationSettings?.browserNotificationsEnabled !== undefined;
+
     const notificationPermissionMessage = () => {
         if (!isNotificationSupported()) return 'Notifications not supported in this browser.';
         if (notificationPermission === 'granted') return 'Notifications enabled.';
@@ -59,12 +63,11 @@ export default function NotificationSettings({ token, user, isVisible }: Notific
                 if (iosNeedsInstall) {
                     return 'Install first (Share > Add to Home Screen), then open the app and tap Enable.';
                 }
-                if (!permissionAttempted) {
-                    return 'Not requested yet. Tap Enable to ask for notification permission.';
-                }
-                return 'Blocked. Open iOS Settings > Notifications > Periodix and allow notifications (or reinstall the PWA to retry).';
+                // Allow re-asking on mobile/iOS even if previously denied
+                return 'Tap Enable to request notification permission again.';
             }
-            return 'Blocked in browser settings.';
+            // Allow re-asking on other platforms too
+            return 'Click Enable to request notification permission.';
         }
         // permission === 'default'
         if (iosTooOld) return 'Update iOS (>=16) to enable push notifications.';
@@ -95,8 +98,26 @@ export default function NotificationSettings({ token, user, isVisible }: Notific
         if (!notificationSettings) return;
         
         try {
+            // Merge settings and filter out null values to avoid backend validation errors
             const newSettings = { ...notificationSettings, ...updates };
-            await updateNotificationSettings(token, newSettings);
+            
+            // Create clean object without null values for API call
+            const cleanSettings: Partial<NotificationSettingsType> = {};
+            Object.entries(newSettings).forEach(([key, value]) => {
+                if (value !== null && value !== undefined) {
+                    (cleanSettings as Record<string, unknown>)[key] = value;
+                }
+            });
+            
+            // Only send the fields that are actually defined in the updates parameter
+            const apiPayload: Partial<NotificationSettingsType> = {};
+            Object.entries(updates).forEach(([key, value]) => {
+                if (value !== null && value !== undefined) {
+                    (apiPayload as Record<string, unknown>)[key] = value;
+                }
+            });
+            
+            await updateNotificationSettings(token, apiPayload);
             setNotificationSettings(newSettings);
         } catch (e) {
             setNotificationError(e instanceof Error ? e.message : 'Failed to update settings');
@@ -129,7 +150,26 @@ export default function NotificationSettings({ token, user, isVisible }: Notific
         setNotificationError(null);
 
         try {
-            // Track that we've attempted permission
+            // For mobile PWA, we need to be more persistent about permission requests
+            const isMobilePWA = isStandalonePWA() && (getDeviceType() === 'mobile' || isIOS());
+            
+            // Reset permission attempted flag to allow re-asking
+            setPermissionAttempted(false);
+            try {
+                localStorage.removeItem('notificationPermissionAttempted');
+            } catch {
+                // Ignore localStorage errors
+            }
+
+            // On mobile PWA, add a small delay to ensure the UI is ready
+            if (isMobilePWA) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+
+            const permission = await requestNotificationPermission();
+            setNotificationPermission(permission);
+
+            // Mark that we've attempted permission
             setPermissionAttempted(true);
             try {
                 localStorage.setItem('notificationPermissionAttempted', '1');
@@ -137,14 +177,24 @@ export default function NotificationSettings({ token, user, isVisible }: Notific
                 // Ignore localStorage errors
             }
 
-            const permission = await requestNotificationPermission();
-            setNotificationPermission(permission);
-
             if (permission === 'granted') {
                 // Enable browser notifications automatically when permission is granted
                 await handleUpdateNotificationSettings({
                     browserNotificationsEnabled: true,
                 });
+
+                // For mobile PWA, also try to set up push notifications
+                if (isMobilePWA) {
+                    try {
+                        await ensurePushSubscription();
+                        await handleUpdateNotificationSettings({
+                            pushNotificationsEnabled: true,
+                        });
+                    } catch (pushError) {
+                        console.warn('Push notification setup failed on mobile PWA:', pushError);
+                        // Don't throw here, browser notifications are still working
+                    }
+                }
             }
         } catch (e) {
             setNotificationError(
@@ -161,6 +211,17 @@ export default function NotificationSettings({ token, user, isVisible }: Notific
 
         try {
             if (enabled) {
+                // Ensure we have permission first
+                let currentPermission = notificationPermission;
+                if (currentPermission !== 'granted') {
+                    currentPermission = await requestNotificationPermission();
+                    setNotificationPermission(currentPermission);
+                    
+                    if (currentPermission !== 'granted') {
+                        throw new Error('Notification permission required');
+                    }
+                }
+
                 // Always enable browser notifications first
                 await handleUpdateNotificationSettings({
                     browserNotificationsEnabled: true,
@@ -187,6 +248,10 @@ export default function NotificationSettings({ token, user, isVisible }: Notific
             }
         } catch (e) {
             setNotificationError(e instanceof Error ? e.message : 'Failed to update notification settings');
+            
+            // Reset the toggle to its previous state on error
+            // Force a re-render by reloading settings
+            await loadNotificationSettings();
         }
     };
 
@@ -194,8 +259,10 @@ export default function NotificationSettings({ token, user, isVisible }: Notific
         return null; // Don't render anything if notifications aren't supported
     }
 
+    // Remove conditional rendering since we handle visibility in parent
+
     return (
-        <div className="mb-4">
+        <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <div>
                     <h4 className="font-medium text-slate-900 dark:text-slate-100">
@@ -212,14 +279,14 @@ export default function NotificationSettings({ token, user, isVisible }: Notific
 
                 {notificationLoading ? (
                     <div className="w-5 h-5 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin" />
-                ) : canShowPermissionButton ? (
+                ) : (canShowPermissionButton || notificationPermission === 'denied') ? (
                     <button
                         onClick={handleRequestPermission}
                         className="px-3 py-1 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-500 rounded-md"
                     >
                         Enable
                     </button>
-                ) : notificationPermission === 'granted' && (
+                ) : canToggleNotifications && (
                     <label className="relative inline-flex items-center cursor-pointer">
                         <input
                             type="checkbox"
