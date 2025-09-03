@@ -569,7 +569,8 @@ export default function Timetable({
             
             setIsAnimating(true);
             const containerWidth = el.getBoundingClientRect().width;
-            const targetX = direction === 'next' ? -containerWidth : containerWidth;
+            // Use a more conservative target position to prevent overshooting
+            const targetX = direction === 'next' ? -containerWidth * 0.85 : containerWidth * 0.85;
             
             // Smooth CSS-based animation to target position
             setTranslateX(targetX);
@@ -579,24 +580,28 @@ export default function Timetable({
                 if (e.target === slidingTrackRef.current && e.propertyName === 'transform') {
                     slidingTrackRef.current?.removeEventListener('transitionend', handleTransitionEnd);
                     
-                    // Instantly reset position and update data with no visible transition
+                    // Smooth completion: animate to final position while data changes
                     if (slidingTrackRef.current) {
-                        slidingTrackRef.current.style.transition = 'none';
+                        // Use a shorter transition for the final positioning
+                        slidingTrackRef.current.style.transition = 'transform 150ms cubic-bezier(0.23, 1, 0.32, 1)';
                     }
                     
-                    // Use requestAnimationFrame to ensure the transition is disabled before data change
-                    requestAnimationFrame(() => {
-                        onWeekNavigate?.(direction);
-                        setTranslateX(0);
-                        
-                        // Re-enable transitions on next frame
-                        requestAnimationFrame(() => {
+                    // Update data and smoothly animate to center position
+                    onWeekNavigate?.(direction);
+                    setTranslateX(0);
+                    
+                    // Clean up after the smooth completion
+                    const handleFinalTransition = (e: TransitionEvent) => {
+                        if (e.target === slidingTrackRef.current && e.propertyName === 'transform') {
+                            slidingTrackRef.current?.removeEventListener('transitionend', handleFinalTransition);
                             if (slidingTrackRef.current) {
                                 slidingTrackRef.current.style.transition = '';
                             }
                             setIsAnimating(false);
-                        });
-                    });
+                        }
+                    };
+                    
+                    slidingTrackRef.current?.addEventListener('transitionend', handleFinalTransition);
                 }
             };
             
@@ -935,13 +940,12 @@ export default function Timetable({
                             style={{
                                 transform: `translateX(calc(-33.333% + ${translateX}px))`, // Start with current week centered
                                 width: '300%', // 3 weeks side by side
-                                transition: isDragging ? 'none' : `transform ${ANIMATION_CONFIG.DURATION}ms ${ANIMATION_CONFIG.EASING}`
+                                transition: isDragging ? 'none' : `transform ${ANIMATION_CONFIG.DURATION}ms ${ANIMATION_CONFIG.EASING}`,
+                                gap: '0.75rem' // Add gap between weeks (same as sm:gap-x-3)
                             }}
                         >
                             {/* Previous Week */}
-                            <div className="w-1/3 flex gap-x-1 sm:gap-x-3 relative">
-                                {/* Week separator line - left side */}
-                                <div className="absolute right-0 top-0 bottom-0 w-px bg-slate-200 dark:bg-slate-700 opacity-30 z-10" />
+                            <div className="flex gap-x-1 sm:gap-x-3 relative" style={{ width: 'calc(33.333% - 0.5rem)' }}>
                                 {prevWeekDays.map((d) => {
                                     const key = fmtLocal(d);
                                     const items = prevWeekLessonsByDay[key] || [];
@@ -969,7 +973,7 @@ export default function Timetable({
                             </div>
                             
                             {/* Current Week */}
-                            <div className="w-1/3 flex gap-x-1 sm:gap-x-3 relative">
+                            <div className="flex gap-x-1 sm:gap-x-3 relative" style={{ width: 'calc(33.333% - 0.5rem)' }}>
                                 {/* Current time line overlay - only show on current week */}
                                 {showNowLine && (
                                     <div
@@ -1089,9 +1093,7 @@ export default function Timetable({
                             </div>
                             
                             {/* Next Week */}
-                            <div className="w-1/3 flex gap-x-1 sm:gap-x-3 relative">
-                                {/* Week separator line - left side */}
-                                <div className="absolute left-0 top-0 bottom-0 w-px bg-slate-200 dark:bg-slate-700 opacity-30 z-10" />
+                            <div className="flex gap-x-1 sm:gap-x-3 relative" style={{ width: 'calc(33.333% - 0.5rem)' }}>
                                 {nextWeekDays.map((d) => {
                                     const key = fmtLocal(d);
                                     const items = nextWeekLessonsByDay[key] || [];
