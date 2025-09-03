@@ -3631,713 +3631,77 @@ export default function SettingsModal({
                                 ) : null}
                             </div>
                         </>
-                    ) : (
-                        // Regular User Sharing Settings Section
-                        <>
-                            {loading ? (
-                                <div className="p-6 text-center text-slate-600 dark:text-slate-400">
-                                    Loading settings...
-                                </div>
-                            ) : error ? (
-                                <div className="p-6 text-center text-red-600 dark:text-red-400">
-                                    {error}
-                                </div>
-                            ) : settings ? (
-                                <div className="p-6 space-y-6">
-                                    {/* Personal display name */}
-                                    <div>
-                                        <label className="block text-sm font-medium mb-2 text-slate-900 dark:text-slate-100">
-                                            Display name
-                                        </label>
-                                        <div className="flex items-center gap-2">
-                                            <input
-                                                type="text"
-                                                value={myDisplayName}
-                                                onChange={(e) => {
-                                                    setMyDisplayName(
-                                                        e.target.value
-                                                    );
-                                                    setMyNameSaved(false);
-                                                }}
-                                                placeholder="Optional friendly name"
-                                                className="flex-1 px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 placeholder:text-slate-500 dark:placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                                            />
-                                            <button
-                                                className="btn-primary"
-                                                onClick={saveMyDisplayName}
-                                                disabled={savingMyName}
-                                            >
-                                                Save
-                                            </button>
-                                        </div>
-                                        {myNameError && (
-                                            <div className="mt-1 text-sm text-red-600 dark:text-red-400">
-                                                {myNameError}
-                                            </div>
-                                        )}
-                                        {myNameSaved && !myNameError && (
-                                            <div className="mt-1 text-sm text-green-600 dark:text-green-400">
-                                                Saved
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {/* Tab Navigation */}
-                                    <div className="border-b border-slate-200 dark:border-slate-700 mb-6">
-                                        <nav className="flex space-x-8">
-                                            <button
-                                                onClick={() =>
-                                                    setActiveTab(
-                                                        'notifications'
-                                                    )
-                                                }
-                                                className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                                                    activeTab ===
-                                                    'notifications'
-                                                        ? 'border-indigo-500 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400'
-                                                        : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 dark:text-slate-400 dark:hover:text-slate-300 dark:hover:border-slate-600'
-                                                }`}
-                                            >
-                                                Notification Settings
-                                            </button>
-                                            <button
-                                                onClick={() =>
-                                                    setActiveTab('sharing')
-                                                }
-                                                className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                                                    activeTab === 'sharing'
-                                                        ? 'border-indigo-500 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400'
-                                                        : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 dark:text-slate-400 dark:hover:text-slate-300 dark:hover:border-slate-600'
-                                                }`}
-                                            >
-                                                Timetable Sharing Settings
-                                            </button>
-                                        </nav>
-                                    </div>
-
-                                    {/* Notification Settings */}
-                                    <div
-                                        className={
-                                            activeTab === 'notifications'
-                                                ? 'block'
-                                                : 'hidden'
-                                        }
-                                    >
-                                        {notificationLoading ? (
-                                            <div className="text-center text-slate-600 dark:text-slate-400">
-                                                Loading notification settings...
-                                            </div>
-                                        ) : notificationError ? (
-                                            <div className="text-center text-red-600 dark:text-red-400">
-                                                {notificationError}
-                                            </div>
-                                        ) : (
-                                            notificationSettings && (
-                                                <div className="border-t border-slate-200 dark:border-slate-700 pt-6">
-                                                    <h3 className="text-lg font-medium mb-4 text-slate-900 dark:text-slate-100">
-                                                        Notification Preferences
-                                                    </h3>
-
-                                                    {/* Intelligent notification toggle */}
-                                                    {isNotificationSupported() && (
-                                                        <div className="mb-4">
-                                                            <div className="flex items-center justify-between">
-                                                                <div>
-                                                                    <h4 className="font-medium text-slate-900 dark:text-slate-100">
-                                                                        Notifications
-                                                                    </h4>
-                                                                    <p className="text-sm text-slate-600 dark:text-slate-400">
-                                                                        {notificationPermission ===
-                                                                        'granted'
-                                                                            ? isStandalonePWA()
-                                                                                ? 'PWA push notifications (background) enabled'
-                                                                                : 'Browser notifications (tab must be open) enabled'
-                                                                            : notificationPermissionMessage()}
-                                                                    </p>
-                                                                </div>
-                                                                {canShowPermissionButton && (
-                                                                    <button
-                                                                        onClick={
-                                                                            handleRequestNotificationPermission
-                                                                        }
-                                                                        className="btn-primary text-sm"
-                                                                    >
-                                                                        Enable
-                                                                    </button>
-                                                                )}
-                                                                {notificationPermission ===
-                                                                    'granted' && (
-                                                                    <label className="relative inline-flex items-center cursor-pointer">
-                                                                        <input
-                                                                            type="checkbox"
-                                                                            checked={
-                                                                                notificationSettings.browserNotificationsEnabled
-                                                                            }
-                                                                            onChange={(
-                                                                                e
-                                                                            ) =>
-                                                                                handleToggleNotifications(
-                                                                                    e
-                                                                                        .target
-                                                                                        .checked
-                                                                                )
-                                                                            }
-                                                                            className="sr-only peer"
-                                                                        />
-                                                                        <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600"></div>
-                                                                    </label>
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                    )}
-
-                                                    {/* Notification type preferences */}
-                                                    {notificationPermission ===
-                                                        'granted' &&
-                                                        notificationSettings.browserNotificationsEnabled && (
-                                                            <div className="space-y-3 ml-4 pl-4 border-l-2 border-slate-200 dark:border-slate-700">
-                                                                <div className="flex items-center justify-between">
-                                                                    <div>
-                                                                        <h5 className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                                                                            Cancelled
-                                                                            Lessons
-                                                                        </h5>
-                                                                        <p className="text-xs text-slate-600 dark:text-slate-400">
-                                                                            When
-                                                                            your
-                                                                            lessons
-                                                                            are
-                                                                            cancelled
-                                                                        </p>
-                                                                    </div>
-                                                                    <label className="relative inline-flex items-center cursor-pointer">
-                                                                        <input
-                                                                            type="checkbox"
-                                                                            checked={
-                                                                                notificationSettings.cancelledLessonsEnabled
-                                                                            }
-                                                                            onChange={(
-                                                                                e
-                                                                            ) =>
-                                                                                handleUpdateNotificationSettings(
-                                                                                    {
-                                                                                        cancelledLessonsEnabled:
-                                                                                            e
-                                                                                                .target
-                                                                                                .checked,
-                                                                                    }
-                                                                                )
-                                                                            }
-                                                                            className="sr-only peer"
-                                                                        />
-                                                                        <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600"></div>
-                                                                    </label>
-                                                                </div>
-
-                                                                {/* Time scope for cancelled lessons */}
-                                                                {notificationSettings.cancelledLessonsEnabled && (
-                                                                    <div className="ml-4 pl-4 border-l border-slate-200 dark:border-slate-600">
-                                                                        <p className="text-xs font-medium text-slate-700 dark:text-slate-300 mb-2">
-                                                                            Notify
-                                                                            me
-                                                                            for
-                                                                            cancelled
-                                                                            lessons:
-                                                                        </p>
-                                                                        <div className="flex gap-4">
-                                                                            <label className="flex items-center cursor-pointer">
-                                                                                <input
-                                                                                    type="radio"
-                                                                                    name="cancelledScope"
-                                                                                    value="day"
-                                                                                    checked={
-                                                                                        notificationSettings.cancelledLessonsTimeScope ===
-                                                                                        'day'
-                                                                                    }
-                                                                                    onChange={() =>
-                                                                                        handleUpdateNotificationSettings(
-                                                                                            {
-                                                                                                cancelledLessonsTimeScope:
-                                                                                                    'day',
-                                                                                            }
-                                                                                        )
-                                                                                    }
-                                                                                    className="w-4 h-4 text-indigo-600 border-slate-300 dark:border-slate-600 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:ring-2"
-                                                                                />
-                                                                                <span className="ml-2 text-xs text-slate-600 dark:text-slate-400">
-                                                                                    Today
-                                                                                    only
-                                                                                </span>
-                                                                            </label>
-                                                                            <label className="flex items-center cursor-pointer">
-                                                                                <input
-                                                                                    type="radio"
-                                                                                    name="cancelledScope"
-                                                                                    value="week"
-                                                                                    checked={
-                                                                                        notificationSettings.cancelledLessonsTimeScope ===
-                                                                                        'week'
-                                                                                    }
-                                                                                    onChange={() =>
-                                                                                        handleUpdateNotificationSettings(
-                                                                                            {
-                                                                                                cancelledLessonsTimeScope:
-                                                                                                    'week',
-                                                                                            }
-                                                                                        )
-                                                                                    }
-                                                                                    className="w-4 h-4 text-indigo-600 border-slate-300 dark:border-slate-600 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:ring-2"
-                                                                                />
-                                                                                <span className="ml-2 text-xs text-slate-600 dark:text-slate-400">
-                                                                                    This
-                                                                                    week
-                                                                                </span>
-                                                                            </label>
-                                                                        </div>
-                                                                    </div>
-                                                                )}
-
-                                                                <div className="flex items-center justify-between">
-                                                                    <div>
-                                                                        <h5 className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                                                                            Irregular
-                                                                            Lessons
-                                                                        </h5>
-                                                                        <p className="text-xs text-slate-600 dark:text-slate-400">
-                                                                            When
-                                                                            lessons
-                                                                            have
-                                                                            schedule
-                                                                            changes
-                                                                        </p>
-                                                                    </div>
-                                                                    <label className="relative inline-flex items-center cursor-pointer">
-                                                                        <input
-                                                                            type="checkbox"
-                                                                            checked={
-                                                                                notificationSettings.irregularLessonsEnabled
-                                                                            }
-                                                                            onChange={(
-                                                                                e
-                                                                            ) =>
-                                                                                handleUpdateNotificationSettings(
-                                                                                    {
-                                                                                        irregularLessonsEnabled:
-                                                                                            e
-                                                                                                .target
-                                                                                                .checked,
-                                                                                    }
-                                                                                )
-                                                                            }
-                                                                            className="sr-only peer"
-                                                                        />
-                                                                        <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600"></div>
-                                                                    </label>
-                                                                </div>
-
-                                                                {/* Time scope for irregular lessons */}
-                                                                {notificationSettings.irregularLessonsEnabled && (
-                                                                    <div className="ml-4 pl-4 border-l border-slate-200 dark:border-slate-600">
-                                                                        <p className="text-xs font-medium text-slate-700 dark:text-slate-300 mb-2">
-                                                                            Notify
-                                                                            me
-                                                                            for
-                                                                            irregular
-                                                                            lessons:
-                                                                        </p>
-                                                                        <div className="flex gap-4">
-                                                                            <label className="flex items-center cursor-pointer">
-                                                                                <input
-                                                                                    type="radio"
-                                                                                    name="irregularScope"
-                                                                                    value="day"
-                                                                                    checked={
-                                                                                        notificationSettings.irregularLessonsTimeScope ===
-                                                                                        'day'
-                                                                                    }
-                                                                                    onChange={() =>
-                                                                                        handleUpdateNotificationSettings(
-                                                                                            {
-                                                                                                irregularLessonsTimeScope:
-                                                                                                    'day',
-                                                                                            }
-                                                                                        )
-                                                                                    }
-                                                                                    className="w-4 h-4 text-indigo-600 border-slate-300 dark:border-slate-600 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:ring-2"
-                                                                                />
-                                                                                <span className="ml-2 text-xs text-slate-600 dark:text-slate-400">
-                                                                                    Today
-                                                                                    only
-                                                                                </span>
-                                                                            </label>
-                                                                            <label className="flex items-center cursor-pointer">
-                                                                                <input
-                                                                                    type="radio"
-                                                                                    name="irregularScope"
-                                                                                    value="week"
-                                                                                    checked={
-                                                                                        notificationSettings.irregularLessonsTimeScope ===
-                                                                                        'week'
-                                                                                    }
-                                                                                    onChange={() =>
-                                                                                        handleUpdateNotificationSettings(
-                                                                                            {
-                                                                                                irregularLessonsTimeScope:
-                                                                                                    'week',
-                                                                                            }
-                                                                                        )
-                                                                                    }
-                                                                                    className="w-4 h-4 text-indigo-600 border-slate-300 dark:border-slate-600 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:ring-2"
-                                                                                />
-                                                                                <span className="ml-2 text-xs text-slate-600 dark:text-slate-400">
-                                                                                    This
-                                                                                    week
-                                                                                </span>
-                                                                            </label>
-                                                                        </div>
-                                                                    </div>
-                                                                )}
-
-                                                                <div className="flex items-center justify-between">
-                                                                    <div>
-                                                                        <h5 className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                                                                            Timetable
-                                                                            Changes
-                                                                        </h5>
-                                                                        <p className="text-xs text-slate-600 dark:text-slate-400">
-                                                                            General
-                                                                            timetable
-                                                                            updates
-                                                                        </p>
-                                                                    </div>
-                                                                    <label className="relative inline-flex items-center cursor-pointer">
-                                                                        <input
-                                                                            type="checkbox"
-                                                                            checked={
-                                                                                notificationSettings.timetableChangesEnabled
-                                                                            }
-                                                                            onChange={(
-                                                                                e
-                                                                            ) =>
-                                                                                handleUpdateNotificationSettings(
-                                                                                    {
-                                                                                        timetableChangesEnabled:
-                                                                                            e
-                                                                                                .target
-                                                                                                .checked,
-                                                                                    }
-                                                                                )
-                                                                            }
-                                                                            className="sr-only peer"
-                                                                        />
-                                                                        <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600"></div>
-                                                                    </label>
-                                                                </div>
-
-                                                                {(user.isUserManager ||
-                                                                    user.isAdmin) && (
-                                                                    <div className="flex items-center justify-between">
-                                                                        <div>
-                                                                            <h5 className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                                                                                Access
-                                                                                Requests
-                                                                            </h5>
-                                                                            <p className="text-xs text-slate-600 dark:text-slate-400">
-                                                                                New
-                                                                                user
-                                                                                access
-                                                                                requests
-                                                                            </p>
-                                                                        </div>
-                                                                        <label className="relative inline-flex items-center cursor-pointer">
-                                                                            <input
-                                                                                type="checkbox"
-                                                                                checked={
-                                                                                    notificationSettings.accessRequestsEnabled
-                                                                                }
-                                                                                onChange={(
-                                                                                    e
-                                                                                ) =>
-                                                                                    handleUpdateNotificationSettings(
-                                                                                        {
-                                                                                            accessRequestsEnabled:
-                                                                                                e
-                                                                                                    .target
-                                                                                                    .checked,
-                                                                                        }
-                                                                                    )
-                                                                                }
-                                                                                className="sr-only peer"
-                                                                            />
-                                                                            <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600"></div>
-                                                                        </label>
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        )}
-                                                </div>
-                                            )
-                                        )}
-
-                                        {/* Personal sharing toggle */}
-                                        <div className="flex items-center justify-between">
-                                            <div>
-                                                <h3 className="font-medium text-slate-900 dark:text-slate-100">
-                                                    Enable Timetable Sharing
-                                                </h3>
-                                                <p className="text-sm text-slate-600 dark:text-slate-400">
-                                                    Allow others to see your
-                                                    timetable
-                                                </p>
-                                            </div>
-                                            <label className="relative inline-flex items-center cursor-pointer">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={
-                                                        settings.sharingEnabled
-                                                    }
-                                                    onChange={(e) =>
-                                                        handleToggleSharing(
-                                                            e.target.checked
-                                                        )
-                                                    }
-                                                    disabled={
-                                                        !settings.globalSharingEnabled
-                                                    }
-                                                    className="sr-only peer"
-                                                />
-                                                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600 peer-disabled:opacity-50"></div>
-                                            </label>
-                                        </div>
-
-                                        {settings.globalSharingEnabled ? (
-                                            <>
-                                                {/* Search and add users */}
-                                                <div>
-                                                    <label className="block text-sm font-medium mb-2 text-slate-900 dark:text-slate-100">
-                                                        Share with new people
-                                                    </label>
-                                                    <div className="relative">
-                                                        <input
-                                                            type="text"
-                                                            placeholder="Search users by name or username..."
-                                                            value={searchQuery}
-                                                            onChange={(e) =>
-                                                                setSearchQuery(
-                                                                    e.target
-                                                                        .value
-                                                                )
-                                                            }
-                                                            className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 placeholder:text-slate-500 dark:placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                                                        />
-                                                        {searchLoading && (
-                                                            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                                                                <div className="w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                    {searchResults.length >
-                                                        0 && (
-                                                        <div className="mt-2 border border-slate-200 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 max-h-40 overflow-y-auto">
-                                                            {searchResults.map(
-                                                                (result) => (
-                                                                    <button
-                                                                        key={
-                                                                            result.id
-                                                                        }
-                                                                        onClick={() =>
-                                                                            handleShareWithUser(
-                                                                                result
-                                                                            )
-                                                                        }
-                                                                        disabled={settings.sharingWith.some(
-                                                                            (
-                                                                                u
-                                                                            ) =>
-                                                                                u.id ===
-                                                                                result.id
-                                                                        )}
-                                                                        className="w-full px-3 py-2 text-left hover:bg-slate-50 dark:hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed text-slate-900 dark:text-slate-100"
-                                                                    >
-                                                                        <div className="font-medium text-slate-900 dark:text-slate-100">
-                                                                            {result.displayName ||
-                                                                                result.username}
-                                                                        </div>
-                                                                        {result.displayName && (
-                                                                            <div className="text-xs text-slate-500 dark:text-slate-400">
-                                                                                {
-                                                                                    result.username
-                                                                                }
-                                                                            </div>
-                                                                        )}
-                                                                    </button>
-                                                                )
-                                                            )}
-                                                        </div>
-                                                    )}
-                                                </div>
-
-                                                {/* Current sharing list */}
-                                                <div>
-                                                    <h3 className="font-medium mb-3 text-slate-900 dark:text-slate-100">
-                                                        People you're sharing
-                                                        with (
-                                                        {
-                                                            settings.sharingWith
-                                                                .length
-                                                        }
-                                                        )
-                                                    </h3>
-                                                    {settings.sharingWith
-                                                        .length === 0 ? (
-                                                        <p className="text-sm text-slate-500 dark:text-slate-400 text-center py-4 bg-slate-50 dark:bg-slate-700 rounded-md">
-                                                            You're not sharing
-                                                            your timetable with
-                                                            anyone yet.
-                                                        </p>
-                                                    ) : (
-                                                        <div className="space-y-2">
-                                                            {settings.sharingWith.map(
-                                                                (
-                                                                    sharedUser
-                                                                ) => (
-                                                                    <div
-                                                                        key={
-                                                                            sharedUser.id
-                                                                        }
-                                                                        className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-700 rounded-md"
-                                                                    >
-                                                                        <div>
-                                                                            <div className="font-medium text-slate-900 dark:text-slate-100">
-                                                                                {sharedUser.displayName ||
-                                                                                    sharedUser.username}
-                                                                            </div>
-                                                                            {sharedUser.displayName && (
-                                                                                <div className="text-xs text-slate-500 dark:text-slate-400">
-                                                                                    {
-                                                                                        sharedUser.username
-                                                                                    }
-                                                                                </div>
-                                                                            )}
-                                                                        </div>
-                                                                        <button
-                                                                            onClick={() =>
-                                                                                handleStopSharing(
-                                                                                    sharedUser.id
-                                                                                )
-                                                                            }
-                                                                            className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 p-1 rounded"
-                                                                            title="Stop sharing"
-                                                                        >
-                                                                            <svg
-                                                                                width="16"
-                                                                                height="16"
-                                                                                viewBox="0 0 24 24"
-                                                                                fill="none"
-                                                                            >
-                                                                                <path
-                                                                                    d="M18 6L6 18M6 6l12 12"
-                                                                                    stroke="currentColor"
-                                                                                    strokeWidth="2"
-                                                                                    strokeLinecap="round"
-                                                                                    strokeLinejoin="round"
-                                                                                />
-                                                                            </svg>
-                                                                        </button>
-                                                                    </div>
-                                                                )
-                                                            )}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </>
-                                        ) : (
-                                            <div className="text-center p-4 bg-slate-50 dark:bg-slate-700 rounded-md">
-                                                <p className="text-slate-600 dark:text-slate-400">
-                                                    Timetable sharing is
-                                                    currently disabled by an
-                                                    administrator.
-                                                </p>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            ) : null}
-                        </>
-                    )}
+                    ) : null}
                 </div>
+            </div>
 
-                {/* User Manager Grant/Revoke Confirmation Modal */}
-                {showConfirmUserManager && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-                        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl max-w-md w-full p-6">
-                            <h3 className="text-lg font-semibold mb-4 text-slate-900 dark:text-slate-100">
-                                {showConfirmUserManager.isGranting
-                                    ? 'Grant User Manager Status'
-                                    : 'Revoke User Manager Status'}
-                            </h3>
-                            <p className="text-slate-600 dark:text-slate-300 mb-6">
-                                {showConfirmUserManager.isGranting ? (
-                                    <>
-                                        Grant{' '}
-                                        <strong>
-                                            {showConfirmUserManager.username}
-                                        </strong>{' '}
-                                        user manager privileges? They will be
-                                        able to manage users, whitelist, and
-                                        access requests.
-                                    </>
-                                ) : (
-                                    <>
-                                        Revoke{' '}
-                                        <strong>
-                                            {showConfirmUserManager.username}
-                                        </strong>{' '}
-                                        user manager privileges? They will lose
-                                        access to user management features.
-                                    </>
-                                )}
-                            </p>
-                            <div className="flex justify-end gap-3">
-                                <button
-                                    className="btn-secondary"
-                                    onClick={() =>
-                                        setShowConfirmUserManager(null)
+            {/* Confirm user manager modal */}
+            {showConfirmUserManager && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white dark:bg-slate-800 rounded-lg p-6 max-w-md mx-4">
+                        <h3 className="text-lg font-semibold mb-4 text-slate-900 dark:text-slate-100">
+                            {showConfirmUserManager.isGranting
+                                ? 'Grant User Manager'
+                                : 'Revoke User Manager'}
+                        </h3>
+                        <p className="text-slate-600 dark:text-slate-400 mb-6">
+                            {showConfirmUserManager.isGranting ? (
+                                <>
+                                    Grant{' '}
+                                    <strong>
+                                        {showConfirmUserManager.username}
+                                    </strong>{' '}
+                                    user manager privileges? They will be able
+                                    to manage whitelist and access requests.
+                                </>
+                            ) : (
+                                <>
+                                    Revoke{' '}
+                                    <strong>
+                                        {showConfirmUserManager.username}
+                                    </strong>{' '}
+                                    user manager privileges? They will lose
+                                    access to user management features.
+                                </>
+                            )}
+                        </p>
+                        <div className="flex justify-end gap-3">
+                            <button
+                                className="btn-secondary"
+                                onClick={() => setShowConfirmUserManager(null)}
+                                disabled={userManagerChanging !== null}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                className={
+                                    showConfirmUserManager.isGranting
+                                        ? 'btn-primary'
+                                        : 'btn-secondary bg-orange-100 text-orange-700 hover:bg-orange-200 dark:bg-orange-900/20 dark:text-orange-400 dark:hover:bg-orange-900/30'
+                                }
+                                onClick={() => {
+                                    if (showConfirmUserManager.isGranting) {
+                                        handleGrantUserManager(
+                                            showConfirmUserManager.userId
+                                        );
+                                    } else {
+                                        handleRevokeUserManager(
+                                            showConfirmUserManager.userId
+                                        );
                                     }
-                                    disabled={userManagerChanging !== null}
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    className={
-                                        showConfirmUserManager.isGranting
-                                            ? 'btn-primary'
-                                            : 'btn-secondary bg-orange-100 text-orange-700 hover:bg-orange-200 dark:bg-orange-900/20 dark:text-orange-400 dark:hover:bg-orange-900/30'
-                                    }
-                                    onClick={() => {
-                                        if (showConfirmUserManager.isGranting) {
-                                            handleGrantUserManager(
-                                                showConfirmUserManager.userId
-                                            );
-                                        } else {
-                                            handleRevokeUserManager(
-                                                showConfirmUserManager.userId
-                                            );
-                                        }
-                                    }}
-                                    disabled={userManagerChanging !== null}
-                                >
-                                    {userManagerChanging !== null
-                                        ? 'Loading...'
-                                        : showConfirmUserManager.isGranting
-                                        ? 'Grant'
-                                        : 'Revoke'}
-                                </button>
-                            </div>
+                                }}
+                                disabled={userManagerChanging !== null}
+                            >
+                                {userManagerChanging !== null
+                                    ? 'Loading...'
+                                    : showConfirmUserManager.isGranting
+                                    ? 'Grant'
+                                    : 'Revoke'}
+                            </button>
                         </div>
                     </div>
-                )}
-            </div>
+                </div>
+            )}
         </div>
     );
 }
