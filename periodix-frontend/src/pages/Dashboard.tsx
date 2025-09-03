@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Timetable from '../components/Timetable';
+import AnalyticsTab from '../components/AnalyticsTab';
 import MoonIcon from '../components/MoonIcon';
 import SettingsModal from '../components/SettingsModal';
 import NotificationBell from '../components/NotificationBell';
@@ -12,6 +13,7 @@ import {
     removeLessonColor,
     getDefaultLessonColors,
     getNotifications,
+    trackActivity,
 } from '../api';
 import {
     addDays,
@@ -134,6 +136,10 @@ export default function Dashboard({
     const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
     const [isLessonModalOpen, setIsLessonModalOpen] = useState(false);
 
+    // Tab state - show analytics tab for admins and user managers
+    const [activeTab, setActiveTab] = useState<'timetable' | 'analytics'>('timetable');
+    const canViewAnalytics = user.isAdmin || user.isUserManager;
+
     // Derive a friendly info message for admin users when their own timetable isn't available
     const adminInfoMessage = useMemo(() => {
         if (!loadError || !user?.isAdmin) return null;
@@ -161,6 +167,9 @@ export default function Dashboard({
     const loadMine = useCallback(async () => {
         setLoadError(null);
         try {
+            // Track timetable view
+            trackActivity(token, 'timetable_view', { userId: user.id }).catch(console.error);
+            
             const res = await getTimetableData(
                 user.id,
                 user.id,
@@ -216,6 +225,9 @@ export default function Dashboard({
             /* no loading flag */
             setLoadError(null);
             try {
+                // Track timetable view for other users
+                trackActivity(token, 'timetable_view', { viewedUserId: userId }).catch(console.error);
+                
                 const res = await getTimetableData(
                     user.id,
                     userId,
@@ -303,6 +315,13 @@ export default function Dashboard({
             setColorError(null);
 
             try {
+                // Track color change activity
+                trackActivity(token, 'color_change', { 
+                    lessonName, 
+                    color: color || 'removed',
+                    viewingUserId: selectedUser?.id 
+                }).catch(console.error);
+
                 const viewingUserId = selectedUser?.id;
                 if (color) {
                     await setLessonColor(
@@ -492,6 +511,9 @@ export default function Dashboard({
             const ac = new AbortController();
             abortRef.current = ac;
             try {
+                // Track search activity
+                trackActivity(token, 'search', { query: currentQuery }).catch(console.error);
+                
                 const base = API_BASE
                     ? String(API_BASE).replace(/\/$/, '')
                     : '';
@@ -596,7 +618,10 @@ export default function Dashboard({
                         <button
                             className="rounded-full p-2 hover:bg-slate-200 dark:hover:bg-slate-700"
                             title="Settings"
-                            onClick={() => setIsSettingsModalOpen(true)}
+                            onClick={() => {
+                                setIsSettingsModalOpen(true);
+                                trackActivity(token, 'settings').catch(console.error);
+                            }}
                             aria-label="Settings"
                         >
                             <svg
@@ -657,7 +682,47 @@ export default function Dashboard({
                     </div>
                 </div>
             </header>
+            
+            {/* Tab Navigation - only show if user can view analytics */}
+            {canViewAnalytics && (
+                <div className="mx-auto max-w-screen-2xl px-4 pt-4">
+                    <div className="border-b border-slate-200 dark:border-slate-700">
+                        <nav className="-mb-px flex space-x-8">
+                            <button
+                                onClick={() => {
+                                    setActiveTab('timetable');
+                                    trackActivity(token, 'tab_switch', { tab: 'timetable' }).catch(console.error);
+                                }}
+                                className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm ${
+                                    activeTab === 'timetable'
+                                        ? 'border-sky-500 text-sky-600 dark:text-sky-400'
+                                        : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 dark:text-slate-400 dark:hover:text-slate-300'
+                                }`}
+                            >
+                                📅 Timetable
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setActiveTab('analytics');
+                                    trackActivity(token, 'tab_switch', { tab: 'analytics' }).catch(console.error);
+                                }}
+                                className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm ${
+                                    activeTab === 'analytics'
+                                        ? 'border-sky-500 text-sky-600 dark:text-sky-400'
+                                        : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 dark:text-slate-400 dark:hover:text-slate-300'
+                                }`}
+                            >
+                                📊 Analytics
+                            </button>
+                        </nav>
+                    </div>
+                </div>
+            )}
+            
             <main className="mx-auto max-w-screen-2xl p-4">
+                {activeTab === 'analytics' ? (
+                    <AnalyticsTab token={token} />
+                ) : (
                 <section className="card p-4">
                     <div className="space-y-2 sm:space-y-4">
                         {/* Week navigation buttons (desktop only) - separate row */}
@@ -988,6 +1053,7 @@ export default function Dashboard({
                         />
                     </div>
                 </section>
+                )}
             </main>
 
             {/* Mobile full-screen search overlay */}

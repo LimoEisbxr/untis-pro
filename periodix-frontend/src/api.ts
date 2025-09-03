@@ -547,4 +547,85 @@ export async function updateAdminNotificationSettings(
     });
 }
 
+// Analytics API functions
+export interface DashboardStats {
+    totalUsers: number;
+    activeUsersToday: number;
+    newUsersToday: number;
+    totalLoginsToday: number;
+    timetableViewsToday: number;
+    searchQueriesToday: number;
+    avgSessionDuration?: number;
+    peakHour?: number;
+}
+
+export interface UserEngagementMetrics {
+    mostActiveUsers: Array<{
+        userId: string;
+        username: string;
+        displayName: string | null;
+        activityCount: number;
+        lastActivity: Date;
+    }>;
+    userGrowthTrend: Array<{
+        date: string;
+        newUsers: number;
+        totalUsers: number;
+    }>;
+    retentionRate: number;
+}
+
+export interface ActivityTrends {
+    hourlyActivity: Array<{
+        hour: number;
+        count: number;
+        label: string;
+    }>;
+    dailyActivity: Array<{
+        date: string;
+        logins: number;
+        timetableViews: number;
+        searches: number;
+    }>;
+    featureUsage: Array<{
+        feature: string;
+        count: number;
+        percentage: number;
+    }>;
+}
+
+export interface AnalyticsOverview {
+    dashboard: DashboardStats;
+    engagement: UserEngagementMetrics;
+    trends: ActivityTrends;
+}
+
+export async function trackActivity(
+    token: string,
+    action: string,
+    details?: Record<string, unknown>
+): Promise<{ success: boolean }> {
+    return api<{ success: boolean }>('/api/analytics/track', {
+        method: 'POST',
+        token,
+        body: JSON.stringify({ action, details }),
+    });
+}
+
+export async function getDashboardStats(token: string): Promise<{ stats: DashboardStats }> {
+    return api<{ stats: DashboardStats }>('/api/analytics/dashboard', { token });
+}
+
+export async function getUserEngagementMetrics(token: string): Promise<{ metrics: UserEngagementMetrics }> {
+    return api<{ metrics: UserEngagementMetrics }>('/api/analytics/engagement', { token });
+}
+
+export async function getActivityTrends(token: string): Promise<{ trends: ActivityTrends }> {
+    return api<{ trends: ActivityTrends }>('/api/analytics/trends', { token });
+}
+
+export async function getAnalyticsOverview(token: string): Promise<AnalyticsOverview> {
+    return api<AnalyticsOverview>('/api/analytics/overview', { token });
+}
+
 export { API_BASE };
