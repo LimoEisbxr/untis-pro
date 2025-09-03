@@ -14,6 +14,7 @@ import SharingSettingsComponent from './settings/SharingSettings';
 import AdminUserManagement from './settings/AdminUserManagement';
 import UserManagerAccessManagement from './settings/UserManagerAccessManagement';
 import AdminAccessManagement from './settings/AdminAccessManagement';
+import UserManagement from './settings/UserManagement';
 
 export default function SettingsModal({
     token,
@@ -85,103 +86,122 @@ export default function SettingsModal({
 
     return (
         <div
-            className={`fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 transition-opacity duration-${ANIM_MS} ${
+            className={`fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 transition-all duration-${ANIM_MS} p-4 ${
                 isVisible ? 'opacity-100' : 'opacity-0'
             }`}
             onClick={onClose}
         >
             <div
-                className={`bg-white dark:bg-slate-800 rounded-lg shadow-lg w-full max-w-2xl mx-4 transition-all duration-${ANIM_MS} ${
+                className={`bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-4xl max-h-[95vh] transition-all duration-${ANIM_MS} border border-slate-200 dark:border-slate-700 ${
                     isVisible
-                        ? 'opacity-100 scale-100'
-                        : 'opacity-0 scale-95'
+                        ? 'opacity-100 scale-100 translate-y-0'
+                        : 'opacity-0 scale-95 translate-y-4'
                 }`}
                 onClick={(e) => e.stopPropagation()}
             >
-                <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-700">
-                    <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">
-                        Settings
-                    </h2>
+                {/* Header */}
+                <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-700 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-slate-800 dark:to-slate-800 rounded-t-xl">
+                    <div>
+                        <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+                            Settings
+                        </h2>
+                        <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+                            Manage your account and preferences
+                        </p>
+                    </div>
                     <button
                         onClick={onClose}
-                        className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                        className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors p-2 rounded-lg hover:bg-white/50 dark:hover:bg-slate-700/50"
                     >
-                        <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M6 6l12 12M6 18L18 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                        <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M6 6l12 12M6 18L18 6" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
                     </button>
                 </div>
 
-                <div className="overflow-y-auto max-h-[calc(90vh-80px)]">
-                    <div className="p-6">
-                        {/* Tab Navigation */}
-                        <TabNavigation 
-                            user={user}
-                            activeTab={activeTab}
-                            onTabChange={setActiveTab}
-                        />
+                {/* Content */}
+                <div className="flex flex-col lg:flex-row max-h-[calc(95vh-80px)]">
+                    {/* Tab Navigation - Mobile: top, Desktop: left sidebar */}
+                    <div className="lg:w-64 border-b lg:border-b-0 lg:border-r border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+                        <div className="p-6">
+                            <TabNavigation 
+                                user={user}
+                                activeTab={activeTab}
+                                onTabChange={setActiveTab}
+                            />
+                        </div>
+                    </div>
 
-                        {/* Tab Content */}
-                        {/* Nickname Change Tab */}
-                        <NicknameChange
-                            token={token}
-                            user={user}
-                            onUserUpdate={onUserUpdate}
-                            isVisible={activeTab === 'nickname'}
-                        />
-
-                        {/* Personal Sharing Settings Tab - Available for Users and User-Managers */}
-                        <SharingSettingsComponent
-                            token={token}
-                            user={user}
-                            onUserUpdate={onUserUpdate}
-                            isVisible={activeTab === 'sharing' && !user.isAdmin}
-                        />
-
-                        {/* Notification Settings Tab - Available for Users and User-Managers */}
-                        <NotificationSettingsComponent
-                            token={token}
-                            user={user}
-                            isVisible={activeTab === 'notifications' && !user.isAdmin}
-                        />
-
-                        {/* Whitelist & Access Request Tab - Available for User-Managers and Admins */}
-                        {user.isUserManager && !user.isAdmin && activeTab === 'access' && (
-                            <UserManagerAccessManagement
+                    {/* Tab Content */}
+                    <div className="flex-1 overflow-y-auto">
+                        <div className="p-6">
+                            {/* Nickname Change Tab */}
+                            <NicknameChange
                                 token={token}
                                 user={user}
-                                isVisible={true}
+                                onUserUpdate={onUserUpdate}
+                                isVisible={activeTab === 'nickname'}
                             />
-                        )}
 
-                        {user.isAdmin && activeTab === 'access' && (
-                            <AdminAccessManagement
+                            {/* Personal Sharing Settings Tab - Available for Users and User-Managers */}
+                            <SharingSettingsComponent
+                                token={token}
+                                isVisible={activeTab === 'sharing' && !user.isAdmin}
+                            />
+
+                            {/* Notification Settings Tab - Available for Users and User-Managers */}
+                            <NotificationSettingsComponent
                                 token={token}
                                 user={user}
-                                isVisible={true}
+                                isVisible={activeTab === 'notifications' && !user.isAdmin}
                             />
-                        )}
 
-                        {/* Global Sharing Toggle Tab - Available for Admins only */}
-                        {user.isAdmin && activeTab === 'global' && (
-                            <div className="space-y-6">
-                                <div className="border-b border-slate-200 dark:border-slate-700 pb-4">
-                                    <h3 className="text-lg font-medium text-slate-900 dark:text-slate-100">
-                                        Global Sharing Control
-                                    </h3>
-                                    <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                                        System-wide sharing settings
-                                    </p>
-                                </div>
-                                {/* Use existing AdminUserManagement component which has global sharing toggle */}
-                                <AdminUserManagement
+                            {/* User Management Tab - Available for Admins only */}
+                            {user.isAdmin && activeTab === 'users' && (
+                                <UserManagement
                                     token={token}
                                     user={user}
                                     isVisible={true}
                                 />
-                            </div>
-                        )}
-                        
+                            )}
+
+                            {/* Whitelist & Access Request Tab - Available for User-Managers and Admins */}
+                            {user.isUserManager && !user.isAdmin && activeTab === 'access' && (
+                                <UserManagerAccessManagement
+                                    token={token}
+                                    user={user}
+                                    isVisible={true}
+                                />
+                            )}
+
+                            {user.isAdmin && activeTab === 'access' && (
+                                <AdminAccessManagement
+                                    token={token}
+                                    user={user}
+                                    isVisible={true}
+                                />
+                            )}
+
+                            {/* Global Sharing Toggle Tab - Available for Admins only */}
+                            {user.isAdmin && activeTab === 'global' && (
+                                <div className="space-y-6">
+                                    <div className="border-b border-slate-200 dark:border-slate-700 pb-4">
+                                        <h3 className="text-lg font-medium text-slate-900 dark:text-slate-100">
+                                            Global Sharing Control
+                                        </h3>
+                                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                                            System-wide sharing settings
+                                        </p>
+                                    </div>
+                                    {/* Use existing AdminUserManagement component which has global sharing toggle */}
+                                    <AdminUserManagement
+                                        token={token}
+                                        user={user}
+                                        isVisible={true}
+                                    />
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>

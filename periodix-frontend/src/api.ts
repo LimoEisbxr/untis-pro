@@ -325,6 +325,29 @@ export async function declineAccessRequest(
     });
 }
 
+// Admin user management functions
+export async function listAllUsers(
+    token: string
+): Promise<{ users: Array<{ id: string; username: string; displayName: string | null; isUserManager: boolean }> }> {
+    return api<{ users: Array<{ id: string; username: string; displayName: string | null; isUserManager: boolean }> }>(
+        '/api/admin/users',
+        { token }
+    );
+}
+
+export async function deleteUser(
+    token: string,
+    userId: string
+): Promise<{ ok: boolean; count: number }> {
+    return api<{ ok: boolean; count: number }>(
+        `/api/admin/users/${userId}`,
+        {
+            method: 'DELETE',
+            token,
+        }
+    );
+}
+
 // User-manager management (admin only)
 export async function grantUserManagerStatus(
     token: string,
