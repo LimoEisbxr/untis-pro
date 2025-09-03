@@ -73,9 +73,7 @@ export default function AdminUserManagement({ token, user, isVisible }: AdminUse
         return null;
     }
 
-    if (!isVisible) {
-        return null; // Don't render when not visible
-    }
+    // Remove conditional rendering since we handle visibility in parent
 
     return (
         <div className="space-y-6">

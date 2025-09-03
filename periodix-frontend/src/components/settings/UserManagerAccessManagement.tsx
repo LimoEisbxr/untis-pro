@@ -96,9 +96,7 @@ export default function UserManagerAccessManagement({ token, user, isVisible }: 
         return null;
     }
 
-    if (!isVisible) {
-        return null; // Don't render when not visible
-    }
+    // Remove conditional rendering since we handle visibility in parent
 
     return (
         <div className="space-y-6">

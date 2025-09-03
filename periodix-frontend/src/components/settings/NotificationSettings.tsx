@@ -212,9 +212,7 @@ export default function NotificationSettings({ token, user, isVisible }: Notific
         return null; // Don't render anything if notifications aren't supported
     }
 
-    if (!isVisible) {
-        return null; // Don't render when not visible
-    }
+    // Remove conditional rendering since we handle visibility in parent
 
     return (
         <div className="space-y-6">

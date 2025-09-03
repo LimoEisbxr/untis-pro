@@ -6,10 +6,9 @@ interface NicknameChangeProps {
     token: string;
     user: User;
     onUserUpdate?: (user: User) => void;
-    isVisible: boolean;
 }
 
-export default function NicknameChange({ token, user, onUserUpdate, isVisible }: NicknameChangeProps) {
+export default function NicknameChange({ token, user, onUserUpdate }: NicknameChangeProps) {
     const [myDisplayName, setMyDisplayName] = useState<string>(user.displayName ?? '');
     const [savingMyName, setSavingMyName] = useState(false);
     const [myNameError, setMyNameError] = useState<string | null>(null);
@@ -42,7 +41,7 @@ export default function NicknameChange({ token, user, onUserUpdate, isVisible }:
         }
     }, [token, myDisplayName, user, onUserUpdate]);
 
-    if (!isVisible) return null;
+    // Remove conditional rendering since we handle visibility in parent
 
     return (
         <div>

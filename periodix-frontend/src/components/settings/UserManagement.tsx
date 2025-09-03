@@ -87,9 +87,7 @@ export default function UserManagement({ token, user, isVisible }: UserManagemen
         return null;
     }
 
-    if (!isVisible) {
-        return null;
-    }
+    // Remove conditional rendering since we handle visibility in parent
 
     if (loading) {
         return (

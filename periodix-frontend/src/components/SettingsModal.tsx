@@ -120,9 +120,9 @@ export default function SettingsModal({
                 </div>
 
                 {/* Content */}
-                <div className="flex flex-col lg:flex-row h-[calc(95vh-80px)] max-h-[calc(700px-80px)]">
+                <div className="flex flex-col lg:flex-row h-[calc(95vh-120px)] max-h-[calc(700px-120px)]">
                     {/* Tab Navigation - Mobile: top, Desktop: left sidebar */}
-                    <div className="lg:w-64 border-b lg:border-b-0 lg:border-r border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+                    <div className="lg:w-64 border-b lg:border-b-0 lg:border-r border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 flex-shrink-0">
                         <div className="p-6">
                             <TabNavigation 
                                 user={user}
@@ -133,72 +133,89 @@ export default function SettingsModal({
                     </div>
 
                     {/* Tab Content */}
-                    <div className="flex-1 overflow-y-auto">
-                        <div className="p-6">
-                            {/* Nickname Change Tab */}
-                            <NicknameChange
-                                token={token}
-                                user={user}
-                                onUserUpdate={onUserUpdate}
-                                isVisible={activeTab === 'nickname'}
-                            />
-
-                            {/* Personal Sharing Settings Tab - Available for Users and User-Managers */}
-                            <SharingSettingsComponent
-                                token={token}
-                                isVisible={activeTab === 'sharing' && !user.isAdmin}
-                            />
-
-                            {/* Notification Settings Tab - Available for Users and User-Managers */}
-                            <NotificationSettingsComponent
-                                token={token}
-                                user={user}
-                                isVisible={activeTab === 'notifications' && !user.isAdmin}
-                            />
-
-                            {/* User Management Tab - Available for Admins only */}
-                            {user.isAdmin && activeTab === 'users' && (
-                                <UserManagement
+                    <div className="flex-1 overflow-y-auto min-h-0">
+                        <div className="p-6 h-full">
+                            {/* All tab contents rendered but with conditional visibility */}
+                            <div className={`${activeTab === 'nickname' ? 'block' : 'hidden'}`}>
+                                <NicknameChange
                                     token={token}
                                     user={user}
-                                    isVisible={true}
+                                    onUserUpdate={onUserUpdate}
                                 />
+                            </div>
+
+                            {/* Personal Sharing Settings Tab - Available for Users and User-Managers */}
+                            {!user.isAdmin && (
+                                <div className={`${activeTab === 'sharing' ? 'block' : 'hidden'}`}>
+                                    <SharingSettingsComponent
+                                        token={token}
+                                        isVisible={activeTab === 'sharing'}
+                                    />
+                                </div>
+                            )}
+
+                            {/* Notification Settings Tab - Available for Users and User-Managers */}
+                            {!user.isAdmin && (
+                                <div className={`${activeTab === 'notifications' ? 'block' : 'hidden'}`}>
+                                    <NotificationSettingsComponent
+                                        token={token}
+                                        user={user}
+                                        isVisible={activeTab === 'notifications'}
+                                    />
+                                </div>
+                            )}
+
+                            {/* User Management Tab - Available for Admins only */}
+                            {user.isAdmin && (
+                                <div className={`${activeTab === 'users' ? 'block' : 'hidden'}`}>
+                                    <UserManagement
+                                        token={token}
+                                        user={user}
+                                        isVisible={activeTab === 'users'}
+                                    />
+                                </div>
                             )}
 
                             {/* Whitelist & Access Request Tab - Available for User-Managers and Admins */}
-                            {user.isUserManager && !user.isAdmin && activeTab === 'access' && (
-                                <UserManagerAccessManagement
-                                    token={token}
-                                    user={user}
-                                    isVisible={true}
-                                />
+                            {user.isUserManager && !user.isAdmin && (
+                                <div className={`${activeTab === 'access' ? 'block' : 'hidden'}`}>
+                                    <UserManagerAccessManagement
+                                        token={token}
+                                        user={user}
+                                        isVisible={activeTab === 'access'}
+                                    />
+                                </div>
                             )}
 
-                            {user.isAdmin && activeTab === 'access' && (
-                                <AdminAccessManagement
-                                    token={token}
-                                    user={user}
-                                    isVisible={true}
-                                />
+                            {user.isAdmin && (
+                                <div className={`${activeTab === 'access' ? 'block' : 'hidden'}`}>
+                                    <AdminAccessManagement
+                                        token={token}
+                                        user={user}
+                                        isVisible={activeTab === 'access'}
+                                    />
+                                </div>
                             )}
 
                             {/* Global Sharing Toggle Tab - Available for Admins only */}
-                            {user.isAdmin && activeTab === 'global' && (
-                                <div className="space-y-6">
-                                    <div className="border-b border-slate-200 dark:border-slate-700 pb-4">
-                                        <h3 className="text-lg font-medium text-slate-900 dark:text-slate-100">
-                                            Global Sharing Control
-                                        </h3>
-                                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                                            System-wide sharing settings
-                                        </p>
+                            {user.isAdmin && (
+                                <div className={`${activeTab === 'global' ? 'block' : 'hidden'}`}>
+                                    <div className="space-y-6">
+                                        <div className="border-b border-slate-200 dark:border-slate-700 pb-4">
+                                            <h3 className="text-lg font-medium text-slate-900 dark:text-slate-100">
+                                                Global Sharing Control
+                                            </h3>
+                                            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                                                System-wide sharing settings
+                                            </p>
+                                        </div>
+                                        {/* Use existing AdminUserManagement component which has global sharing toggle */}
+                                        <AdminUserManagement
+                                            token={token}
+                                            user={user}
+                                            isVisible={activeTab === 'global'}
+                                        />
                                     </div>
-                                    {/* Use existing AdminUserManagement component which has global sharing toggle */}
-                                    <AdminUserManagement
-                                        token={token}
-                                        user={user}
-                                        isVisible={true}
-                                    />
                                 </div>
                             )}
                         </div>
