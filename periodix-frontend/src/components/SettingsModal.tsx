@@ -92,7 +92,7 @@ export default function SettingsModal({
             onClick={onClose}
         >
             <div
-                className={`bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-[600px] h-[90vh] max-h-[500px] transition-all duration-${ANIM_MS} border border-slate-200 dark:border-slate-700 ${
+                className={`bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-[800px] h-[95vh] max-h-[700px] transition-all duration-${ANIM_MS} border border-slate-200 dark:border-slate-700 ${
                     isVisible
                         ? 'opacity-100 scale-100 translate-y-0'
                         : 'opacity-0 scale-95 translate-y-4'
@@ -120,7 +120,7 @@ export default function SettingsModal({
                 </div>
 
                 {/* Content */}
-                <div className="flex flex-col lg:flex-row h-[calc(90vh-80px)] max-h-[calc(500px-80px)]">
+                <div className="flex flex-col lg:flex-row h-[calc(95vh-80px)] max-h-[calc(700px-80px)]">
                     {/* Tab Navigation - Mobile: top, Desktop: left sidebar */}
                     <div className="lg:w-64 border-b lg:border-b-0 lg:border-r border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
                         <div className="p-6">

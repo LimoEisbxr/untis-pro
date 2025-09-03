@@ -137,27 +137,6 @@ export default function SharingSettings({ token, isVisible }: SharingSettingsPro
         <div className="space-y-6">
             {/* Sharing Settings */}
             <div>
-                <div className="flex items-center justify-between mb-4">
-                    <div>
-                        <h3 className="font-medium text-slate-900 dark:text-slate-100">
-                            Disable Timetable Sharing
-                        </h3>
-                        <p className="text-sm text-slate-600 dark:text-slate-400">
-                            Stop sharing your timetable with people you've already shared with
-                        </p>
-                    </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                        <input
-                            type="checkbox"
-                            checked={!settings.sharingEnabled}
-                            onChange={(e) => handleToggleSharing(!e.target.checked)}
-                            disabled={!settings.globalSharingEnabled}
-                            className="sr-only peer"
-                        />
-                        <div className="relative w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-red-300 dark:peer-focus:ring-red-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-red-600 peer-disabled:opacity-50"></div>
-                    </label>
-                </div>
-
                 {settings.globalSharingEnabled ? (
                     <>
                         {/* Search and add users */}
@@ -211,7 +190,7 @@ export default function SharingSettings({ token, isVisible }: SharingSettingsPro
                         </div>
 
                         {/* Currently sharing with */}
-                        <div>
+                        <div className="mt-6">
                             <label className="block text-sm font-medium mb-2 text-slate-900 dark:text-slate-100">
                                 Sharing with
                             </label>
@@ -246,6 +225,30 @@ export default function SharingSettings({ token, isVisible }: SharingSettingsPro
                                     ))}
                                 </div>
                             )}
+                        </div>
+
+                        {/* Disable Timetable Sharing - Moved to bottom */}
+                        <div className="mt-8 pt-6 border-t border-slate-200 dark:border-slate-700">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <h3 className="font-medium text-slate-900 dark:text-slate-100">
+                                        Disable Timetable Sharing
+                                    </h3>
+                                    <p className="text-sm text-slate-600 dark:text-slate-400">
+                                        Stop sharing your timetable with people you've already shared with
+                                    </p>
+                                </div>
+                                <label className="relative inline-flex items-center cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={!settings.sharingEnabled}
+                                        onChange={(e) => handleToggleSharing(!e.target.checked)}
+                                        disabled={!settings.globalSharingEnabled}
+                                        className="sr-only peer"
+                                    />
+                                    <div className="relative w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-red-300 dark:peer-focus:ring-red-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-red-600 peer-disabled:opacity-50"></div>
+                                </label>
+                            </div>
                         </div>
                     </>
                 ) : (
