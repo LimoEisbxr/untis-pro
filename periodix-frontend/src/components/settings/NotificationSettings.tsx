@@ -14,6 +14,7 @@ import {
     isIOS,
     getiOSVersion,
     subscribeToPushNotifications as utilsSubscribeToPush,
+    getDeviceType,
 } from '../../utils/notifications';
 
 interface NotificationSettingsProps {
@@ -149,12 +150,20 @@ export default function NotificationSettings({ token, user, isVisible }: Notific
         setNotificationError(null);
 
         try {
+            // For mobile PWA, we need to be more persistent about permission requests
+            const isMobilePWA = isStandalonePWA() && (getDeviceType() === 'mobile' || isIOS());
+            
             // Reset permission attempted flag to allow re-asking
             setPermissionAttempted(false);
             try {
                 localStorage.removeItem('notificationPermissionAttempted');
             } catch {
                 // Ignore localStorage errors
+            }
+
+            // On mobile PWA, add a small delay to ensure the UI is ready
+            if (isMobilePWA) {
+                await new Promise(resolve => setTimeout(resolve, 100));
             }
 
             const permission = await requestNotificationPermission();
@@ -173,6 +182,19 @@ export default function NotificationSettings({ token, user, isVisible }: Notific
                 await handleUpdateNotificationSettings({
                     browserNotificationsEnabled: true,
                 });
+
+                // For mobile PWA, also try to set up push notifications
+                if (isMobilePWA) {
+                    try {
+                        await ensurePushSubscription();
+                        await handleUpdateNotificationSettings({
+                            pushNotificationsEnabled: true,
+                        });
+                    } catch (pushError) {
+                        console.warn('Push notification setup failed on mobile PWA:', pushError);
+                        // Don't throw here, browser notifications are still working
+                    }
+                }
             }
         } catch (e) {
             setNotificationError(
@@ -189,6 +211,17 @@ export default function NotificationSettings({ token, user, isVisible }: Notific
 
         try {
             if (enabled) {
+                // Ensure we have permission first
+                let currentPermission = notificationPermission;
+                if (currentPermission !== 'granted') {
+                    currentPermission = await requestNotificationPermission();
+                    setNotificationPermission(currentPermission);
+                    
+                    if (currentPermission !== 'granted') {
+                        throw new Error('Notification permission required');
+                    }
+                }
+
                 // Always enable browser notifications first
                 await handleUpdateNotificationSettings({
                     browserNotificationsEnabled: true,
@@ -215,6 +248,10 @@ export default function NotificationSettings({ token, user, isVisible }: Notific
             }
         } catch (e) {
             setNotificationError(e instanceof Error ? e.message : 'Failed to update notification settings');
+            
+            // Reset the toggle to its previous state on error
+            // Force a re-render by reloading settings
+            await loadNotificationSettings();
         }
     };
 

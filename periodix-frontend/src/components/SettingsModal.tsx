@@ -92,7 +92,7 @@ export default function SettingsModal({
             onClick={onClose}
         >
             <div
-                className={`bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-[800px] h-[95vh] max-h-[700px] transition-all duration-${ANIM_MS} border border-slate-200 dark:border-slate-700 ${
+                className={`bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-[800px] h-[90vh] lg:h-[95vh] lg:max-h-[700px] transition-all duration-${ANIM_MS} border border-slate-200 dark:border-slate-700 ${
                     isVisible
                         ? 'opacity-100 scale-100 translate-y-0'
                         : 'opacity-0 scale-95 translate-y-4'
@@ -120,21 +120,35 @@ export default function SettingsModal({
                 </div>
 
                 {/* Content */}
-                <div className="flex flex-col lg:flex-row h-[calc(95vh-120px)] max-h-[calc(700px-120px)]">
-                    {/* Tab Navigation - Mobile: top, Desktop: left sidebar */}
-                    <div className="lg:w-64 border-b lg:border-b-0 lg:border-r border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 flex-shrink-0">
-                        <div className="p-6">
+                <div className="flex flex-col h-[calc(90vh-120px)] lg:h-[calc(95vh-120px)] lg:max-h-[calc(700px-120px)]">
+                    {/* Tab Navigation - Mobile: horizontal at top, Desktop: left sidebar */}
+                    <div className="lg:hidden border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 flex-shrink-0">
+                        <div className="px-4 py-3">
                             <TabNavigation 
                                 user={user}
                                 activeTab={activeTab}
                                 onTabChange={setActiveTab}
+                                isMobile={true}
                             />
                         </div>
                     </div>
 
-                    {/* Tab Content */}
-                    <div className="flex-1 overflow-y-auto min-h-0">
-                        <div className="p-6 h-full">
+                    <div className="flex flex-1 lg:flex-row min-h-0">
+                        {/* Desktop Tab Navigation - Left sidebar */}
+                        <div className="hidden lg:block lg:w-64 border-r border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 flex-shrink-0">
+                            <div className="p-6">
+                                <TabNavigation 
+                                    user={user}
+                                    activeTab={activeTab}
+                                    onTabChange={setActiveTab}
+                                    isMobile={false}
+                                />
+                            </div>
+                        </div>
+
+                        {/* Tab Content */}
+                        <div className="flex-1 overflow-y-auto min-h-0">
+                            <div className="p-6 h-full">
                             {/* All tab contents rendered but with conditional visibility */}
                             <div className={`${activeTab === 'nickname' ? 'block' : 'hidden'}`}>
                                 <NicknameChange
@@ -218,6 +232,7 @@ export default function SettingsModal({
                                     </div>
                                 </div>
                             )}
+                            </div>
                         </div>
                     </div>
                 </div>
