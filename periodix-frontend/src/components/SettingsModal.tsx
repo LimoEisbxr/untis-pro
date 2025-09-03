@@ -2360,9 +2360,11 @@ export default function SettingsModal({
                                         </div>
                                     )
                                 )}
+                                    </div>
 
                                 {/* Sharing Settings for User Managers */}
-                                {loading ? (
+                                <div className={activeTab === 'sharing' ? 'block' : 'hidden'}>
+                                    {loading ? (
                                     <div className="text-center text-slate-600 dark:text-slate-400 pt-6">
                                         Loading sharing settings...
                                     </div>
@@ -2645,7 +2647,8 @@ export default function SettingsModal({
                                     </div>
 
                                     {/* Notification Settings */}
-                                    {notificationLoading ? (
+                                    <div className={activeTab === 'notifications' ? 'block' : 'hidden'}>
+                                        {notificationLoading ? (
                                         <div className="text-center text-slate-600 dark:text-slate-400">
                                             Loading notification settings...
                                         </div>
@@ -3172,6 +3175,7 @@ export default function SettingsModal({
                                             </p>
                                         </div>
                                     )}
+                                </div>
                                 </div>
                             ) : null}
                         </>
