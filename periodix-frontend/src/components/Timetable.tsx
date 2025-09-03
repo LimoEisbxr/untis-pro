@@ -504,6 +504,9 @@ export default function Timetable({
         const el = containerRef.current;
         if (!el) return;
         let skipSwipe = false;
+        let wheelDeltaX = 0;
+        let wheelDeltaY = 0;
+        let wheelTimeout: number | null = null;
         const INTERACTIVE_SELECTOR =
             'input,textarea,select,button,[contenteditable="true"],[role="textbox"]';
             
@@ -655,14 +658,96 @@ export default function Timetable({
             touchStartTime.current = null;
         };
         
+        const handleWheel = (e: WheelEvent) => {
+            if (isAnimating) return;
+            
+            const target = e.target as HTMLElement | null;
+            // Ignore wheel if user is over an interactive control
+            if (
+                target &&
+                (target.closest(INTERACTIVE_SELECTOR) ||
+                    target.tagName === 'INPUT')
+            ) {
+                return;
+            }
+            
+            // Accumulate wheel delta for trackpad gesture detection
+            wheelDeltaX += e.deltaX;
+            wheelDeltaY += e.deltaY;
+            
+            // Clear previous timeout
+            if (wheelTimeout) {
+                clearTimeout(wheelTimeout);
+            }
+            
+            // Check if this is primarily a horizontal gesture
+            const isHorizontalGesture = Math.abs(wheelDeltaX) > Math.abs(wheelDeltaY) * 2;
+            
+            if (isHorizontalGesture) {
+                // Prevent default to avoid horizontal scrolling
+                e.preventDefault();
+                
+                // Determine if we've accumulated enough delta for navigation
+                const WHEEL_THRESHOLD = 100; // Adjust based on testing
+                
+                if (Math.abs(wheelDeltaX) > WHEEL_THRESHOLD) {
+                    setIsAnimating(true);
+                    
+                    const containerWidth = el.getBoundingClientRect().width;
+                    const direction = wheelDeltaX > 0 ? 'next' : 'prev';
+                    const targetTranslateX = wheelDeltaX > 0 ? -containerWidth : containerWidth;
+                    
+                    setTranslateX(targetTranslateX);
+                    
+                    // Wait for animation to complete, then seamlessly transition
+                    setTimeout(() => {
+                        // Disable transitions first
+                        if (slidingTrackRef.current) {
+                            slidingTrackRef.current.style.transition = 'none';
+                        }
+                        
+                        // Change data and reset position simultaneously using requestAnimationFrame
+                        requestAnimationFrame(() => {
+                            onWeekNavigate?.(direction);
+                            setTranslateX(0);
+                            
+                            // Re-enable transitions on the next frame to avoid visible jump
+                            requestAnimationFrame(() => {
+                                if (slidingTrackRef.current) {
+                                    slidingTrackRef.current.style.transition = '';
+                                }
+                                setIsAnimating(false);
+                            });
+                        });
+                    }, 320);
+                    
+                    // Reset wheel delta after navigation
+                    wheelDeltaX = 0;
+                    wheelDeltaY = 0;
+                    return;
+                }
+            }
+            
+            // Reset wheel delta after a short delay if no navigation occurred
+            wheelTimeout = window.setTimeout(() => {
+                wheelDeltaX = 0;
+                wheelDeltaY = 0;
+            }, 150);
+        };
+        
         el.addEventListener('touchstart', handleTouchStart, { passive: true });
         el.addEventListener('touchmove', handleTouchMove, { passive: false });
         el.addEventListener('touchend', handleTouchEnd, { passive: true });
+        el.addEventListener('wheel', handleWheel, { passive: false });
         
         return () => {
             el.removeEventListener('touchstart', handleTouchStart);
             el.removeEventListener('touchmove', handleTouchMove);
             el.removeEventListener('touchend', handleTouchEnd);
+            el.removeEventListener('wheel', handleWheel);
+            if (wheelTimeout) {
+                clearTimeout(wheelTimeout);
+            }
         };
     }, [onWeekNavigate, isDragging, isAnimating]);
 
