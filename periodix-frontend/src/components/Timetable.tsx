@@ -18,10 +18,9 @@ import { setLessonColor } from '../api';
 import LessonModal from './LessonModal';
 import TimeAxis from './TimeAxis';
 import DayColumn from './DayColumn';
-import { 
-    ANIMATION_CONFIG, 
-    shouldNavigateWeek, 
-    applyRubberBandResistance
+import {
+    shouldNavigateWeek,
+    applyRubberBandResistance,
 } from '../utils/timetable/layout';
 // (Mobile vertical layout removed; keeping original horizontal week view across breakpoints)
 
@@ -247,7 +246,9 @@ export default function Timetable({
     token?: string;
     viewingUserId?: string; // if admin is viewing a student
     onWeekNavigate?: (direction: 'prev' | 'next') => void; // optional external navigation handler
-    getAdjacentWeekData?: (direction: 'prev' | 'next') => TimetableResponse | null; // function to get cached data for adjacent weeks
+    getAdjacentWeekData?: (
+        direction: 'prev' | 'next'
+    ) => TimetableResponse | null; // function to get cached data for adjacent weeks
     onLessonModalStateChange?: (isOpen: boolean) => void; // callback for onboarding
     isOnboardingActive?: boolean;
     // Extended: allow passing current offset when color set
@@ -480,12 +481,12 @@ export default function Timetable({
     // Multi-week data for sliding animation
     const prevWeekMonday = useMemo(() => addDays(monday, -7), [monday]);
     const nextWeekMonday = useMemo(() => addDays(monday, 7), [monday]);
-    
+
     const prevWeekDays = useMemo(
         () => Array.from({ length: 5 }, (_, i) => addDays(prevWeekMonday, i)),
         [prevWeekMonday]
     );
-    
+
     const nextWeekDays = useMemo(
         () => Array.from({ length: 5 }, (_, i) => addDays(nextWeekMonday, i)),
         [nextWeekMonday]
@@ -495,27 +496,34 @@ export default function Timetable({
     const touchStartX = useRef<number | null>(null);
     const touchStartY = useRef<number | null>(null);
     const touchStartTime = useRef<number | null>(null);
+    const lastMoveXRef = useRef<number | null>(null);
+    const lastMoveTimeRef = useRef<number | null>(null);
+    const flingVelocityRef = useRef<number>(0); // px per second captured at release
     const [translateX, setTranslateX] = useState(0); // Current transform offset
     const [isDragging, setIsDragging] = useState(false);
     const [isAnimating, setIsAnimating] = useState(false);
     const containerRef = useRef<HTMLDivElement | null>(null);
     const slidingTrackRef = useRef<HTMLDivElement | null>(null);
     const animationRef = useRef<number | null>(null);
-    
+    const translateXRef = useRef(0); // keep latest translateX for animation starts
+    useEffect(() => {
+        translateXRef.current = translateX;
+    }, [translateX]);
+
     useEffect(() => {
         const el = containerRef.current;
         if (!el) return;
-        
+
         // Capture the ref at the beginning of the effect
         const currentAnimationRef = animationRef.current;
-        
+
         let skipSwipe = false;
         let wheelDeltaX = 0;
         let wheelDeltaY = 0;
         let wheelTimeout: number | null = null;
         const INTERACTIVE_SELECTOR =
             'input,textarea,select,button,[contenteditable="true"],[role="textbox"]';
-            
+
         const handleTouchStart = (e: TouchEvent) => {
             if (e.touches.length !== 1 || isAnimating) return;
             const target = e.target as HTMLElement | null;
@@ -528,22 +536,28 @@ export default function Timetable({
                 skipSwipe = true;
                 return;
             }
-            
+
             skipSwipe = false;
             setIsDragging(true);
             touchStartX.current = e.touches[0].clientX;
             touchStartY.current = e.touches[0].clientY;
             touchStartTime.current = Date.now();
         };
-        
+
         const handleTouchMove = (e: TouchEvent) => {
-            if (skipSwipe || !isDragging || touchStartX.current == null || touchStartY.current == null) return;
-            
+            if (
+                skipSwipe ||
+                !isDragging ||
+                touchStartX.current == null ||
+                touchStartY.current == null
+            )
+                return;
+
             const currentX = e.touches[0].clientX;
             const currentY = e.touches[0].clientY;
             const dx = currentX - touchStartX.current;
             const dy = currentY - touchStartY.current;
-            
+
             // Check if this is more of a vertical scroll
             if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 20) {
                 skipSwipe = true;
@@ -551,63 +565,115 @@ export default function Timetable({
                 setTranslateX(0);
                 return;
             }
-            
+
             // Prevent default only for horizontal swipes to avoid conflicts with scrolling
             if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 10) {
                 e.preventDefault();
             }
-            
+
             // Update transform with improved rubber band resistance
             const containerWidth = el.getBoundingClientRect().width;
             const newTranslateX = applyRubberBandResistance(dx, containerWidth);
-            
+
             setTranslateX(newTranslateX);
+
+            // Track recent movement for velocity (use last segment for fling feel)
+            lastMoveXRef.current = currentX;
+            lastMoveTimeRef.current = performance.now();
         };
-        
-        const performNavigation = (direction: 'prev' | 'next') => {
+
+        const performNavigation = (
+            direction: 'prev' | 'next',
+            userVelocityPxPerSec?: number
+        ) => {
             if (isAnimating) return;
-            
             setIsAnimating(true);
-            const containerWidth = el.getBoundingClientRect().width;
-            // Use a more conservative target position to prevent overshooting
-            const targetX = direction === 'next' ? -containerWidth * 0.85 : containerWidth * 0.85;
-            
-            // Smooth CSS-based animation to target position
-            setTranslateX(targetX);
-            
-            // Use a single transitionend event listener for precise timing
-            const handleTransitionEnd = (e: TransitionEvent) => {
-                if (e.target === slidingTrackRef.current && e.propertyName === 'transform') {
-                    slidingTrackRef.current?.removeEventListener('transitionend', handleTransitionEnd);
-                    
-                    // Smooth completion: animate to final position while data changes
-                    if (slidingTrackRef.current) {
-                        // Use a shorter transition for the final positioning
-                        slidingTrackRef.current.style.transition = 'transform 150ms cubic-bezier(0.23, 1, 0.32, 1)';
-                    }
-                    
-                    // Update data and smoothly animate to center position
-                    onWeekNavigate?.(direction);
-                    setTranslateX(0);
-                    
-                    // Clean up after the smooth completion
-                    const handleFinalTransition = (e: TransitionEvent) => {
-                        if (e.target === slidingTrackRef.current && e.propertyName === 'transform') {
-                            slidingTrackRef.current?.removeEventListener('transitionend', handleFinalTransition);
-                            if (slidingTrackRef.current) {
-                                slidingTrackRef.current.style.transition = '';
-                            }
-                            setIsAnimating(false);
-                        }
-                    };
-                    
-                    slidingTrackRef.current?.addEventListener('transitionend', handleFinalTransition);
+
+            // Cancel any in‑flight animation
+            if (animationRef.current) {
+                cancelAnimationFrame(animationRef.current);
+                animationRef.current = null;
+            }
+
+            // Determine precise stride (distance between week centers) to avoid gap/overshoot.
+            let targetX: number;
+            const startX = translateXRef.current; // may be partial if user let go mid-drag
+            const track = slidingTrackRef.current;
+            if (track) {
+                const weekEls = Array.from(track.children) as HTMLElement[]; // [prev,current,next]
+                if (weekEls.length === 3) {
+                    const currentBox = weekEls[1].getBoundingClientRect();
+                    // Measure stride using adjacent week's left delta (accounts for gap + exact width)
+                    const nextBox = weekEls[2].getBoundingClientRect();
+                    const prevBox = weekEls[0].getBoundingClientRect();
+                    const strideNext = nextBox.left - currentBox.left;
+                    const stridePrev = currentBox.left - prevBox.left;
+                    const stride =
+                        direction === 'next' ? strideNext : stridePrev;
+                    targetX = direction === 'next' ? -stride : stride; // move opposite to direction to reveal that week
+                } else {
+                    // Fallback: approximate using container width minus axis column (prevents large overshoot)
+                    const fullWidth = el.getBoundingClientRect().width;
+                    targetX =
+                        direction === 'next'
+                            ? -(fullWidth - axisWidth)
+                            : fullWidth - axisWidth;
+                }
+            } else {
+                const fullWidth = el.getBoundingClientRect().width;
+                targetX =
+                    direction === 'next'
+                        ? -(fullWidth - axisWidth)
+                        : fullWidth - axisWidth;
+            }
+            const delta = targetX - startX;
+
+            // Determine duration based on stride & user swipe velocity (if provided)
+            const stride = Math.abs(delta);
+            const DEFAULT_SPEED = 1900; // px/sec baseline similar to prior perceived speed
+            const MIN_DURATION = 180; // ms
+            const MAX_DURATION = 520; // ms (fallback upper bound)
+            const speed = Math.min(
+                6000,
+                Math.max(900, userVelocityPxPerSec || DEFAULT_SPEED)
+            );
+            let DURATION = (stride / speed) * 1000; // ms
+            if (!isFinite(DURATION)) DURATION = 380;
+            DURATION = Math.min(MAX_DURATION, Math.max(MIN_DURATION, DURATION));
+            const durationMs = DURATION; // capture for closure clarity
+            const startTime = performance.now();
+
+            // Mild ease-out to mask discrete frame finish while keeping momentum feel
+            const ease = (t: number) => {
+                if (t <= 0) return 0;
+                if (t >= 1) return 1;
+                // easeOutCubic
+                const u = 1 - t;
+                return 1 - u * u * u;
+            };
+
+            const step = (now: number) => {
+                const t = Math.min(1, (now - startTime) / durationMs);
+                const eased = ease(t);
+                setTranslateX(startX + delta * eased);
+                if (t < 1) {
+                    animationRef.current = requestAnimationFrame(step);
+                } else {
+                    // Finalize at exact target to avoid sub‑pixel remainder
+                    setTranslateX(targetX);
+                    // Immediately swap week (without visible jump) by resetting translateX after data update
+                    // Use rAF so layout with final frame paints first
+                    requestAnimationFrame(() => {
+                        onWeekNavigate?.(direction);
+                        // Reset without animation: just place new current week centered
+                        setTranslateX(0);
+                        setIsAnimating(false);
+                    });
                 }
             };
-            
-            slidingTrackRef.current?.addEventListener('transitionend', handleTransitionEnd);
+            animationRef.current = requestAnimationFrame(step);
         };
-        
+
         const handleTouchEnd = (e: TouchEvent) => {
             if (skipSwipe) {
                 skipSwipe = false;
@@ -615,18 +681,23 @@ export default function Timetable({
                 setTranslateX(0);
                 return;
             }
-            
-            if (!isDragging || touchStartX.current == null || touchStartY.current == null || touchStartTime.current == null) {
+
+            if (
+                !isDragging ||
+                touchStartX.current == null ||
+                touchStartY.current == null ||
+                touchStartTime.current == null
+            ) {
                 setIsDragging(false);
                 setTranslateX(0);
                 return;
             }
-            
+
             const currentX = e.changedTouches[0].clientX;
             const currentY = e.changedTouches[0].clientY;
-            
+
             setIsDragging(false);
-            
+
             // Use improved navigation detection
             const navigation = shouldNavigateWeek(
                 touchStartX.current,
@@ -635,22 +706,36 @@ export default function Timetable({
                 currentY,
                 touchStartTime.current
             );
-            
+
             if (navigation.shouldNavigate && navigation.direction) {
-                performNavigation(navigation.direction);
+                // Compute fling velocity using last segment vs touch start for fallback
+                let velocity = flingVelocityRef.current;
+                if (
+                    !velocity &&
+                    lastMoveXRef.current != null &&
+                    lastMoveTimeRef.current != null &&
+                    touchStartX.current != null &&
+                    touchStartTime.current != null
+                ) {
+                    const dtTotal =
+                        (performance.now() - touchStartTime.current) / 1000; // s
+                    const dxTotal = lastMoveXRef.current - touchStartX.current; // px
+                    if (dtTotal > 0) velocity = Math.abs(dxTotal / dtTotal); // px/s
+                }
+                performNavigation(navigation.direction, velocity);
             } else {
                 // Snap back to current position
                 setTranslateX(0);
             }
-            
+
             touchStartX.current = null;
             touchStartY.current = null;
             touchStartTime.current = null;
         };
-        
+
         const handleWheel = (e: WheelEvent) => {
             if (isAnimating) return;
-            
+
             const target = e.target as HTMLElement | null;
             // Ignore wheel if user is over an interactive control
             if (
@@ -660,49 +745,55 @@ export default function Timetable({
             ) {
                 return;
             }
-            
+
             // Accumulate wheel delta for trackpad gesture detection
             wheelDeltaX += e.deltaX;
             wheelDeltaY += e.deltaY;
-            
+
             // Clear previous timeout
             if (wheelTimeout) {
                 clearTimeout(wheelTimeout);
             }
-            
+
             // Check if this is primarily a horizontal gesture
-            const isHorizontalGesture = Math.abs(wheelDeltaX) > Math.abs(wheelDeltaY) * 2;
-            
+            const isHorizontalGesture =
+                Math.abs(wheelDeltaX) > Math.abs(wheelDeltaY) * 2;
+
             if (isHorizontalGesture) {
                 // Prevent default to avoid horizontal scrolling
                 e.preventDefault();
-                
+
                 // Determine if we've accumulated enough delta for navigation
                 const WHEEL_THRESHOLD = 100;
-                
+
                 if (Math.abs(wheelDeltaX) > WHEEL_THRESHOLD) {
                     const direction = wheelDeltaX > 0 ? 'next' : 'prev';
-                    performNavigation(direction);
-                    
+                    // Wheel gestures: approximate speed from accumulated delta & time window
+                    const gestureSpeed = Math.min(
+                        5000,
+                        Math.max(1200, Math.abs(wheelDeltaX) * 12)
+                    );
+                    performNavigation(direction, gestureSpeed);
+
                     // Reset wheel delta after navigation
                     wheelDeltaX = 0;
                     wheelDeltaY = 0;
                     return;
                 }
             }
-            
+
             // Reset wheel delta after a short delay if no navigation occurred
             wheelTimeout = window.setTimeout(() => {
                 wheelDeltaX = 0;
                 wheelDeltaY = 0;
             }, 150);
         };
-        
+
         el.addEventListener('touchstart', handleTouchStart, { passive: true });
         el.addEventListener('touchmove', handleTouchMove, { passive: false });
         el.addEventListener('touchend', handleTouchEnd, { passive: true });
         el.addEventListener('wheel', handleWheel, { passive: false });
-        
+
         return () => {
             el.removeEventListener('touchstart', handleTouchStart);
             el.removeEventListener('touchmove', handleTouchMove);
@@ -712,11 +803,9 @@ export default function Timetable({
                 clearTimeout(wheelTimeout);
             }
             // Use the captured ref value for cleanup
-            if (currentAnimationRef) {
-                cancelAnimationFrame(currentAnimationRef);
-            }
+            if (currentAnimationRef) cancelAnimationFrame(currentAnimationRef);
         };
-    }, [onWeekNavigate, isDragging, isAnimating]);
+    }, [onWeekNavigate, isDragging, isAnimating, axisWidth]);
 
     // Track current time and compute line position
     const [now, setNow] = useState<Date>(() => new Date());
@@ -763,12 +852,12 @@ export default function Timetable({
     const prevWeekLessonsByDay = useMemo(() => {
         const byDay: Record<string, Lesson[]> = {};
         for (const d of prevWeekDays) byDay[fmtLocal(d)] = [];
-        
+
         const prevWeekData = getAdjacentWeekData?.('prev');
         const lessons = Array.isArray(prevWeekData?.payload)
             ? (prevWeekData?.payload as Lesson[])
             : [];
-        
+
         for (const l of lessons) {
             const dStr = yyyymmddToISO(l.date);
             if (byDay[dStr]) byDay[dStr].push(l);
@@ -787,12 +876,12 @@ export default function Timetable({
     const nextWeekLessonsByDay = useMemo(() => {
         const byDay: Record<string, Lesson[]> = {};
         for (const d of nextWeekDays) byDay[fmtLocal(d)] = [];
-        
+
         const nextWeekData = getAdjacentWeekData?.('next');
         const lessons = Array.isArray(nextWeekData?.payload)
             ? (nextWeekData?.payload as Lesson[])
             : [];
-        
+
         for (const l of lessons) {
             const dStr = yyyymmddToISO(l.date);
             if (byDay[dStr]) byDay[dStr].push(l);
@@ -927,7 +1016,7 @@ export default function Timetable({
                             internalHeaderPx={internalHeaderPx}
                         />
                     </div>
-                    
+
                     {/* Sliding container for day columns */}
                     <div className="flex-1 overflow-hidden relative">
                         {/* Subtle overlay during dragging to indicate interaction */}
@@ -936,19 +1025,24 @@ export default function Timetable({
                         )}
                         <div
                             ref={slidingTrackRef}
-                            className="flex ease-out"
+                            className="flex"
                             style={{
-                                transform: `translateX(calc(-33.333% + ${translateX}px))`, // Start with current week centered
-                                width: '300%', // 3 weeks side by side
-                                transition: isDragging ? 'none' : `transform ${ANIMATION_CONFIG.DURATION}ms ${ANIMATION_CONFIG.EASING}`,
-                                gap: '0.75rem' // Add gap between weeks (same as sm:gap-x-3)
+                                transform: `translateX(calc(-33.333% + ${translateX}px))`,
+                                width: '300%',
+                                // We fully manage animation via requestAnimationFrame; disable CSS transitions to prevent conflicts
+                                transition: 'none',
+                                gap: '0.75rem',
                             }}
                         >
                             {/* Previous Week */}
-                            <div className="flex gap-x-1 sm:gap-x-3 relative" style={{ width: 'calc(33.333% - 0.5rem)' }}>
+                            <div
+                                className="flex gap-x-1 sm:gap-x-3 relative"
+                                style={{ width: 'calc(33.333% - 0.5rem)' }}
+                            >
                                 {prevWeekDays.map((d) => {
                                     const key = fmtLocal(d);
-                                    const items = prevWeekLessonsByDay[key] || [];
+                                    const items =
+                                        prevWeekLessonsByDay[key] || [];
                                     return (
                                         <div key={key} className="flex-1">
                                             <DayColumn
@@ -961,19 +1055,28 @@ export default function Timetable({
                                                 DAY_HEADER_PX={DAY_HEADER_PX}
                                                 BOTTOM_PAD_PX={BOTTOM_PAD_PX}
                                                 lessonColors={lessonColors}
-                                                defaultLessonColors={defaultLessonColors}
-                                                onLessonClick={handleLessonClick}
+                                                defaultLessonColors={
+                                                    defaultLessonColors
+                                                }
+                                                onLessonClick={
+                                                    handleLessonClick
+                                                }
                                                 isToday={false}
-                                                gradientOffsets={gradientOffsets}
+                                                gradientOffsets={
+                                                    gradientOffsets
+                                                }
                                                 hideHeader
                                             />
                                         </div>
                                     );
                                 })}
                             </div>
-                            
+
                             {/* Current Week */}
-                            <div className="flex gap-x-1 sm:gap-x-3 relative" style={{ width: 'calc(33.333% - 0.5rem)' }}>
+                            <div
+                                className="flex gap-x-1 sm:gap-x-3 relative"
+                                style={{ width: 'calc(33.333% - 0.5rem)' }}
+                            >
                                 {/* Current time line overlay - only show on current week */}
                                 {showNowLine && (
                                     <div
@@ -995,7 +1098,9 @@ export default function Timetable({
                                                 style={{
                                                     left: `${
                                                         (days.findIndex(
-                                                            (d) => fmtLocal(d) === todayISO
+                                                            (d) =>
+                                                                fmtLocal(d) ===
+                                                                todayISO
                                                         ) /
                                                             5) *
                                                         100
@@ -1020,7 +1125,9 @@ export default function Timetable({
                                                 style={{
                                                     left: `${
                                                         (days.findIndex(
-                                                            (d) => fmtLocal(d) === todayISO
+                                                            (d) =>
+                                                                fmtLocal(d) ===
+                                                                todayISO
                                                         ) /
                                                             5) *
                                                         100
@@ -1043,7 +1150,9 @@ export default function Timetable({
                                                 style={{
                                                     left: `${
                                                         (days.findIndex(
-                                                            (d) => fmtLocal(d) === todayISO
+                                                            (d) =>
+                                                                fmtLocal(d) ===
+                                                                todayISO
                                                         ) /
                                                             5) *
                                                         100
@@ -1064,7 +1173,7 @@ export default function Timetable({
                                         </div>
                                     </div>
                                 )}
-                                
+
                                 {days.map((d) => {
                                     const key = fmtLocal(d);
                                     const items = lessonsByDay[key] || [];
@@ -1081,22 +1190,32 @@ export default function Timetable({
                                                 DAY_HEADER_PX={DAY_HEADER_PX}
                                                 BOTTOM_PAD_PX={BOTTOM_PAD_PX}
                                                 lessonColors={lessonColors}
-                                                defaultLessonColors={defaultLessonColors}
-                                                onLessonClick={handleLessonClick}
+                                                defaultLessonColors={
+                                                    defaultLessonColors
+                                                }
+                                                onLessonClick={
+                                                    handleLessonClick
+                                                }
                                                 isToday={isToday}
-                                                gradientOffsets={gradientOffsets}
+                                                gradientOffsets={
+                                                    gradientOffsets
+                                                }
                                                 hideHeader
                                             />
                                         </div>
                                     );
                                 })}
                             </div>
-                            
+
                             {/* Next Week */}
-                            <div className="flex gap-x-1 sm:gap-x-3 relative" style={{ width: 'calc(33.333% - 0.5rem)' }}>
+                            <div
+                                className="flex gap-x-1 sm:gap-x-3 relative"
+                                style={{ width: 'calc(33.333% - 0.5rem)' }}
+                            >
                                 {nextWeekDays.map((d) => {
                                     const key = fmtLocal(d);
-                                    const items = nextWeekLessonsByDay[key] || [];
+                                    const items =
+                                        nextWeekLessonsByDay[key] || [];
                                     return (
                                         <div key={key} className="flex-1">
                                             <DayColumn
@@ -1109,10 +1228,16 @@ export default function Timetable({
                                                 DAY_HEADER_PX={DAY_HEADER_PX}
                                                 BOTTOM_PAD_PX={BOTTOM_PAD_PX}
                                                 lessonColors={lessonColors}
-                                                defaultLessonColors={defaultLessonColors}
-                                                onLessonClick={handleLessonClick}
+                                                defaultLessonColors={
+                                                    defaultLessonColors
+                                                }
+                                                onLessonClick={
+                                                    handleLessonClick
+                                                }
                                                 isToday={false}
-                                                gradientOffsets={gradientOffsets}
+                                                gradientOffsets={
+                                                    gradientOffsets
+                                                }
                                                 hideHeader
                                             />
                                         </div>
