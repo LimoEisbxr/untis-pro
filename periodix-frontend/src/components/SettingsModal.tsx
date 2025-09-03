@@ -1124,12 +1124,222 @@ export default function SettingsModal({
                         </div>
 
                         {/* Tab Content */}
-                        <div>
-                            <p className="text-slate-600 dark:text-slate-400">
-                                Tab content for "{activeTab}" will be implemented here.
-                                Current user type: {user.isAdmin ? 'Admin' : user.isUserManager ? 'User Manager' : 'Regular User'}
-                            </p>
-                        </div>
+                        {/* Nickname Change Tab */}
+                        {activeTab === 'nickname' && (
+                            <div>
+                                <h3 className="text-lg font-medium mb-4 text-slate-900 dark:text-slate-100">
+                                    Display Name Settings
+                                </h3>
+                                <div className="mb-4">
+                                    <label
+                                        htmlFor="displayName"
+                                        className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2"
+                                    >
+                                        Display Name
+                                    </label>
+                                    <div className="flex gap-2">
+                                        <input
+                                            id="displayName"
+                                            className="input flex-1"
+                                            placeholder="Your display name"
+                                            value={myDisplayName}
+                                            onChange={(e) => {
+                                                setMyDisplayName(e.target.value);
+                                                setMyNameSaved(false);
+                                            }}
+                                            disabled={savingMyName}
+                                        />
+                                        <button
+                                            className="btn-primary"
+                                            onClick={handleSaveMyDisplayName}
+                                            disabled={
+                                                savingMyName ||
+                                                myDisplayName === (user.displayName ?? '')
+                                            }
+                                        >
+                                            {savingMyName ? 'Saving...' : 'Save'}
+                                        </button>
+                                    </div>
+                                    {myNameError && (
+                                        <div className="mt-2 text-sm text-red-600 dark:text-red-400">
+                                            {myNameError}
+                                        </div>
+                                    )}
+                                    {myNameSaved && !myNameError && (
+                                        <div className="mt-2 text-sm text-green-600 dark:text-green-400">
+                                            Display name updated!
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Personal Sharing Settings Tab */}
+                        {activeTab === 'sharing' && !user.isAdmin && (
+                            <div>
+                                {loading ? (
+                                    <div className="text-center text-slate-600 dark:text-slate-400">
+                                        Loading sharing settings...
+                                    </div>
+                                ) : error ? (
+                                    <div className="text-center text-red-600 dark:text-red-400">
+                                        {error}
+                                    </div>
+                                ) : settings ? (
+                                    <div>
+                                        <h3 className="text-lg font-medium mb-4 text-slate-900 dark:text-slate-100">
+                                            Timetable Sharing
+                                        </h3>
+
+                                        {/* Personal sharing toggle */}
+                                        <div className="flex items-center justify-between mb-6">
+                                            <div>
+                                                <h4 className="font-medium text-slate-900 dark:text-slate-100">
+                                                    Enable Timetable Sharing
+                                                </h4>
+                                                <p className="text-sm text-slate-600 dark:text-slate-400">
+                                                    Allow others to see your timetable
+                                                </p>
+                                            </div>
+                                            <label className="relative inline-flex items-center cursor-pointer">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={settings.sharingEnabled}
+                                                    onChange={(e) =>
+                                                        handleToggleSharing(e.target.checked)
+                                                    }
+                                                    disabled={!settings.globalSharingEnabled}
+                                                    className="sr-only peer"
+                                                />
+                                                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600 peer-disabled:opacity-50"></div>
+                                            </label>
+                                        </div>
+
+                                        {settings.globalSharingEnabled ? (
+                                            <>
+                                                {/* Search and add users */}
+                                                <div className="mb-4">
+                                                    <label className="block text-sm font-medium mb-2 text-slate-900 dark:text-slate-100">
+                                                        Share with new people
+                                                    </label>
+                                                    <div className="relative">
+                                                        <input
+                                                            type="text"
+                                                            placeholder="Search users by name or username..."
+                                                            value={searchQuery}
+                                                            onChange={(e) =>
+                                                                setSearchQuery(e.target.value)
+                                                            }
+                                                            className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 placeholder:text-slate-500 dark:placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                                        />
+                                                        {searchLoading && (
+                                                            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                                                                <div className="w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    {searchResults.length > 0 && (
+                                                        <div className="mt-2 border border-slate-200 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 max-h-40 overflow-y-auto">
+                                                            {searchResults.map((result) => (
+                                                                <button
+                                                                    key={result.id}
+                                                                    onClick={() =>
+                                                                        handleShareWithUser(result)
+                                                                    }
+                                                                    disabled={settings.sharingWith.some(
+                                                                        (u) => u.id === result.id
+                                                                    )}
+                                                                    className="w-full px-3 py-2 text-left hover:bg-slate-50 dark:hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed text-slate-900 dark:text-slate-100"
+                                                                >
+                                                                    <div className="font-medium text-slate-900 dark:text-slate-100">
+                                                                        {result.displayName || result.username}
+                                                                    </div>
+                                                                    {result.displayName && (
+                                                                        <div className="text-xs text-slate-500 dark:text-slate-400">
+                                                                            {result.username}
+                                                                        </div>
+                                                                    )}
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                {/* Current sharing list */}
+                                                <div>
+                                                    <h4 className="font-medium mb-3 text-slate-900 dark:text-slate-100">
+                                                        People you're sharing with ({settings.sharingWith.length})
+                                                    </h4>
+                                                    {settings.sharingWith.length === 0 ? (
+                                                        <p className="text-sm text-slate-500 dark:text-slate-400 text-center py-4 bg-slate-50 dark:bg-slate-700 rounded-md">
+                                                            You're not sharing your timetable with anyone yet.
+                                                        </p>
+                                                    ) : (
+                                                        <div className="space-y-2">
+                                                            {settings.sharingWith.map((sharedUser) => (
+                                                                <div
+                                                                    key={sharedUser.id}
+                                                                    className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-700 rounded-md"
+                                                                >
+                                                                    <div>
+                                                                        <div className="font-medium text-slate-900 dark:text-slate-100">
+                                                                            {sharedUser.displayName || sharedUser.username}
+                                                                        </div>
+                                                                        {sharedUser.displayName && (
+                                                                            <div className="text-xs text-slate-500 dark:text-slate-400">
+                                                                                {sharedUser.username}
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                    <button
+                                                                        onClick={() =>
+                                                                            handleStopSharing(sharedUser.id)
+                                                                        }
+                                                                        className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 p-1 rounded"
+                                                                        title="Stop sharing"
+                                                                    >
+                                                                        <svg
+                                                                            width="16"
+                                                                            height="16"
+                                                                            viewBox="0 0 24 24"
+                                                                            fill="none"
+                                                                        >
+                                                                            <path
+                                                                                d="M18 6L6 18M6 6l12 12"
+                                                                                stroke="currentColor"
+                                                                                strokeWidth="2"
+                                                                                strokeLinecap="round"
+                                                                                strokeLinejoin="round"
+                                                                            />
+                                                                        </svg>
+                                                                    </button>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </>
+                                        ) : (
+                                            <div className="text-center p-4 bg-slate-50 dark:bg-slate-700 rounded-md">
+                                                <p className="text-slate-600 dark:text-slate-400">
+                                                    Timetable sharing is currently disabled by an administrator.
+                                                </p>
+                                            </div>
+                                        )}
+                                    </div>
+                                ) : null}
+                            </div>
+                        )}
+
+                        {/* Placeholder for remaining tabs */}
+                        {!['nickname', 'sharing'].includes(activeTab) && (
+                            <div>
+                                <p className="text-slate-600 dark:text-slate-400">
+                                    Tab content for "{activeTab}" will be implemented next.
+                                    Current user type: {user.isAdmin ? 'Admin' : user.isUserManager ? 'User Manager' : 'Regular User'}
+                                </p>
+                            </div>
+                        )}
                     </div>
                     {false ? (
                         // Admin User Management Section
