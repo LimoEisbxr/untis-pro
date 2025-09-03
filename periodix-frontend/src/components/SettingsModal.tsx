@@ -11,6 +11,9 @@ import TabNavigation from './settings/TabNavigation';
 import NicknameChange from './settings/NicknameChange';
 import NotificationSettingsComponent from './settings/NotificationSettings';
 import SharingSettingsComponent from './settings/SharingSettings';
+import AdminUserManagement from './settings/AdminUserManagement';
+import UserManagerAccessManagement from './settings/UserManagerAccessManagement';
+import AdminAccessManagement from './settings/AdminAccessManagement';
 
 export default function SettingsModal({
     token,
@@ -127,7 +130,7 @@ export default function SettingsModal({
                             isVisible={activeTab === 'nickname'}
                         />
 
-                        {/* Personal Sharing Settings Tab */}
+                        {/* Personal Sharing Settings Tab - Available for Users and User-Managers */}
                         <SharingSettingsComponent
                             token={token}
                             user={user}
@@ -135,15 +138,49 @@ export default function SettingsModal({
                             isVisible={activeTab === 'sharing' && !user.isAdmin}
                         />
 
-                        {/* Notification Settings Tab */}
+                        {/* Notification Settings Tab - Available for Users and User-Managers */}
                         <NotificationSettingsComponent
                             token={token}
                             user={user}
                             isVisible={activeTab === 'notifications' && !user.isAdmin}
                         />
 
-                        {/* TODO: Add remaining modular components for user-manager and admin tabs */}
-                        {/* Whitelist & Access Request tabs should be implemented as modular components */}
+                        {/* Whitelist & Access Request Tab - Available for User-Managers and Admins */}
+                        {user.isUserManager && !user.isAdmin && activeTab === 'access' && (
+                            <UserManagerAccessManagement
+                                token={token}
+                                user={user}
+                                isVisible={true}
+                            />
+                        )}
+
+                        {user.isAdmin && activeTab === 'access' && (
+                            <AdminAccessManagement
+                                token={token}
+                                user={user}
+                                isVisible={true}
+                            />
+                        )}
+
+                        {/* Global Sharing Toggle Tab - Available for Admins only */}
+                        {user.isAdmin && activeTab === 'global' && (
+                            <div className="space-y-6">
+                                <div className="border-b border-slate-200 dark:border-slate-700 pb-4">
+                                    <h3 className="text-lg font-medium text-slate-900 dark:text-slate-100">
+                                        Global Sharing Control
+                                    </h3>
+                                    <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                                        System-wide sharing settings
+                                    </p>
+                                </div>
+                                {/* Use existing AdminUserManagement component which has global sharing toggle */}
+                                <AdminUserManagement
+                                    token={token}
+                                    user={user}
+                                    isVisible={true}
+                                />
+                            </div>
+                        )}
                         
                     </div>
                 </div>
