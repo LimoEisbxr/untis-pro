@@ -1089,16 +1089,220 @@ export default function SettingsModal({
                 </div>
 
                 <div className="overflow-y-auto max-h-[calc(90vh-80px)]">
-                    {user.isAdmin ? (
-                        // Admin User Management Section
-                        <>
-                            {userManagementLoading ? (
-                                <div className="p-6 text-center text-slate-600 dark:text-slate-400">
-                                    Loading users...
+                    {/* Common loading/error states */}
+                    {loading ? (
+                        <div className="p-6 text-center text-slate-600 dark:text-slate-400">
+                            Loading settings...
+                        </div>
+                    ) : error ? (
+                        <div className="p-6 text-center text-red-600 dark:text-red-400">
+                            {error}
+                        </div>
+                    ) : settings ? (
+                        <div className="p-6 space-y-6">
+                            {/* Personal display name - always shown first */}
+                            <div>
+                                <label className="block text-sm font-medium mb-2 text-slate-900 dark:text-slate-100">
+                                    Display name
+                                </label>
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        type="text"
+                                        value={myDisplayName}
+                                        onChange={(e) => {
+                                            setMyDisplayName(e.target.value);
+                                            setMyNameSaved(false);
+                                        }}
+                                        placeholder="Optional friendly name"
+                                        className="flex-1 px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 placeholder:text-slate-500 dark:placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                    />
+                                    <button
+                                        className="btn-primary"
+                                        onClick={saveMyDisplayName}
+                                        disabled={savingMyName}
+                                    >
+                                        Save
+                                    </button>
                                 </div>
-                            ) : userManagementError ? (
-                                <div className="p-6 text-center text-red-600 dark:text-red-400">
-                                    {userManagementError}
+                                {myNameError && (
+                                    <div className="mt-1 text-sm text-red-600 dark:text-red-400">
+                                        {myNameError}
+                                    </div>
+                                )}
+                                {myNameSaved && !myNameError && (
+                                    <div className="mt-1 text-sm text-green-600 dark:text-green-400">
+                                        Saved
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Global sharing control - admin only */}
+                            {user.isAdmin && (
+                                <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <h4 className="font-medium text-red-800 dark:text-red-200">
+                                                Global Sharing Control
+                                            </h4>
+                                            <p className="text-sm text-red-600 dark:text-red-300">
+                                                Disable all timetable sharing for everyone
+                                            </p>
+                                        </div>
+                                        <label className="relative inline-flex items-center cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                checked={settings?.globalSharingEnabled || false}
+                                                onChange={(e) => handleToggleGlobalSharing(e.target.checked)}
+                                                className="sr-only peer"
+                                            />
+                                            <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-red-300 dark:peer-focus:ring-red-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-red-600"></div>
+                                        </label>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Tab Navigation */}
+                            <div className="border-b border-slate-200 dark:border-slate-700">
+                                <nav className="flex space-x-8">
+                                    {getAvailableTabs().map((tab) => (
+                                        <button
+                                            key={tab.key}
+                                            onClick={() => setActiveTab(tab.key)}
+                                            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                                                activeTab === tab.key
+                                                    ? 'border-indigo-500 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400'
+                                                    : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 dark:text-slate-400 dark:hover:text-slate-300 dark:hover:border-slate-600'
+                                            }`}
+                                        >
+                                            {tab.label}
+                                        </button>
+                                    ))}
+                                </nav>
+                            </div>
+
+                            {/* Tab Content */}
+                            <div className="tab-content">
+                                {activeTab === 'notifications' && (
+                                    <div className="space-y-6">
+                                        {/* Notification Settings Content */}
+                                        {notificationLoading ? (
+                                            <div className="text-center text-slate-600 dark:text-slate-400">
+                                                Loading notification settings...
+                                            </div>
+                                        ) : notificationError ? (
+                                            <div className="text-center text-red-600 dark:text-red-400">
+                                                {notificationError}
+                                            </div>
+                                        ) : notificationSettings ? (
+                                            <div className="space-y-4">
+                                                <h3 className="text-lg font-medium text-slate-900 dark:text-slate-100">
+                                                    Notification Preferences
+                                                </h3>
+                                                
+                                                {/* Intelligent notification toggle */}
+                                                {isNotificationSupported() && (
+                                                    <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                                                        <div className="flex items-center justify-between">
+                                                            <div>
+                                                                <h4 className="font-medium text-slate-900 dark:text-slate-100">
+                                                                    Notifications
+                                                                </h4>
+                                                                <p className="text-sm text-slate-600 dark:text-slate-400">
+                                                                    {notificationPermission === 'granted'
+                                                                        ? isStandalonePWA()
+                                                                            ? 'PWA push notifications (background) enabled'
+                                                                            : 'Browser notifications (tab must be open) enabled'
+                                                                        : notificationPermissionMessage()}
+                                                                </p>
+                                                            </div>
+                                                            {canShowPermissionButton && (
+                                                                <button
+                                                                    className="btn-primary"
+                                                                    onClick={() => handleToggleNotifications(true)}
+                                                                    disabled={notificationLoading}
+                                                                >
+                                                                    {notificationLoading ? 'Enabling...' : 'Enable'}
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {/* Admin notification settings */}
+                                                {user.isAdmin && adminNotificationSettings && (
+                                                    <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                                                        <h4 className="font-medium text-blue-800 dark:text-blue-200 mb-4">
+                                                            Admin Notification Settings
+                                                        </h4>
+                                                        <div className="space-y-4">
+                                                            <div className="flex items-center justify-between">
+                                                                <div>
+                                                                    <h5 className="font-medium text-blue-800 dark:text-blue-200">
+                                                                        Timetable Notifications
+                                                                    </h5>
+                                                                    <p className="text-sm text-blue-600 dark:text-blue-300">
+                                                                        Enable automatic notifications for timetable changes
+                                                                    </p>
+                                                                </div>
+                                                                <label className="relative inline-flex items-center cursor-pointer">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={adminNotificationSettings?.enableTimetableNotifications || false}
+                                                                        onChange={(e) => handleUpdateAdminNotificationSettings({
+                                                                            enableTimetableNotifications: e.target.checked,
+                                                                        })}
+                                                                        className="sr-only peer"
+                                                                    />
+                                                                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-blue-600"></div>
+                                                                </label>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ) : null}
+                                    </div>
+                                )}
+
+                                {activeTab === 'sharing' && (
+                                    <div className="space-y-6">
+                                        {/* Timetable Sharing Settings Content */}
+                                        <h3 className="text-lg font-medium text-slate-900 dark:text-slate-100">
+                                            Timetable Sharing Settings
+                                        </h3>
+                                        {/* Sharing content will be added here */}
+                                        <div className="text-center p-4 bg-slate-50 dark:bg-slate-700 rounded-md">
+                                            <p className="text-slate-600 dark:text-slate-400">
+                                                Sharing settings content coming soon...
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {activeTab === 'access' && (user.isAdmin || user.isUserManager) && (
+                                    <div className="space-y-6">
+                                        {/* Access Requests & Whitelist Content */}
+                                        <h3 className="text-lg font-medium text-slate-900 dark:text-slate-100">
+                                            Access Requests & Whitelist
+                                        </h3>
+                                        {/* Access content will be added here */}
+                                        <div className="text-center p-4 bg-slate-50 dark:bg-slate-700 rounded-md">
+                                            <p className="text-slate-600 dark:text-slate-400">
+                                                Access management content coming soon...
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    ) : null}
+                </div>
+            </div>
+
+            {/* User Manager Grant/Revoke Confirmation Modal */}
+            {showConfirmUserManager && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl max-w-md w-full p-6">{/*Modal content continues...*/}
                                 </div>
                             ) : (
                                 <div className="p-6">
@@ -2632,29 +2836,7 @@ export default function SettingsModal({
                                         )}
                                     </div>
 
-                                    {/* Tab Navigation */}
-                                    <div className="border-b border-slate-200 dark:border-slate-700">
-                                        <nav className="flex space-x-8">
-                                            {getAvailableTabs().map((tab) => (
-                                                <button
-                                                    key={tab.key}
-                                                    onClick={() => setActiveTab(tab.key)}
-                                                    className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                                                        activeTab === tab.key
-                                                            ? 'border-indigo-500 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400'
-                                                            : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 dark:text-slate-400 dark:hover:text-slate-300 dark:hover:border-slate-600'
-                                                    }`}
-                                                >
-                                                    {tab.label}
-                                                </button>
-                                            ))}
-                                        </nav>
-                                    </div>
-
-                                    {/* Tab Content - Notifications */}
-                                    {activeTab === 'notifications' && (
-                                        <div>
-                                            {/* Notification Settings */}
+                                    {/* Notification Settings */}
                                     {notificationLoading ? (
                                         <div className="text-center text-slate-600 dark:text-slate-400">
                                             Loading notification settings...
