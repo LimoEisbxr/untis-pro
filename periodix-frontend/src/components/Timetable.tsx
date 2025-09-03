@@ -500,6 +500,8 @@ export default function Timetable({
     
     // Pull-to-refresh state
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const [isCompletingRefresh, setIsCompletingRefresh] = useState(false);
+    const [isAnimatingOut, setIsAnimatingOut] = useState(false);
     const [pullDistance, setPullDistance] = useState(0);
     const [isPulling, setIsPulling] = useState(false);
     const refreshThreshold = 60; // Distance needed to trigger refresh
@@ -519,7 +521,7 @@ export default function Timetable({
             'input,textarea,select,button,[contenteditable="true"],[role="textbox"]';
             
         const handleTouchStart = (e: TouchEvent) => {
-            if (e.touches.length !== 1 || isAnimating || isRefreshing) return;
+            if (e.touches.length !== 1 || isAnimating || isRefreshing || isCompletingRefresh || isAnimatingOut) return;
             const target = e.target as HTMLElement | null;
             // Ignore swipe if user starts on an interactive control
             if (
@@ -633,7 +635,20 @@ export default function Timetable({
                 setPullDistance(0);
                 
                 onRefresh().then(() => {
+                    // Start completion phase with loading circle
                     setIsRefreshing(false);
+                    setIsCompletingRefresh(true);
+                    
+                    // Show completion loading for 1 second, then animate out
+                    setTimeout(() => {
+                        setIsCompletingRefresh(false);
+                        setIsAnimatingOut(true);
+                        
+                        // Complete the animation after flying out
+                        setTimeout(() => {
+                            setIsAnimatingOut(false);
+                        }, 500); // Animation duration
+                    }, 1000); // 1 second loading circle
                 }).catch((error) => {
                     console.error('Refresh failed:', error);
                     setIsRefreshing(false);
@@ -814,7 +829,7 @@ export default function Timetable({
                 clearTimeout(wheelTimeout);
             }
         };
-    }, [onWeekNavigate, isDragging, isAnimating, isPulling, isRefreshing, onRefresh, pullDistance]);
+    }, [onWeekNavigate, isDragging, isAnimating, isPulling, isRefreshing, isCompletingRefresh, isAnimatingOut, onRefresh, pullDistance]);
 
     // Track current time and compute line position
     const [now, setNow] = useState<Date>(() => new Date());
@@ -963,12 +978,23 @@ export default function Timetable({
             )}
 
             {/* Pull-to-refresh indicator - overlaid above everything */}
-            {(isPulling || isRefreshing) && (
+            {(isPulling || isRefreshing || isCompletingRefresh || isAnimatingOut) && (
                 <div 
-                    className="absolute top-0 left-0 right-0 z-50 flex justify-center items-center py-3 transition-all duration-300 ease-out"
+                    className={`absolute top-0 left-0 right-0 z-50 flex justify-center items-center py-3 transition-all duration-300 ease-out ${
+                        isAnimatingOut ? 'animate-[flyOut_500ms_ease-in_forwards]' : ''
+                    }`}
                     style={{
-                        transform: `translateY(${isPulling ? Math.max(0, pullDistance * 0.8) : 20}px)`,
-                        opacity: isPulling ? Math.min(1, pullDistance / refreshThreshold) : 1
+                        transform: isAnimatingOut 
+                            ? 'translateY(-100px)' 
+                            : `translateY(${isPulling ? Math.max(0, pullDistance * 0.8) : 20}px)`,
+                        opacity: isAnimatingOut 
+                            ? 0 
+                            : isPulling 
+                                ? Math.min(1, pullDistance / refreshThreshold) 
+                                : 1,
+                        transition: isAnimatingOut 
+                            ? 'transform 500ms ease-in, opacity 500ms ease-in' 
+                            : 'all 300ms ease-out'
                     }}
                 >
                     <div className="flex items-center gap-2 px-4 py-2 bg-white/95 dark:bg-slate-800/95 backdrop-blur rounded-full shadow-lg border border-slate-200/60 dark:border-slate-600/60 text-slate-600 dark:text-slate-400">
@@ -976,6 +1002,11 @@ export default function Timetable({
                             <>
                                 <div className="animate-spin rounded-full h-5 w-5 border-2 border-sky-600 border-t-transparent"></div>
                                 <span className="text-sm font-medium">Refreshing...</span>
+                            </>
+                        ) : isCompletingRefresh ? (
+                            <>
+                                <div className="animate-spin rounded-full h-5 w-5 border-2 border-green-600 border-t-transparent"></div>
+                                <span className="text-sm font-medium">Complete!</span>
                             </>
                         ) : (
                             <>
