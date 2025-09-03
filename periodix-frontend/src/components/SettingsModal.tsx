@@ -96,7 +96,7 @@ export default function SettingsModal({
     const [settings, setSettings] = useState<SharingSettings | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    
+
     // Tab state for organized settings menu - different tabs for different user types
     const [activeTab, setActiveTab] = useState<string>(() => {
         if (user.isAdmin) return 'access';
@@ -109,7 +109,7 @@ export default function SettingsModal({
         if (user.isAdmin) {
             return [
                 { id: 'access', label: 'Whitelist & Access Request' },
-                { id: 'global', label: 'Global Sharing Toggle' }
+                { id: 'global', label: 'Global Sharing Toggle' },
             ];
         }
         if (user.isUserManager) {
@@ -117,14 +117,14 @@ export default function SettingsModal({
                 { id: 'nickname', label: 'Nickname Change' },
                 { id: 'sharing', label: 'Personal Sharing Settings' },
                 { id: 'notifications', label: 'Notification Settings' },
-                { id: 'access', label: 'Whitelist & Access Request' }
+                { id: 'access', label: 'Whitelist & Access Request' },
             ];
         }
         // Regular users
         return [
             { id: 'nickname', label: 'Nickname Change' },
             { id: 'sharing', label: 'Personal Sharing Settings' },
-            { id: 'notifications', label: 'Notification Settings' }
+            { id: 'notifications', label: 'Notification Settings' },
         ];
     };
     const [searchQuery, setSearchQuery] = useState('');
@@ -1144,7 +1144,9 @@ export default function SettingsModal({
                                             placeholder="Your display name"
                                             value={myDisplayName}
                                             onChange={(e) => {
-                                                setMyDisplayName(e.target.value);
+                                                setMyDisplayName(
+                                                    e.target.value
+                                                );
                                                 setMyNameSaved(false);
                                             }}
                                             disabled={savingMyName}
@@ -1154,10 +1156,13 @@ export default function SettingsModal({
                                             onClick={handleSaveMyDisplayName}
                                             disabled={
                                                 savingMyName ||
-                                                myDisplayName === (user.displayName ?? '')
+                                                myDisplayName ===
+                                                    (user.displayName ?? '')
                                             }
                                         >
-                                            {savingMyName ? 'Saving...' : 'Save'}
+                                            {savingMyName
+                                                ? 'Saving...'
+                                                : 'Save'}
                                         </button>
                                     </div>
                                     {myNameError && (
@@ -1198,17 +1203,24 @@ export default function SettingsModal({
                                                     Enable Timetable Sharing
                                                 </h4>
                                                 <p className="text-sm text-slate-600 dark:text-slate-400">
-                                                    Allow others to see your timetable
+                                                    Allow others to see your
+                                                    timetable
                                                 </p>
                                             </div>
                                             <label className="relative inline-flex items-center cursor-pointer">
                                                 <input
                                                     type="checkbox"
-                                                    checked={settings.sharingEnabled}
-                                                    onChange={(e) =>
-                                                        handleToggleSharing(e.target.checked)
+                                                    checked={
+                                                        settings.sharingEnabled
                                                     }
-                                                    disabled={!settings.globalSharingEnabled}
+                                                    onChange={(e) =>
+                                                        handleToggleSharing(
+                                                            e.target.checked
+                                                        )
+                                                    }
+                                                    disabled={
+                                                        !settings.globalSharingEnabled
+                                                    }
                                                     className="sr-only peer"
                                                 />
                                                 <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600 peer-disabled:opacity-50"></div>
@@ -1228,7 +1240,10 @@ export default function SettingsModal({
                                                             placeholder="Search users by name or username..."
                                                             value={searchQuery}
                                                             onChange={(e) =>
-                                                                setSearchQuery(e.target.value)
+                                                                setSearchQuery(
+                                                                    e.target
+                                                                        .value
+                                                                )
                                                             }
                                                             className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 placeholder:text-slate-500 dark:placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                                                         />
@@ -1238,29 +1253,43 @@ export default function SettingsModal({
                                                             </div>
                                                         )}
                                                     </div>
-                                                    {searchResults.length > 0 && (
+                                                    {searchResults.length >
+                                                        0 && (
                                                         <div className="mt-2 border border-slate-200 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 max-h-40 overflow-y-auto">
-                                                            {searchResults.map((result) => (
-                                                                <button
-                                                                    key={result.id}
-                                                                    onClick={() =>
-                                                                        handleShareWithUser(result)
-                                                                    }
-                                                                    disabled={settings.sharingWith.some(
-                                                                        (u) => u.id === result.id
-                                                                    )}
-                                                                    className="w-full px-3 py-2 text-left hover:bg-slate-50 dark:hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed text-slate-900 dark:text-slate-100"
-                                                                >
-                                                                    <div className="font-medium text-slate-900 dark:text-slate-100">
-                                                                        {result.displayName || result.username}
-                                                                    </div>
-                                                                    {result.displayName && (
-                                                                        <div className="text-xs text-slate-500 dark:text-slate-400">
-                                                                            {result.username}
+                                                            {searchResults.map(
+                                                                (result) => (
+                                                                    <button
+                                                                        key={
+                                                                            result.id
+                                                                        }
+                                                                        onClick={() =>
+                                                                            handleShareWithUser(
+                                                                                result
+                                                                            )
+                                                                        }
+                                                                        disabled={settings.sharingWith.some(
+                                                                            (
+                                                                                u
+                                                                            ) =>
+                                                                                u.id ===
+                                                                                result.id
+                                                                        )}
+                                                                        className="w-full px-3 py-2 text-left hover:bg-slate-50 dark:hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed text-slate-900 dark:text-slate-100"
+                                                                    >
+                                                                        <div className="font-medium text-slate-900 dark:text-slate-100">
+                                                                            {result.displayName ||
+                                                                                result.username}
                                                                         </div>
-                                                                    )}
-                                                                </button>
-                                                            ))}
+                                                                        {result.displayName && (
+                                                                            <div className="text-xs text-slate-500 dark:text-slate-400">
+                                                                                {
+                                                                                    result.username
+                                                                                }
+                                                                            </div>
+                                                                        )}
+                                                                    </button>
+                                                                )
+                                                            )}
                                                         </div>
                                                     )}
                                                 </div>
@@ -1268,53 +1297,73 @@ export default function SettingsModal({
                                                 {/* Current sharing list */}
                                                 <div>
                                                     <h4 className="font-medium mb-3 text-slate-900 dark:text-slate-100">
-                                                        People you're sharing with ({settings.sharingWith.length})
+                                                        People you're sharing
+                                                        with (
+                                                        {
+                                                            settings.sharingWith
+                                                                .length
+                                                        }
+                                                        )
                                                     </h4>
-                                                    {settings.sharingWith.length === 0 ? (
+                                                    {settings.sharingWith
+                                                        .length === 0 ? (
                                                         <p className="text-sm text-slate-500 dark:text-slate-400 text-center py-4 bg-slate-50 dark:bg-slate-700 rounded-md">
-                                                            You're not sharing your timetable with anyone yet.
+                                                            You're not sharing
+                                                            your timetable with
+                                                            anyone yet.
                                                         </p>
                                                     ) : (
                                                         <div className="space-y-2">
-                                                            {settings.sharingWith.map((sharedUser) => (
-                                                                <div
-                                                                    key={sharedUser.id}
-                                                                    className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-700 rounded-md"
-                                                                >
-                                                                    <div>
-                                                                        <div className="font-medium text-slate-900 dark:text-slate-100">
-                                                                            {sharedUser.displayName || sharedUser.username}
-                                                                        </div>
-                                                                        {sharedUser.displayName && (
-                                                                            <div className="text-xs text-slate-500 dark:text-slate-400">
-                                                                                {sharedUser.username}
-                                                                            </div>
-                                                                        )}
-                                                                    </div>
-                                                                    <button
-                                                                        onClick={() =>
-                                                                            handleStopSharing(sharedUser.id)
+                                                            {settings.sharingWith.map(
+                                                                (
+                                                                    sharedUser
+                                                                ) => (
+                                                                    <div
+                                                                        key={
+                                                                            sharedUser.id
                                                                         }
-                                                                        className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 p-1 rounded"
-                                                                        title="Stop sharing"
+                                                                        className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-700 rounded-md"
                                                                     >
-                                                                        <svg
-                                                                            width="16"
-                                                                            height="16"
-                                                                            viewBox="0 0 24 24"
-                                                                            fill="none"
+                                                                        <div>
+                                                                            <div className="font-medium text-slate-900 dark:text-slate-100">
+                                                                                {sharedUser.displayName ||
+                                                                                    sharedUser.username}
+                                                                            </div>
+                                                                            {sharedUser.displayName && (
+                                                                                <div className="text-xs text-slate-500 dark:text-slate-400">
+                                                                                    {
+                                                                                        sharedUser.username
+                                                                                    }
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                        <button
+                                                                            onClick={() =>
+                                                                                handleStopSharing(
+                                                                                    sharedUser.id
+                                                                                )
+                                                                            }
+                                                                            className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 p-1 rounded"
+                                                                            title="Stop sharing"
                                                                         >
-                                                                            <path
-                                                                                d="M18 6L6 18M6 6l12 12"
-                                                                                stroke="currentColor"
-                                                                                strokeWidth="2"
-                                                                                strokeLinecap="round"
-                                                                                strokeLinejoin="round"
-                                                                            />
-                                                                        </svg>
-                                                                    </button>
-                                                                </div>
-                                                            ))}
+                                                                            <svg
+                                                                                width="16"
+                                                                                height="16"
+                                                                                viewBox="0 0 24 24"
+                                                                                fill="none"
+                                                                            >
+                                                                                <path
+                                                                                    d="M18 6L6 18M6 6l12 12"
+                                                                                    stroke="currentColor"
+                                                                                    strokeWidth="2"
+                                                                                    strokeLinecap="round"
+                                                                                    strokeLinejoin="round"
+                                                                                />
+                                                                            </svg>
+                                                                        </button>
+                                                                    </div>
+                                                                )
+                                                            )}
                                                         </div>
                                                     )}
                                                 </div>
@@ -1322,7 +1371,9 @@ export default function SettingsModal({
                                         ) : (
                                             <div className="text-center p-4 bg-slate-50 dark:bg-slate-700 rounded-md">
                                                 <p className="text-slate-600 dark:text-slate-400">
-                                                    Timetable sharing is currently disabled by an administrator.
+                                                    Timetable sharing is
+                                                    currently disabled by an
+                                                    administrator.
                                                 </p>
                                             </div>
                                         )}
@@ -1359,7 +1410,8 @@ export default function SettingsModal({
                                                                 Notifications
                                                             </h4>
                                                             <p className="text-sm text-slate-600 dark:text-slate-400">
-                                                                {notificationPermission === 'granted'
+                                                                {notificationPermission ===
+                                                                'granted'
                                                                     ? isStandalonePWA()
                                                                         ? 'PWA push notifications (background) enabled'
                                                                         : 'Browser notifications (tab must be open) enabled'
@@ -1368,19 +1420,30 @@ export default function SettingsModal({
                                                         </div>
                                                         {canShowPermissionButton && (
                                                             <button
-                                                                onClick={handleRequestNotificationPermission}
+                                                                onClick={
+                                                                    handleRequestNotificationPermission
+                                                                }
                                                                 className="btn-primary text-sm"
                                                             >
                                                                 Enable
                                                             </button>
                                                         )}
-                                                        {notificationPermission === 'granted' && (
+                                                        {notificationPermission ===
+                                                            'granted' && (
                                                             <label className="relative inline-flex items-center cursor-pointer">
                                                                 <input
                                                                     type="checkbox"
-                                                                    checked={notificationSettings.browserNotificationsEnabled}
-                                                                    onChange={(e) =>
-                                                                        handleToggleNotifications(e.target.checked)
+                                                                    checked={
+                                                                        notificationSettings.browserNotificationsEnabled
+                                                                    }
+                                                                    onChange={(
+                                                                        e
+                                                                    ) =>
+                                                                        handleToggleNotifications(
+                                                                            e
+                                                                                .target
+                                                                                .checked
+                                                                        )
                                                                     }
                                                                     className="sr-only peer"
                                                                 />
@@ -1392,26 +1455,39 @@ export default function SettingsModal({
                                             )}
 
                                             {/* Notification preferences */}
-                                            {notificationPermission === 'granted' &&
+                                            {notificationPermission ===
+                                                'granted' &&
                                                 notificationSettings.browserNotificationsEnabled && (
                                                     <div className="space-y-3 ml-4 pl-4 border-l-2 border-slate-200 dark:border-slate-700">
                                                         <div className="flex items-center justify-between">
                                                             <div>
                                                                 <h5 className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                                                                    Cancelled Lessons
+                                                                    Cancelled
+                                                                    Lessons
                                                                 </h5>
                                                                 <p className="text-xs text-slate-600 dark:text-slate-400">
-                                                                    When your lessons are cancelled
+                                                                    When your
+                                                                    lessons are
+                                                                    cancelled
                                                                 </p>
                                                             </div>
                                                             <label className="relative inline-flex items-center cursor-pointer">
                                                                 <input
                                                                     type="checkbox"
-                                                                    checked={notificationSettings.cancelledLessonsEnabled}
-                                                                    onChange={(e) =>
-                                                                        handleUpdateNotificationSettings({
-                                                                            cancelledLessonsEnabled: e.target.checked,
-                                                                        })
+                                                                    checked={
+                                                                        notificationSettings.cancelledLessonsEnabled
+                                                                    }
+                                                                    onChange={(
+                                                                        e
+                                                                    ) =>
+                                                                        handleUpdateNotificationSettings(
+                                                                            {
+                                                                                cancelledLessonsEnabled:
+                                                                                    e
+                                                                                        .target
+                                                                                        .checked,
+                                                                            }
+                                                                        )
                                                                     }
                                                                     className="sr-only peer"
                                                                 />
@@ -1422,20 +1498,33 @@ export default function SettingsModal({
                                                         <div className="flex items-center justify-between">
                                                             <div>
                                                                 <h5 className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                                                                    Irregular Lessons
+                                                                    Irregular
+                                                                    Lessons
                                                                 </h5>
                                                                 <p className="text-xs text-slate-600 dark:text-slate-400">
-                                                                    When lessons have schedule changes
+                                                                    When lessons
+                                                                    have
+                                                                    schedule
+                                                                    changes
                                                                 </p>
                                                             </div>
                                                             <label className="relative inline-flex items-center cursor-pointer">
                                                                 <input
                                                                     type="checkbox"
-                                                                    checked={notificationSettings.irregularLessonsEnabled}
-                                                                    onChange={(e) =>
-                                                                        handleUpdateNotificationSettings({
-                                                                            irregularLessonsEnabled: e.target.checked,
-                                                                        })
+                                                                    checked={
+                                                                        notificationSettings.irregularLessonsEnabled
+                                                                    }
+                                                                    onChange={(
+                                                                        e
+                                                                    ) =>
+                                                                        handleUpdateNotificationSettings(
+                                                                            {
+                                                                                irregularLessonsEnabled:
+                                                                                    e
+                                                                                        .target
+                                                                                        .checked,
+                                                                            }
+                                                                        )
                                                                     }
                                                                     className="sr-only peer"
                                                                 />
@@ -1446,20 +1535,32 @@ export default function SettingsModal({
                                                         <div className="flex items-center justify-between">
                                                             <div>
                                                                 <h5 className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                                                                    Timetable Changes
+                                                                    Timetable
+                                                                    Changes
                                                                 </h5>
                                                                 <p className="text-xs text-slate-600 dark:text-slate-400">
-                                                                    General timetable updates
+                                                                    General
+                                                                    timetable
+                                                                    updates
                                                                 </p>
                                                             </div>
                                                             <label className="relative inline-flex items-center cursor-pointer">
                                                                 <input
                                                                     type="checkbox"
-                                                                    checked={notificationSettings.timetableChangesEnabled}
-                                                                    onChange={(e) =>
-                                                                        handleUpdateNotificationSettings({
-                                                                            timetableChangesEnabled: e.target.checked,
-                                                                        })
+                                                                    checked={
+                                                                        notificationSettings.timetableChangesEnabled
+                                                                    }
+                                                                    onChange={(
+                                                                        e
+                                                                    ) =>
+                                                                        handleUpdateNotificationSettings(
+                                                                            {
+                                                                                timetableChangesEnabled:
+                                                                                    e
+                                                                                        .target
+                                                                                        .checked,
+                                                                            }
+                                                                        )
                                                                     }
                                                                     className="sr-only peer"
                                                                 />
@@ -1467,24 +1568,37 @@ export default function SettingsModal({
                                                             </label>
                                                         </div>
 
-                                                        {(user.isUserManager || user.isAdmin) && (
+                                                        {(user.isUserManager ||
+                                                            user.isAdmin) && (
                                                             <div className="flex items-center justify-between">
                                                                 <div>
                                                                     <h5 className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                                                                        Access Requests
+                                                                        Access
+                                                                        Requests
                                                                     </h5>
                                                                     <p className="text-xs text-slate-600 dark:text-slate-400">
-                                                                        New user access requests
+                                                                        New user
+                                                                        access
+                                                                        requests
                                                                     </p>
                                                                 </div>
                                                                 <label className="relative inline-flex items-center cursor-pointer">
                                                                     <input
                                                                         type="checkbox"
-                                                                        checked={notificationSettings.accessRequestsEnabled}
-                                                                        onChange={(e) =>
-                                                                            handleUpdateNotificationSettings({
-                                                                                accessRequestsEnabled: e.target.checked,
-                                                                            })
+                                                                        checked={
+                                                                            notificationSettings.accessRequestsEnabled
+                                                                        }
+                                                                        onChange={(
+                                                                            e
+                                                                        ) =>
+                                                                            handleUpdateNotificationSettings(
+                                                                                {
+                                                                                    accessRequestsEnabled:
+                                                                                        e
+                                                                                            .target
+                                                                                            .checked,
+                                                                                }
+                                                                            )
                                                                         }
                                                                         className="sr-only peer"
                                                                     />
@@ -1501,222 +1615,342 @@ export default function SettingsModal({
                         )}
 
                         {/* Whitelist & Access Request Tab (User-Manager and Admin) */}
-                        {activeTab === 'access' && (user.isAdmin || user.isUserManager) && (
-                            <div>
-                                <h3 className="text-lg font-medium mb-4 text-slate-900 dark:text-slate-100">
-                                    Whitelist & Access Management
-                                </h3>
-                                
-                                {/* Whitelist management */}
-                                {settings?.whitelistEnabled ? (
-                                    <div className="mb-6 p-4 bg-slate-50 dark:bg-slate-900/30 rounded-lg border border-slate-200 dark:border-slate-700">
-                                        <div className="flex items-center justify-between mb-3">
-                                            <h4 className="font-medium text-slate-800 dark:text-slate-100">
-                                                Whitelist Management
-                                            </h4>
-                                        </div>
-                                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                                            <input
-                                                className="input"
-                                                placeholder="Enter username"
-                                                value={user.isAdmin ? wlValue : umWlValue}
-                                                onChange={(e) =>
-                                                    user.isAdmin 
-                                                        ? setWlValue(e.target.value)
-                                                        : setUmWlValue(e.target.value)
-                                                }
-                                                onKeyDown={(e) => {
-                                                    if (e.key === 'Enter') {
-                                                        const value = user.isAdmin ? wlValue.trim() : umWlValue.trim();
-                                                        if (value) {
-                                                            if (user.isAdmin) {
-                                                                handleAddWhitelistRule();
-                                                            } else {
-                                                                handleUserManagerAddRule(value);
+                        {activeTab === 'access' &&
+                            (user.isAdmin || user.isUserManager) && (
+                                <div>
+                                    <h3 className="text-lg font-medium mb-4 text-slate-900 dark:text-slate-100">
+                                        Whitelist & Access Management
+                                    </h3>
+
+                                    {/* Whitelist management */}
+                                    {settings?.whitelistEnabled ? (
+                                        <div className="mb-6 p-4 bg-slate-50 dark:bg-slate-900/30 rounded-lg border border-slate-200 dark:border-slate-700">
+                                            <div className="flex items-center justify-between mb-3">
+                                                <h4 className="font-medium text-slate-800 dark:text-slate-100">
+                                                    Whitelist Management
+                                                </h4>
+                                            </div>
+                                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                                                <input
+                                                    className="input"
+                                                    placeholder="Enter username"
+                                                    value={
+                                                        user.isAdmin
+                                                            ? wlValue
+                                                            : umWlValue
+                                                    }
+                                                    onChange={(e) =>
+                                                        user.isAdmin
+                                                            ? setWlValue(
+                                                                  e.target.value
+                                                              )
+                                                            : setUmWlValue(
+                                                                  e.target.value
+                                                              )
+                                                    }
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter') {
+                                                            const value =
+                                                                user.isAdmin
+                                                                    ? wlValue.trim()
+                                                                    : umWlValue.trim();
+                                                            if (value) {
+                                                                if (
+                                                                    user.isAdmin
+                                                                ) {
+                                                                    handleAddWhitelistRule();
+                                                                } else {
+                                                                    handleUserManagerAddRule(
+                                                                        value
+                                                                    );
+                                                                }
                                                             }
                                                         }
+                                                    }}
+                                                    disabled={
+                                                        user.isAdmin
+                                                            ? wlLoading
+                                                            : umWlLoading
                                                     }
-                                                }}
-                                                disabled={user.isAdmin ? wlLoading : umWlLoading}
-                                            />
-                                            <button
-                                                className="btn-primary whitespace-nowrap"
-                                                onClick={() => {
-                                                    if (user.isAdmin) {
-                                                        handleAddWhitelistRule();
-                                                    } else {
-                                                        handleUserManagerAddRule(umWlValue.trim());
+                                                />
+                                                <button
+                                                    className="btn-primary whitespace-nowrap"
+                                                    onClick={() => {
+                                                        if (user.isAdmin) {
+                                                            handleAddWhitelistRule();
+                                                        } else {
+                                                            handleUserManagerAddRule(
+                                                                umWlValue.trim()
+                                                            );
+                                                        }
+                                                    }}
+                                                    disabled={
+                                                        user.isAdmin
+                                                            ? wlLoading ||
+                                                              !wlValue.trim()
+                                                            : umWlLoading ||
+                                                              !umWlValue.trim()
                                                     }
-                                                }}
-                                                disabled={
-                                                    user.isAdmin 
-                                                        ? (wlLoading || !wlValue.trim())
-                                                        : (umWlLoading || !umWlValue.trim())
-                                                }
-                                            >
-                                                Add
-                                            </button>
-                                        </div>
-                                        {(user.isAdmin ? wlError : umWlError) && (
-                                            <div className="mt-2 text-sm text-red-600 dark:text-red-400">
-                                                {user.isAdmin ? wlError : umWlError}
+                                                >
+                                                    Add
+                                                </button>
                                             </div>
-                                        )}
-                                        <div className="mt-4 overflow-x-auto">
-                                            <table className="min-w-full text-sm">
-                                                <thead className="text-left text-slate-700 dark:text-slate-200">
-                                                    <tr>
-                                                        <th className="py-2 pr-4">Username</th>
-                                                        <th className="py-2 pr-4">Actions</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {(user.isAdmin ? whitelist : umWhitelist).map((r) => (
-                                                        <tr
-                                                            key={r.id}
-                                                            className="border-t border-slate-200/70 dark:border-slate-700/70"
-                                                        >
-                                                            <td className="py-2 pr-4 text-slate-900 dark:text-slate-100">
-                                                                {r.value}
-                                                            </td>
-                                                            <td className="py-2 pr-4 text-slate-900 dark:text-slate-100">
-                                                                <button
-                                                                    className="btn-secondary"
-                                                                    onClick={() =>
-                                                                        user.isAdmin
-                                                                            ? handleDeleteWhitelistRule(r.id)
-                                                                            : handleUserManagerDeleteRule(r.id)
-                                                                    }
-                                                                    disabled={user.isAdmin ? wlLoading : umWlLoading}
-                                                                >
-                                                                    Delete
-                                                                </button>
-                                                            </td>
-                                                        </tr>
-                                                    ))}
-                                                    {(user.isAdmin ? whitelist : umWhitelist).length === 0 && (
+                                            {(user.isAdmin
+                                                ? wlError
+                                                : umWlError) && (
+                                                <div className="mt-2 text-sm text-red-600 dark:text-red-400">
+                                                    {user.isAdmin
+                                                        ? wlError
+                                                        : umWlError}
+                                                </div>
+                                            )}
+                                            <div className="mt-4 overflow-x-auto">
+                                                <table className="min-w-full text-sm">
+                                                    <thead className="text-left text-slate-700 dark:text-slate-200">
                                                         <tr>
-                                                            <td
-                                                                colSpan={2}
-                                                                className="py-3 text-center text-slate-500 dark:text-slate-400"
+                                                            <th className="py-2 pr-4">
+                                                                Username
+                                                            </th>
+                                                            <th className="py-2 pr-4">
+                                                                Actions
+                                                            </th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {(user.isAdmin
+                                                            ? whitelist
+                                                            : umWhitelist
+                                                        ).map((r) => (
+                                                            <tr
+                                                                key={r.id}
+                                                                className="border-t border-slate-200/70 dark:border-slate-700/70"
                                                             >
-                                                                No usernames whitelisted
-                                                            </td>
-                                                        </tr>
-                                                    )}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    </div>
-                                ) : null}
-
-                                {/* Access requests management */}
-                                {settings?.whitelistEnabled ? (
-                                    <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700">
-                                        <div className="flex items-center justify-between mb-3">
-                                            <h4 className="font-medium text-blue-800 dark:text-blue-200">
-                                                Pending Access Requests
-                                            </h4>
-                                            <button
-                                                className="btn-secondary text-xs"
-                                                onClick={user.isAdmin ? loadAccessRequests : loadUserManagerAccessRequests}
-                                                disabled={user.isAdmin ? arLoading : umArLoading}
-                                            >
-                                                {(user.isAdmin ? arLoading : umArLoading) ? 'Loading...' : 'Refresh'}
-                                            </button>
-                                        </div>
-                                        {(user.isAdmin ? arError : umArError) && (
-                                            <div className="mb-3 text-sm text-red-600 dark:text-red-400">
-                                                {user.isAdmin ? arError : umArError}
+                                                                <td className="py-2 pr-4 text-slate-900 dark:text-slate-100">
+                                                                    {r.value}
+                                                                </td>
+                                                                <td className="py-2 pr-4 text-slate-900 dark:text-slate-100">
+                                                                    <button
+                                                                        className="btn-secondary"
+                                                                        onClick={() =>
+                                                                            user.isAdmin
+                                                                                ? handleDeleteWhitelistRule(
+                                                                                      r.id
+                                                                                  )
+                                                                                : handleUserManagerDeleteRule(
+                                                                                      r.id
+                                                                                  )
+                                                                        }
+                                                                        disabled={
+                                                                            user.isAdmin
+                                                                                ? wlLoading
+                                                                                : umWlLoading
+                                                                        }
+                                                                    >
+                                                                        Delete
+                                                                    </button>
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+                                                        {(user.isAdmin
+                                                            ? whitelist
+                                                            : umWhitelist
+                                                        ).length === 0 && (
+                                                            <tr>
+                                                                <td
+                                                                    colSpan={2}
+                                                                    className="py-3 text-center text-slate-500 dark:text-slate-400"
+                                                                >
+                                                                    No usernames
+                                                                    whitelisted
+                                                                </td>
+                                                            </tr>
+                                                        )}
+                                                    </tbody>
+                                                </table>
                                             </div>
-                                        )}
-                                        <div className="overflow-x-auto">
-                                            <table className="min-w-full text-sm">
-                                                <thead className="text-left text-blue-700 dark:text-blue-200">
-                                                    <tr>
-                                                        <th className="py-2 pr-4">Username</th>
-                                                        <th className="py-2 pr-4">Message</th>
-                                                        <th className="py-2 pr-4">Requested</th>
-                                                        <th className="py-2 pr-4">Actions</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {(user.isAdmin ? accessRequests : umAccessRequests).map((request) => (
-                                                        <tr
-                                                            key={request.id}
-                                                            className="border-t border-blue-200/70 dark:border-blue-700/70"
-                                                        >
-                                                            <td className="py-2 pr-4 text-slate-900 dark:text-slate-100 font-medium">
-                                                                {request.username}
-                                                            </td>
-                                                            <td className="py-2 pr-4 text-slate-700 dark:text-slate-300 max-w-xs">
-                                                                {request.message ? (
-                                                                    <div className="truncate" title={request.message}>
-                                                                        {request.message}
-                                                                    </div>
-                                                                ) : (
-                                                                    <span className="text-slate-500 italic">No message</span>
-                                                                )}
-                                                            </td>
-                                                            <td className="py-2 pr-4 text-slate-600 dark:text-slate-400 text-xs">
-                                                                {new Date(request.createdAt).toLocaleDateString()}
-                                                            </td>
-                                                            <td className="py-2 pr-4">
-                                                                <div className="flex gap-2">
-                                                                    <button
-                                                                        className="btn-primary text-xs px-2 py-1"
-                                                                        disabled={user.isAdmin ? arLoading : umArLoading}
-                                                                        onClick={() =>
-                                                                            user.isAdmin
-                                                                                ? handleAcceptAccessRequest(request.id)
-                                                                                : handleUserManagerAcceptAccessRequest(request.id)
-                                                                        }
-                                                                    >
-                                                                        Accept
-                                                                    </button>
-                                                                    <button
-                                                                        className="btn-secondary text-xs px-2 py-1"
-                                                                        disabled={user.isAdmin ? arLoading : umArLoading}
-                                                                        onClick={() =>
-                                                                            user.isAdmin
-                                                                                ? handleDeclineAccessRequest(request.id)
-                                                                                : handleUserManagerDeclineAccessRequest(request.id)
-                                                                        }
-                                                                    >
-                                                                        Decline
-                                                                    </button>
-                                                                </div>
-                                                            </td>
+                                        </div>
+                                    ) : null}
+
+                                    {/* Access requests management */}
+                                    {settings?.whitelistEnabled ? (
+                                        <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700">
+                                            <div className="flex items-center justify-between mb-3">
+                                                <h4 className="font-medium text-blue-800 dark:text-blue-200">
+                                                    Pending Access Requests
+                                                </h4>
+                                                <button
+                                                    className="btn-secondary text-xs"
+                                                    onClick={
+                                                        user.isAdmin
+                                                            ? loadAccessRequests
+                                                            : loadUserManagerAccessRequests
+                                                    }
+                                                    disabled={
+                                                        user.isAdmin
+                                                            ? arLoading
+                                                            : umArLoading
+                                                    }
+                                                >
+                                                    {(
+                                                        user.isAdmin
+                                                            ? arLoading
+                                                            : umArLoading
+                                                    )
+                                                        ? 'Loading...'
+                                                        : 'Refresh'}
+                                                </button>
+                                            </div>
+                                            {(user.isAdmin
+                                                ? arError
+                                                : umArError) && (
+                                                <div className="mb-3 text-sm text-red-600 dark:text-red-400">
+                                                    {user.isAdmin
+                                                        ? arError
+                                                        : umArError}
+                                                </div>
+                                            )}
+                                            <div className="overflow-x-auto">
+                                                <table className="min-w-full text-sm">
+                                                    <thead className="text-left text-blue-700 dark:text-blue-200">
+                                                        <tr>
+                                                            <th className="py-2 pr-4">
+                                                                Username
+                                                            </th>
+                                                            <th className="py-2 pr-4">
+                                                                Message
+                                                            </th>
+                                                            <th className="py-2 pr-4">
+                                                                Requested
+                                                            </th>
+                                                            <th className="py-2 pr-4">
+                                                                Actions
+                                                            </th>
                                                         </tr>
-                                                    ))}
-                                                    {(user.isAdmin ? accessRequests : umAccessRequests).length === 0 &&
-                                                        !(user.isAdmin ? arLoading : umArLoading) && (
+                                                    </thead>
+                                                    <tbody>
+                                                        {(user.isAdmin
+                                                            ? accessRequests
+                                                            : umAccessRequests
+                                                        ).map((request) => (
+                                                            <tr
+                                                                key={request.id}
+                                                                className="border-t border-blue-200/70 dark:border-blue-700/70"
+                                                            >
+                                                                <td className="py-2 pr-4 text-slate-900 dark:text-slate-100 font-medium">
+                                                                    {
+                                                                        request.username
+                                                                    }
+                                                                </td>
+                                                                <td className="py-2 pr-4 text-slate-700 dark:text-slate-300 max-w-xs">
+                                                                    {request.message ? (
+                                                                        <div
+                                                                            className="truncate"
+                                                                            title={
+                                                                                request.message
+                                                                            }
+                                                                        >
+                                                                            {
+                                                                                request.message
+                                                                            }
+                                                                        </div>
+                                                                    ) : (
+                                                                        <span className="text-slate-500 italic">
+                                                                            No
+                                                                            message
+                                                                        </span>
+                                                                    )}
+                                                                </td>
+                                                                <td className="py-2 pr-4 text-slate-600 dark:text-slate-400 text-xs">
+                                                                    {new Date(
+                                                                        request.createdAt
+                                                                    ).toLocaleDateString()}
+                                                                </td>
+                                                                <td className="py-2 pr-4">
+                                                                    <div className="flex gap-2">
+                                                                        <button
+                                                                            className="btn-primary text-xs px-2 py-1"
+                                                                            disabled={
+                                                                                user.isAdmin
+                                                                                    ? arLoading
+                                                                                    : umArLoading
+                                                                            }
+                                                                            onClick={() =>
+                                                                                user.isAdmin
+                                                                                    ? handleAcceptAccessRequest(
+                                                                                          request.id
+                                                                                      )
+                                                                                    : handleUserManagerAcceptAccessRequest(
+                                                                                          request.id
+                                                                                      )
+                                                                            }
+                                                                        >
+                                                                            Accept
+                                                                        </button>
+                                                                        <button
+                                                                            className="btn-secondary text-xs px-2 py-1"
+                                                                            disabled={
+                                                                                user.isAdmin
+                                                                                    ? arLoading
+                                                                                    : umArLoading
+                                                                            }
+                                                                            onClick={() =>
+                                                                                user.isAdmin
+                                                                                    ? handleDeclineAccessRequest(
+                                                                                          request.id
+                                                                                      )
+                                                                                    : handleUserManagerDeclineAccessRequest(
+                                                                                          request.id
+                                                                                      )
+                                                                            }
+                                                                        >
+                                                                            Decline
+                                                                        </button>
+                                                                    </div>
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+                                                        {(user.isAdmin
+                                                            ? accessRequests
+                                                            : umAccessRequests
+                                                        ).length === 0 &&
+                                                            !(user.isAdmin
+                                                                ? arLoading
+                                                                : umArLoading) && (
+                                                                <tr>
+                                                                    <td
+                                                                        colSpan={
+                                                                            4
+                                                                        }
+                                                                        className="py-3 text-center text-slate-500 dark:text-slate-400"
+                                                                    >
+                                                                        No
+                                                                        pending
+                                                                        access
+                                                                        requests
+                                                                    </td>
+                                                                </tr>
+                                                            )}
+                                                        {(user.isAdmin
+                                                            ? arLoading
+                                                            : umArLoading) && (
                                                             <tr>
                                                                 <td
                                                                     colSpan={4}
                                                                     className="py-3 text-center text-slate-500 dark:text-slate-400"
                                                                 >
-                                                                    No pending access requests
+                                                                    Loading
+                                                                    access
+                                                                    requests...
                                                                 </td>
                                                             </tr>
                                                         )}
-                                                    {(user.isAdmin ? arLoading : umArLoading) && (
-                                                        <tr>
-                                                            <td
-                                                                colSpan={4}
-                                                                className="py-3 text-center text-slate-500 dark:text-slate-400"
-                                                            >
-                                                                Loading access requests...
-                                                            </td>
-                                                        </tr>
-                                                    )}
-                                                </tbody>
-                                            </table>
+                                                    </tbody>
+                                                </table>
+                                            </div>
                                         </div>
-                                    </div>
-                                ) : null}
-                            </div>
-                        )}
+                                    ) : null}
+                                </div>
+                            )}
 
                         {/* Global Sharing Toggle Tab (Admin only) */}
                         {activeTab === 'global' && user.isAdmin && (
@@ -1724,7 +1958,7 @@ export default function SettingsModal({
                                 <h3 className="text-lg font-medium mb-4 text-slate-900 dark:text-slate-100">
                                     Global Settings
                                 </h3>
-                                
+
                                 {/* Global sharing control */}
                                 {settings && (
                                     <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
@@ -1734,15 +1968,18 @@ export default function SettingsModal({
                                                     Global Sharing Control
                                                 </h4>
                                                 <p className="text-sm text-red-600 dark:text-red-300">
-                                                    Disable all timetable sharing for everyone
+                                                    Disable all timetable
+                                                    sharing for everyone
                                                 </p>
                                             </div>
                                             <label className="relative inline-flex items-center cursor-pointer">
                                                 <input
                                                     type="checkbox"
-                                                    checked={settings.globalSharingEnabled}
+                                                    checked={!!settings?.globalSharingEnabled}
                                                     onChange={(e) =>
-                                                        handleToggleGlobalSharing(e.target.checked)
+                                                        handleToggleGlobalSharing(
+                                                            e.target.checked
+                                                        )
                                                     }
                                                     className="sr-only peer"
                                                 />
@@ -1772,20 +2009,28 @@ export default function SettingsModal({
                                                 <div className="flex items-center justify-between">
                                                     <div>
                                                         <h5 className="font-medium text-blue-800 dark:text-blue-200">
-                                                            Timetable Notifications
+                                                            Timetable
+                                                            Notifications
                                                         </h5>
                                                         <p className="text-sm text-blue-600 dark:text-blue-300">
-                                                            Enable automatic notifications for timetable changes
+                                                            Enable automatic
+                                                            notifications for
+                                                            timetable changes
                                                         </p>
                                                     </div>
                                                     <label className="relative inline-flex items-center cursor-pointer">
                                                         <input
                                                             type="checkbox"
-                                                            checked={adminNotificationSettings.enableTimetableNotifications}
+                                                            checked={!!adminNotificationSettings?.enableTimetableNotifications}
                                                             onChange={(e) =>
-                                                                handleUpdateAdminNotificationSettings({
-                                                                    enableTimetableNotifications: e.target.checked,
-                                                                })
+                                                                handleUpdateAdminNotificationSettings(
+                                                                    {
+                                                                        enableTimetableNotifications:
+                                                                            e
+                                                                                .target
+                                                                                .checked,
+                                                                    }
+                                                                )
                                                             }
                                                             className="sr-only peer"
                                                         />
@@ -1796,20 +2041,28 @@ export default function SettingsModal({
                                                 <div className="flex items-center justify-between">
                                                     <div>
                                                         <h5 className="font-medium text-blue-800 dark:text-blue-200">
-                                                            Access Request Notifications
+                                                            Access Request
+                                                            Notifications
                                                         </h5>
                                                         <p className="text-sm text-blue-600 dark:text-blue-300">
-                                                            Notify user managers about new access requests
+                                                            Notify user managers
+                                                            about new access
+                                                            requests
                                                         </p>
                                                     </div>
                                                     <label className="relative inline-flex items-center cursor-pointer">
                                                         <input
                                                             type="checkbox"
-                                                            checked={adminNotificationSettings.enableAccessRequestNotifications}
+                                                            checked={!!adminNotificationSettings?.enableAccessRequestNotifications}
                                                             onChange={(e) =>
-                                                                handleUpdateAdminNotificationSettings({
-                                                                    enableAccessRequestNotifications: e.target.checked,
-                                                                })
+                                                                handleUpdateAdminNotificationSettings(
+                                                                    {
+                                                                        enableAccessRequestNotifications:
+                                                                            e
+                                                                                .target
+                                                                                .checked,
+                                                                    }
+                                                                )
                                                             }
                                                             className="sr-only peer"
                                                         />
@@ -1819,23 +2072,38 @@ export default function SettingsModal({
 
                                                 <div>
                                                     <label className="block text-sm font-medium text-blue-800 dark:text-blue-200 mb-2">
-                                                        Timetable Check Interval (minutes)
+                                                        Timetable Check Interval
+                                                        (minutes)
                                                     </label>
                                                     <p className="text-xs text-blue-600 dark:text-blue-300 mb-2">
-                                                        How often to check for timetable changes (5-1440 minutes)
+                                                        How often to check for
+                                                        timetable changes
+                                                        (5-1440 minutes)
                                                     </p>
                                                     <div className="flex items-center gap-2">
                                                         <input
                                                             type="number"
                                                             min="5"
                                                             max="1440"
-                                                            value={adminNotificationSettings.timetableFetchInterval}
+                                                            value={adminNotificationSettings?.timetableFetchInterval ?? ''}
                                                             onChange={(e) => {
-                                                                const value = parseInt(e.target.value);
-                                                                if (value >= 5 && value <= 1440) {
-                                                                    handleUpdateAdminNotificationSettings({
-                                                                        timetableFetchInterval: value,
-                                                                    });
+                                                                const value =
+                                                                    parseInt(
+                                                                        e.target
+                                                                            .value
+                                                                    );
+                                                                if (
+                                                                    value >=
+                                                                        5 &&
+                                                                    value <=
+                                                                        1440
+                                                                ) {
+                                                                    handleUpdateAdminNotificationSettings(
+                                                                        {
+                                                                            timetableFetchInterval:
+                                                                                value,
+                                                                        }
+                                                                    );
                                                                 }
                                                             }}
                                                             className="w-20 px-2 py-1 text-sm border border-blue-300 dark:border-blue-600 rounded bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100"
@@ -1853,11 +2121,22 @@ export default function SettingsModal({
                         )}
 
                         {/* Fallback for unhandled tabs */}
-                        {!['nickname', 'sharing', 'notifications', 'access', 'global'].includes(activeTab) && (
+                        {![
+                            'nickname',
+                            'sharing',
+                            'notifications',
+                            'access',
+                            'global',
+                        ].includes(activeTab) && (
                             <div>
                                 <p className="text-slate-600 dark:text-slate-400">
-                                    Tab content for "{activeTab}" is not implemented.
-                                    Current user type: {user.isAdmin ? 'Admin' : user.isUserManager ? 'User Manager' : 'Regular User'}
+                                    Tab content for "{activeTab}" is not
+                                    implemented. Current user type:{' '}
+                                    {user.isAdmin
+                                        ? 'Admin'
+                                        : user.isUserManager
+                                        ? 'User Manager'
+                                        : 'Regular User'}
                                 </p>
                             </div>
                         )}
@@ -1891,9 +2170,7 @@ export default function SettingsModal({
                                                 <label className="relative inline-flex items-center cursor-pointer">
                                                     <input
                                                         type="checkbox"
-                                                        checked={
-                                                            settings.globalSharingEnabled
-                                                        }
+                                                        checked={!!settings?.globalSharingEnabled}
                                                         onChange={(e) =>
                                                             handleToggleGlobalSharing(
                                                                 e.target.checked
@@ -1940,9 +2217,7 @@ export default function SettingsModal({
                                                         <label className="relative inline-flex items-center cursor-pointer">
                                                             <input
                                                                 type="checkbox"
-                                                                checked={
-                                                                    adminNotificationSettings.enableTimetableNotifications
-                                                                }
+                                                                checked={!!adminNotificationSettings?.enableTimetableNotifications}
                                                                 onChange={(e) =>
                                                                     handleUpdateAdminNotificationSettings(
                                                                         {
@@ -1975,9 +2250,7 @@ export default function SettingsModal({
                                                         <label className="relative inline-flex items-center cursor-pointer">
                                                             <input
                                                                 type="checkbox"
-                                                                checked={
-                                                                    adminNotificationSettings.enableAccessRequestNotifications
-                                                                }
+                                                                checked={!!adminNotificationSettings?.enableAccessRequestNotifications}
                                                                 onChange={(e) =>
                                                                     handleUpdateAdminNotificationSettings(
                                                                         {
@@ -2010,9 +2283,7 @@ export default function SettingsModal({
                                                                 type="number"
                                                                 min="5"
                                                                 max="1440"
-                                                                value={
-                                                                    adminNotificationSettings.timetableFetchInterval
-                                                                }
+                                                                value={adminNotificationSettings?.timetableFetchInterval ?? ''}
                                                                 onChange={(
                                                                     e
                                                                 ) => {
@@ -3147,11 +3418,15 @@ export default function SettingsModal({
                                         </div>
                                     )
                                 )}
-                                    </div>
+                            </div>
 
-                                {/* Sharing Settings for User Managers */}
-                                <div className={activeTab === 'sharing' ? 'block' : 'hidden'}>
-                                    {loading ? (
+                            {/* Sharing Settings for User Managers */}
+                            <div
+                                className={
+                                    activeTab === 'sharing' ? 'block' : 'hidden'
+                                }
+                            >
+                                {loading ? (
                                     <div className="text-center text-slate-600 dark:text-slate-400 pt-6">
                                         Loading sharing settings...
                                     </div>
@@ -3411,9 +3686,14 @@ export default function SettingsModal({
                                     <div className="border-b border-slate-200 dark:border-slate-700 mb-6">
                                         <nav className="flex space-x-8">
                                             <button
-                                                onClick={() => setActiveTab('notifications')}
+                                                onClick={() =>
+                                                    setActiveTab(
+                                                        'notifications'
+                                                    )
+                                                }
                                                 className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                                                    activeTab === 'notifications'
+                                                    activeTab ===
+                                                    'notifications'
                                                         ? 'border-indigo-500 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400'
                                                         : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 dark:text-slate-400 dark:hover:text-slate-300 dark:hover:border-slate-600'
                                                 }`}
@@ -3421,7 +3701,9 @@ export default function SettingsModal({
                                                 Notification Settings
                                             </button>
                                             <button
-                                                onClick={() => setActiveTab('sharing')}
+                                                onClick={() =>
+                                                    setActiveTab('sharing')
+                                                }
                                                 className={`py-2 px-1 border-b-2 font-medium text-sm ${
                                                     activeTab === 'sharing'
                                                         ? 'border-indigo-500 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400'
@@ -3434,343 +3716,112 @@ export default function SettingsModal({
                                     </div>
 
                                     {/* Notification Settings */}
-                                    <div className={activeTab === 'notifications' ? 'block' : 'hidden'}>
+                                    <div
+                                        className={
+                                            activeTab === 'notifications'
+                                                ? 'block'
+                                                : 'hidden'
+                                        }
+                                    >
                                         {notificationLoading ? (
-                                        <div className="text-center text-slate-600 dark:text-slate-400">
-                                            Loading notification settings...
-                                        </div>
-                                    ) : notificationError ? (
-                                        <div className="text-center text-red-600 dark:text-red-400">
-                                            {notificationError}
-                                        </div>
-                                    ) : (
-                                        notificationSettings && (
-                                            <div className="border-t border-slate-200 dark:border-slate-700 pt-6">
-                                                <h3 className="text-lg font-medium mb-4 text-slate-900 dark:text-slate-100">
-                                                    Notification Preferences
-                                                </h3>
+                                            <div className="text-center text-slate-600 dark:text-slate-400">
+                                                Loading notification settings...
+                                            </div>
+                                        ) : notificationError ? (
+                                            <div className="text-center text-red-600 dark:text-red-400">
+                                                {notificationError}
+                                            </div>
+                                        ) : (
+                                            notificationSettings && (
+                                                <div className="border-t border-slate-200 dark:border-slate-700 pt-6">
+                                                    <h3 className="text-lg font-medium mb-4 text-slate-900 dark:text-slate-100">
+                                                        Notification Preferences
+                                                    </h3>
 
-                                                {/* Intelligent notification toggle */}
-                                                {isNotificationSupported() && (
-                                                    <div className="mb-4">
-                                                        <div className="flex items-center justify-between">
-                                                            <div>
-                                                                <h4 className="font-medium text-slate-900 dark:text-slate-100">
-                                                                    Notifications
-                                                                </h4>
-                                                                <p className="text-sm text-slate-600 dark:text-slate-400">
-                                                                    {notificationPermission ===
-                                                                    'granted'
-                                                                        ? isStandalonePWA()
-                                                                            ? 'PWA push notifications (background) enabled'
-                                                                            : 'Browser notifications (tab must be open) enabled'
-                                                                        : notificationPermissionMessage()}
-                                                                </p>
-                                                            </div>
-                                                            {canShowPermissionButton && (
-                                                                <button
-                                                                    onClick={
-                                                                        handleRequestNotificationPermission
-                                                                    }
-                                                                    className="btn-primary text-sm"
-                                                                >
-                                                                    Enable
-                                                                </button>
-                                                            )}
-                                                            {notificationPermission ===
-                                                                'granted' && (
-                                                                <label className="relative inline-flex items-center cursor-pointer">
-                                                                    <input
-                                                                        type="checkbox"
-                                                                        checked={
-                                                                            notificationSettings.browserNotificationsEnabled
+                                                    {/* Intelligent notification toggle */}
+                                                    {isNotificationSupported() && (
+                                                        <div className="mb-4">
+                                                            <div className="flex items-center justify-between">
+                                                                <div>
+                                                                    <h4 className="font-medium text-slate-900 dark:text-slate-100">
+                                                                        Notifications
+                                                                    </h4>
+                                                                    <p className="text-sm text-slate-600 dark:text-slate-400">
+                                                                        {notificationPermission ===
+                                                                        'granted'
+                                                                            ? isStandalonePWA()
+                                                                                ? 'PWA push notifications (background) enabled'
+                                                                                : 'Browser notifications (tab must be open) enabled'
+                                                                            : notificationPermissionMessage()}
+                                                                    </p>
+                                                                </div>
+                                                                {canShowPermissionButton && (
+                                                                    <button
+                                                                        onClick={
+                                                                            handleRequestNotificationPermission
                                                                         }
-                                                                        onChange={(
-                                                                            e
-                                                                        ) =>
-                                                                            handleToggleNotifications(
+                                                                        className="btn-primary text-sm"
+                                                                    >
+                                                                        Enable
+                                                                    </button>
+                                                                )}
+                                                                {notificationPermission ===
+                                                                    'granted' && (
+                                                                    <label className="relative inline-flex items-center cursor-pointer">
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            checked={
+                                                                                notificationSettings.browserNotificationsEnabled
+                                                                            }
+                                                                            onChange={(
                                                                                 e
-                                                                                    .target
-                                                                                    .checked
-                                                                            )
-                                                                        }
-                                                                        className="sr-only peer"
-                                                                    />
-                                                                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600"></div>
-                                                                </label>
-                                                            )}
+                                                                            ) =>
+                                                                                handleToggleNotifications(
+                                                                                    e
+                                                                                        .target
+                                                                                        .checked
+                                                                                )
+                                                                            }
+                                                                            className="sr-only peer"
+                                                                        />
+                                                                        <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600"></div>
+                                                                    </label>
+                                                                )}
+                                                            </div>
                                                         </div>
-                                                    </div>
-                                                )}
+                                                    )}
 
-                                                {/* Notification type preferences */}
-                                                {notificationPermission ===
-                                                    'granted' &&
-                                                    notificationSettings.browserNotificationsEnabled && (
-                                                        <div className="space-y-3 ml-4 pl-4 border-l-2 border-slate-200 dark:border-slate-700">
-                                                            <div className="flex items-center justify-between">
-                                                                <div>
-                                                                    <h5 className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                                                                        Cancelled
-                                                                        Lessons
-                                                                    </h5>
-                                                                    <p className="text-xs text-slate-600 dark:text-slate-400">
-                                                                        When
-                                                                        your
-                                                                        lessons
-                                                                        are
-                                                                        cancelled
-                                                                    </p>
-                                                                </div>
-                                                                <label className="relative inline-flex items-center cursor-pointer">
-                                                                    <input
-                                                                        type="checkbox"
-                                                                        checked={
-                                                                            notificationSettings.cancelledLessonsEnabled
-                                                                        }
-                                                                        onChange={(
-                                                                            e
-                                                                        ) =>
-                                                                            handleUpdateNotificationSettings(
-                                                                                {
-                                                                                    cancelledLessonsEnabled:
-                                                                                        e
-                                                                                            .target
-                                                                                            .checked,
-                                                                                }
-                                                                            )
-                                                                        }
-                                                                        className="sr-only peer"
-                                                                    />
-                                                                    <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600"></div>
-                                                                </label>
-                                                            </div>
-
-                                                            {/* Time scope for cancelled lessons */}
-                                                            {notificationSettings.cancelledLessonsEnabled && (
-                                                                <div className="ml-4 pl-4 border-l border-slate-200 dark:border-slate-600">
-                                                                    <p className="text-xs font-medium text-slate-700 dark:text-slate-300 mb-2">
-                                                                        Notify
-                                                                        me for
-                                                                        cancelled
-                                                                        lessons:
-                                                                    </p>
-                                                                    <div className="flex gap-4">
-                                                                        <label className="flex items-center cursor-pointer">
-                                                                            <input
-                                                                                type="radio"
-                                                                                name="cancelledScope"
-                                                                                value="day"
-                                                                                checked={
-                                                                                    notificationSettings.cancelledLessonsTimeScope ===
-                                                                                    'day'
-                                                                                }
-                                                                                onChange={() =>
-                                                                                    handleUpdateNotificationSettings(
-                                                                                        {
-                                                                                            cancelledLessonsTimeScope:
-                                                                                                'day',
-                                                                                        }
-                                                                                    )
-                                                                                }
-                                                                                className="w-4 h-4 text-indigo-600 border-slate-300 dark:border-slate-600 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:ring-2"
-                                                                            />
-                                                                            <span className="ml-2 text-xs text-slate-600 dark:text-slate-400">
-                                                                                Today
-                                                                                only
-                                                                            </span>
-                                                                        </label>
-                                                                        <label className="flex items-center cursor-pointer">
-                                                                            <input
-                                                                                type="radio"
-                                                                                name="cancelledScope"
-                                                                                value="week"
-                                                                                checked={
-                                                                                    notificationSettings.cancelledLessonsTimeScope ===
-                                                                                    'week'
-                                                                                }
-                                                                                onChange={() =>
-                                                                                    handleUpdateNotificationSettings(
-                                                                                        {
-                                                                                            cancelledLessonsTimeScope:
-                                                                                                'week',
-                                                                                        }
-                                                                                    )
-                                                                                }
-                                                                                className="w-4 h-4 text-indigo-600 border-slate-300 dark:border-slate-600 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:ring-2"
-                                                                            />
-                                                                            <span className="ml-2 text-xs text-slate-600 dark:text-slate-400">
-                                                                                This
-                                                                                week
-                                                                            </span>
-                                                                        </label>
-                                                                    </div>
-                                                                </div>
-                                                            )}
-
-                                                            <div className="flex items-center justify-between">
-                                                                <div>
-                                                                    <h5 className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                                                                        Irregular
-                                                                        Lessons
-                                                                    </h5>
-                                                                    <p className="text-xs text-slate-600 dark:text-slate-400">
-                                                                        When
-                                                                        lessons
-                                                                        have
-                                                                        schedule
-                                                                        changes
-                                                                    </p>
-                                                                </div>
-                                                                <label className="relative inline-flex items-center cursor-pointer">
-                                                                    <input
-                                                                        type="checkbox"
-                                                                        checked={
-                                                                            notificationSettings.irregularLessonsEnabled
-                                                                        }
-                                                                        onChange={(
-                                                                            e
-                                                                        ) =>
-                                                                            handleUpdateNotificationSettings(
-                                                                                {
-                                                                                    irregularLessonsEnabled:
-                                                                                        e
-                                                                                            .target
-                                                                                            .checked,
-                                                                                }
-                                                                            )
-                                                                        }
-                                                                        className="sr-only peer"
-                                                                    />
-                                                                    <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600"></div>
-                                                                </label>
-                                                            </div>
-
-                                                            {/* Time scope for irregular lessons */}
-                                                            {notificationSettings.irregularLessonsEnabled && (
-                                                                <div className="ml-4 pl-4 border-l border-slate-200 dark:border-slate-600">
-                                                                    <p className="text-xs font-medium text-slate-700 dark:text-slate-300 mb-2">
-                                                                        Notify
-                                                                        me for
-                                                                        irregular
-                                                                        lessons:
-                                                                    </p>
-                                                                    <div className="flex gap-4">
-                                                                        <label className="flex items-center cursor-pointer">
-                                                                            <input
-                                                                                type="radio"
-                                                                                name="irregularScope"
-                                                                                value="day"
-                                                                                checked={
-                                                                                    notificationSettings.irregularLessonsTimeScope ===
-                                                                                    'day'
-                                                                                }
-                                                                                onChange={() =>
-                                                                                    handleUpdateNotificationSettings(
-                                                                                        {
-                                                                                            irregularLessonsTimeScope:
-                                                                                                'day',
-                                                                                        }
-                                                                                    )
-                                                                                }
-                                                                                className="w-4 h-4 text-indigo-600 border-slate-300 dark:border-slate-600 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:ring-2"
-                                                                            />
-                                                                            <span className="ml-2 text-xs text-slate-600 dark:text-slate-400">
-                                                                                Today
-                                                                                only
-                                                                            </span>
-                                                                        </label>
-                                                                        <label className="flex items-center cursor-pointer">
-                                                                            <input
-                                                                                type="radio"
-                                                                                name="irregularScope"
-                                                                                value="week"
-                                                                                checked={
-                                                                                    notificationSettings.irregularLessonsTimeScope ===
-                                                                                    'week'
-                                                                                }
-                                                                                onChange={() =>
-                                                                                    handleUpdateNotificationSettings(
-                                                                                        {
-                                                                                            irregularLessonsTimeScope:
-                                                                                                'week',
-                                                                                        }
-                                                                                    )
-                                                                                }
-                                                                                className="w-4 h-4 text-indigo-600 border-slate-300 dark:border-slate-600 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:ring-2"
-                                                                            />
-                                                                            <span className="ml-2 text-xs text-slate-600 dark:text-slate-400">
-                                                                                This
-                                                                                week
-                                                                            </span>
-                                                                        </label>
-                                                                    </div>
-                                                                </div>
-                                                            )}
-
-                                                            <div className="flex items-center justify-between">
-                                                                <div>
-                                                                    <h5 className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                                                                        Timetable
-                                                                        Changes
-                                                                    </h5>
-                                                                    <p className="text-xs text-slate-600 dark:text-slate-400">
-                                                                        General
-                                                                        timetable
-                                                                        updates
-                                                                    </p>
-                                                                </div>
-                                                                <label className="relative inline-flex items-center cursor-pointer">
-                                                                    <input
-                                                                        type="checkbox"
-                                                                        checked={
-                                                                            notificationSettings.timetableChangesEnabled
-                                                                        }
-                                                                        onChange={(
-                                                                            e
-                                                                        ) =>
-                                                                            handleUpdateNotificationSettings(
-                                                                                {
-                                                                                    timetableChangesEnabled:
-                                                                                        e
-                                                                                            .target
-                                                                                            .checked,
-                                                                                }
-                                                                            )
-                                                                        }
-                                                                        className="sr-only peer"
-                                                                    />
-                                                                    <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600"></div>
-                                                                </label>
-                                                            </div>
-
-                                                            {(user.isUserManager ||
-                                                                user.isAdmin) && (
+                                                    {/* Notification type preferences */}
+                                                    {notificationPermission ===
+                                                        'granted' &&
+                                                        notificationSettings.browserNotificationsEnabled && (
+                                                            <div className="space-y-3 ml-4 pl-4 border-l-2 border-slate-200 dark:border-slate-700">
                                                                 <div className="flex items-center justify-between">
                                                                     <div>
                                                                         <h5 className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                                                                            Access
-                                                                            Requests
+                                                                            Cancelled
+                                                                            Lessons
                                                                         </h5>
                                                                         <p className="text-xs text-slate-600 dark:text-slate-400">
-                                                                            New
-                                                                            user
-                                                                            access
-                                                                            requests
+                                                                            When
+                                                                            your
+                                                                            lessons
+                                                                            are
+                                                                            cancelled
                                                                         </p>
                                                                     </div>
                                                                     <label className="relative inline-flex items-center cursor-pointer">
                                                                         <input
                                                                             type="checkbox"
                                                                             checked={
-                                                                                notificationSettings.accessRequestsEnabled
+                                                                                notificationSettings.cancelledLessonsEnabled
                                                                             }
                                                                             onChange={(
                                                                                 e
                                                                             ) =>
                                                                                 handleUpdateNotificationSettings(
                                                                                     {
-                                                                                        accessRequestsEnabled:
+                                                                                        cancelledLessonsEnabled:
                                                                                             e
                                                                                                 .target
                                                                                                 .checked,
@@ -3782,261 +3833,510 @@ export default function SettingsModal({
                                                                         <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600"></div>
                                                                     </label>
                                                                 </div>
-                                                            )}
-                                                        </div>
-                                                    )}
-                                            </div>
-                                        )
-                                    )}
 
-                                    {/* Personal sharing toggle */}
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <h3 className="font-medium text-slate-900 dark:text-slate-100">
-                                                Enable Timetable Sharing
-                                            </h3>
-                                            <p className="text-sm text-slate-600 dark:text-slate-400">
-                                                Allow others to see your
-                                                timetable
-                                            </p>
-                                        </div>
-                                        <label className="relative inline-flex items-center cursor-pointer">
-                                            <input
-                                                type="checkbox"
-                                                checked={
-                                                    settings.sharingEnabled
-                                                }
-                                                onChange={(e) =>
-                                                    handleToggleSharing(
-                                                        e.target.checked
-                                                    )
-                                                }
-                                                disabled={
-                                                    !settings.globalSharingEnabled
-                                                }
-                                                className="sr-only peer"
-                                            />
-                                            <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600 peer-disabled:opacity-50"></div>
-                                        </label>
-                                    </div>
-
-                                    {settings.globalSharingEnabled ? (
-                                        <>
-                                            {/* Search and add users */}
-                                            <div>
-                                                <label className="block text-sm font-medium mb-2 text-slate-900 dark:text-slate-100">
-                                                    Share with new people
-                                                </label>
-                                                <div className="relative">
-                                                    <input
-                                                        type="text"
-                                                        placeholder="Search users by name or username..."
-                                                        value={searchQuery}
-                                                        onChange={(e) =>
-                                                            setSearchQuery(
-                                                                e.target.value
-                                                            )
-                                                        }
-                                                        className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 placeholder:text-slate-500 dark:placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                                                    />
-                                                    {searchLoading && (
-                                                        <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                                                            <div className="w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                                {searchResults.length > 0 && (
-                                                    <div className="mt-2 border border-slate-200 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 max-h-40 overflow-y-auto">
-                                                        {searchResults.map(
-                                                            (result) => (
-                                                                <button
-                                                                    key={
-                                                                        result.id
-                                                                    }
-                                                                    onClick={() =>
-                                                                        handleShareWithUser(
-                                                                            result
-                                                                        )
-                                                                    }
-                                                                    disabled={settings.sharingWith.some(
-                                                                        (u) =>
-                                                                            u.id ===
-                                                                            result.id
-                                                                    )}
-                                                                    className="w-full px-3 py-2 text-left hover:bg-slate-50 dark:hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed text-slate-900 dark:text-slate-100"
-                                                                >
-                                                                    <div className="font-medium text-slate-900 dark:text-slate-100">
-                                                                        {result.displayName ||
-                                                                            result.username}
-                                                                    </div>
-                                                                    {result.displayName && (
-                                                                        <div className="text-xs text-slate-500 dark:text-slate-400">
-                                                                            {
-                                                                                result.username
-                                                                            }
+                                                                {/* Time scope for cancelled lessons */}
+                                                                {notificationSettings.cancelledLessonsEnabled && (
+                                                                    <div className="ml-4 pl-4 border-l border-slate-200 dark:border-slate-600">
+                                                                        <p className="text-xs font-medium text-slate-700 dark:text-slate-300 mb-2">
+                                                                            Notify
+                                                                            me
+                                                                            for
+                                                                            cancelled
+                                                                            lessons:
+                                                                        </p>
+                                                                        <div className="flex gap-4">
+                                                                            <label className="flex items-center cursor-pointer">
+                                                                                <input
+                                                                                    type="radio"
+                                                                                    name="cancelledScope"
+                                                                                    value="day"
+                                                                                    checked={
+                                                                                        notificationSettings.cancelledLessonsTimeScope ===
+                                                                                        'day'
+                                                                                    }
+                                                                                    onChange={() =>
+                                                                                        handleUpdateNotificationSettings(
+                                                                                            {
+                                                                                                cancelledLessonsTimeScope:
+                                                                                                    'day',
+                                                                                            }
+                                                                                        )
+                                                                                    }
+                                                                                    className="w-4 h-4 text-indigo-600 border-slate-300 dark:border-slate-600 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:ring-2"
+                                                                                />
+                                                                                <span className="ml-2 text-xs text-slate-600 dark:text-slate-400">
+                                                                                    Today
+                                                                                    only
+                                                                                </span>
+                                                                            </label>
+                                                                            <label className="flex items-center cursor-pointer">
+                                                                                <input
+                                                                                    type="radio"
+                                                                                    name="cancelledScope"
+                                                                                    value="week"
+                                                                                    checked={
+                                                                                        notificationSettings.cancelledLessonsTimeScope ===
+                                                                                        'week'
+                                                                                    }
+                                                                                    onChange={() =>
+                                                                                        handleUpdateNotificationSettings(
+                                                                                            {
+                                                                                                cancelledLessonsTimeScope:
+                                                                                                    'week',
+                                                                                            }
+                                                                                        )
+                                                                                    }
+                                                                                    className="w-4 h-4 text-indigo-600 border-slate-300 dark:border-slate-600 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:ring-2"
+                                                                                />
+                                                                                <span className="ml-2 text-xs text-slate-600 dark:text-slate-400">
+                                                                                    This
+                                                                                    week
+                                                                                </span>
+                                                                            </label>
                                                                         </div>
-                                                                    )}
-                                                                </button>
-                                                            )
+                                                                    </div>
+                                                                )}
+
+                                                                <div className="flex items-center justify-between">
+                                                                    <div>
+                                                                        <h5 className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                                                                            Irregular
+                                                                            Lessons
+                                                                        </h5>
+                                                                        <p className="text-xs text-slate-600 dark:text-slate-400">
+                                                                            When
+                                                                            lessons
+                                                                            have
+                                                                            schedule
+                                                                            changes
+                                                                        </p>
+                                                                    </div>
+                                                                    <label className="relative inline-flex items-center cursor-pointer">
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            checked={
+                                                                                notificationSettings.irregularLessonsEnabled
+                                                                            }
+                                                                            onChange={(
+                                                                                e
+                                                                            ) =>
+                                                                                handleUpdateNotificationSettings(
+                                                                                    {
+                                                                                        irregularLessonsEnabled:
+                                                                                            e
+                                                                                                .target
+                                                                                                .checked,
+                                                                                    }
+                                                                                )
+                                                                            }
+                                                                            className="sr-only peer"
+                                                                        />
+                                                                        <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600"></div>
+                                                                    </label>
+                                                                </div>
+
+                                                                {/* Time scope for irregular lessons */}
+                                                                {notificationSettings.irregularLessonsEnabled && (
+                                                                    <div className="ml-4 pl-4 border-l border-slate-200 dark:border-slate-600">
+                                                                        <p className="text-xs font-medium text-slate-700 dark:text-slate-300 mb-2">
+                                                                            Notify
+                                                                            me
+                                                                            for
+                                                                            irregular
+                                                                            lessons:
+                                                                        </p>
+                                                                        <div className="flex gap-4">
+                                                                            <label className="flex items-center cursor-pointer">
+                                                                                <input
+                                                                                    type="radio"
+                                                                                    name="irregularScope"
+                                                                                    value="day"
+                                                                                    checked={
+                                                                                        notificationSettings.irregularLessonsTimeScope ===
+                                                                                        'day'
+                                                                                    }
+                                                                                    onChange={() =>
+                                                                                        handleUpdateNotificationSettings(
+                                                                                            {
+                                                                                                irregularLessonsTimeScope:
+                                                                                                    'day',
+                                                                                            }
+                                                                                        )
+                                                                                    }
+                                                                                    className="w-4 h-4 text-indigo-600 border-slate-300 dark:border-slate-600 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:ring-2"
+                                                                                />
+                                                                                <span className="ml-2 text-xs text-slate-600 dark:text-slate-400">
+                                                                                    Today
+                                                                                    only
+                                                                                </span>
+                                                                            </label>
+                                                                            <label className="flex items-center cursor-pointer">
+                                                                                <input
+                                                                                    type="radio"
+                                                                                    name="irregularScope"
+                                                                                    value="week"
+                                                                                    checked={
+                                                                                        notificationSettings.irregularLessonsTimeScope ===
+                                                                                        'week'
+                                                                                    }
+                                                                                    onChange={() =>
+                                                                                        handleUpdateNotificationSettings(
+                                                                                            {
+                                                                                                irregularLessonsTimeScope:
+                                                                                                    'week',
+                                                                                            }
+                                                                                        )
+                                                                                    }
+                                                                                    className="w-4 h-4 text-indigo-600 border-slate-300 dark:border-slate-600 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:ring-2"
+                                                                                />
+                                                                                <span className="ml-2 text-xs text-slate-600 dark:text-slate-400">
+                                                                                    This
+                                                                                    week
+                                                                                </span>
+                                                                            </label>
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+
+                                                                <div className="flex items-center justify-between">
+                                                                    <div>
+                                                                        <h5 className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                                                                            Timetable
+                                                                            Changes
+                                                                        </h5>
+                                                                        <p className="text-xs text-slate-600 dark:text-slate-400">
+                                                                            General
+                                                                            timetable
+                                                                            updates
+                                                                        </p>
+                                                                    </div>
+                                                                    <label className="relative inline-flex items-center cursor-pointer">
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            checked={
+                                                                                notificationSettings.timetableChangesEnabled
+                                                                            }
+                                                                            onChange={(
+                                                                                e
+                                                                            ) =>
+                                                                                handleUpdateNotificationSettings(
+                                                                                    {
+                                                                                        timetableChangesEnabled:
+                                                                                            e
+                                                                                                .target
+                                                                                                .checked,
+                                                                                    }
+                                                                                )
+                                                                            }
+                                                                            className="sr-only peer"
+                                                                        />
+                                                                        <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600"></div>
+                                                                    </label>
+                                                                </div>
+
+                                                                {(user.isUserManager ||
+                                                                    user.isAdmin) && (
+                                                                    <div className="flex items-center justify-between">
+                                                                        <div>
+                                                                            <h5 className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                                                                                Access
+                                                                                Requests
+                                                                            </h5>
+                                                                            <p className="text-xs text-slate-600 dark:text-slate-400">
+                                                                                New
+                                                                                user
+                                                                                access
+                                                                                requests
+                                                                            </p>
+                                                                        </div>
+                                                                        <label className="relative inline-flex items-center cursor-pointer">
+                                                                            <input
+                                                                                type="checkbox"
+                                                                                checked={
+                                                                                    notificationSettings.accessRequestsEnabled
+                                                                                }
+                                                                                onChange={(
+                                                                                    e
+                                                                                ) =>
+                                                                                    handleUpdateNotificationSettings(
+                                                                                        {
+                                                                                            accessRequestsEnabled:
+                                                                                                e
+                                                                                                    .target
+                                                                                                    .checked,
+                                                                                        }
+                                                                                    )
+                                                                                }
+                                                                                className="sr-only peer"
+                                                                            />
+                                                                            <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600"></div>
+                                                                        </label>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                </div>
+                                            )
+                                        )}
+
+                                        {/* Personal sharing toggle */}
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <h3 className="font-medium text-slate-900 dark:text-slate-100">
+                                                    Enable Timetable Sharing
+                                                </h3>
+                                                <p className="text-sm text-slate-600 dark:text-slate-400">
+                                                    Allow others to see your
+                                                    timetable
+                                                </p>
+                                            </div>
+                                            <label className="relative inline-flex items-center cursor-pointer">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={
+                                                        settings.sharingEnabled
+                                                    }
+                                                    onChange={(e) =>
+                                                        handleToggleSharing(
+                                                            e.target.checked
+                                                        )
+                                                    }
+                                                    disabled={
+                                                        !settings.globalSharingEnabled
+                                                    }
+                                                    className="sr-only peer"
+                                                />
+                                                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600 peer-disabled:opacity-50"></div>
+                                            </label>
+                                        </div>
+
+                                        {settings.globalSharingEnabled ? (
+                                            <>
+                                                {/* Search and add users */}
+                                                <div>
+                                                    <label className="block text-sm font-medium mb-2 text-slate-900 dark:text-slate-100">
+                                                        Share with new people
+                                                    </label>
+                                                    <div className="relative">
+                                                        <input
+                                                            type="text"
+                                                            placeholder="Search users by name or username..."
+                                                            value={searchQuery}
+                                                            onChange={(e) =>
+                                                                setSearchQuery(
+                                                                    e.target
+                                                                        .value
+                                                                )
+                                                            }
+                                                            className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 placeholder:text-slate-500 dark:placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                                        />
+                                                        {searchLoading && (
+                                                            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                                                                <div className="w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+                                                            </div>
                                                         )}
                                                     </div>
-                                                )}
-                                            </div>
-
-                                            {/* Current sharing list */}
-                                            <div>
-                                                <h3 className="font-medium mb-3 text-slate-900 dark:text-slate-100">
-                                                    People you're sharing with (
-                                                    {
-                                                        settings.sharingWith
-                                                            .length
-                                                    }
-                                                    )
-                                                </h3>
-                                                {settings.sharingWith.length ===
-                                                0 ? (
-                                                    <p className="text-sm text-slate-500 dark:text-slate-400 text-center py-4 bg-slate-50 dark:bg-slate-700 rounded-md">
-                                                        You're not sharing your
-                                                        timetable with anyone
-                                                        yet.
-                                                    </p>
-                                                ) : (
-                                                    <div className="space-y-2">
-                                                        {settings.sharingWith.map(
-                                                            (sharedUser) => (
-                                                                <div
-                                                                    key={
-                                                                        sharedUser.id
-                                                                    }
-                                                                    className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-700 rounded-md"
-                                                                >
-                                                                    <div>
+                                                    {searchResults.length >
+                                                        0 && (
+                                                        <div className="mt-2 border border-slate-200 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 max-h-40 overflow-y-auto">
+                                                            {searchResults.map(
+                                                                (result) => (
+                                                                    <button
+                                                                        key={
+                                                                            result.id
+                                                                        }
+                                                                        onClick={() =>
+                                                                            handleShareWithUser(
+                                                                                result
+                                                                            )
+                                                                        }
+                                                                        disabled={settings.sharingWith.some(
+                                                                            (
+                                                                                u
+                                                                            ) =>
+                                                                                u.id ===
+                                                                                result.id
+                                                                        )}
+                                                                        className="w-full px-3 py-2 text-left hover:bg-slate-50 dark:hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed text-slate-900 dark:text-slate-100"
+                                                                    >
                                                                         <div className="font-medium text-slate-900 dark:text-slate-100">
-                                                                            {sharedUser.displayName ||
-                                                                                sharedUser.username}
+                                                                            {result.displayName ||
+                                                                                result.username}
                                                                         </div>
-                                                                        {sharedUser.displayName && (
+                                                                        {result.displayName && (
                                                                             <div className="text-xs text-slate-500 dark:text-slate-400">
                                                                                 {
-                                                                                    sharedUser.username
+                                                                                    result.username
                                                                                 }
                                                                             </div>
                                                                         )}
-                                                                    </div>
-                                                                    <button
-                                                                        onClick={() =>
-                                                                            handleStopSharing(
-                                                                                sharedUser.id
-                                                                            )
-                                                                        }
-                                                                        className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 p-1 rounded"
-                                                                        title="Stop sharing"
-                                                                    >
-                                                                        <svg
-                                                                            width="16"
-                                                                            height="16"
-                                                                            viewBox="0 0 24 24"
-                                                                            fill="none"
-                                                                        >
-                                                                            <path
-                                                                                d="M18 6L6 18M6 6l12 12"
-                                                                                stroke="currentColor"
-                                                                                strokeWidth="2"
-                                                                                strokeLinecap="round"
-                                                                                strokeLinejoin="round"
-                                                                            />
-                                                                        </svg>
                                                                     </button>
-                                                                </div>
-                                                            )
-                                                        )}
-                                                    </div>
-                                                )}
+                                                                )
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                {/* Current sharing list */}
+                                                <div>
+                                                    <h3 className="font-medium mb-3 text-slate-900 dark:text-slate-100">
+                                                        People you're sharing
+                                                        with (
+                                                        {
+                                                            settings.sharingWith
+                                                                .length
+                                                        }
+                                                        )
+                                                    </h3>
+                                                    {settings.sharingWith
+                                                        .length === 0 ? (
+                                                        <p className="text-sm text-slate-500 dark:text-slate-400 text-center py-4 bg-slate-50 dark:bg-slate-700 rounded-md">
+                                                            You're not sharing
+                                                            your timetable with
+                                                            anyone yet.
+                                                        </p>
+                                                    ) : (
+                                                        <div className="space-y-2">
+                                                            {settings.sharingWith.map(
+                                                                (
+                                                                    sharedUser
+                                                                ) => (
+                                                                    <div
+                                                                        key={
+                                                                            sharedUser.id
+                                                                        }
+                                                                        className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-700 rounded-md"
+                                                                    >
+                                                                        <div>
+                                                                            <div className="font-medium text-slate-900 dark:text-slate-100">
+                                                                                {sharedUser.displayName ||
+                                                                                    sharedUser.username}
+                                                                            </div>
+                                                                            {sharedUser.displayName && (
+                                                                                <div className="text-xs text-slate-500 dark:text-slate-400">
+                                                                                    {
+                                                                                        sharedUser.username
+                                                                                    }
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                        <button
+                                                                            onClick={() =>
+                                                                                handleStopSharing(
+                                                                                    sharedUser.id
+                                                                                )
+                                                                            }
+                                                                            className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 p-1 rounded"
+                                                                            title="Stop sharing"
+                                                                        >
+                                                                            <svg
+                                                                                width="16"
+                                                                                height="16"
+                                                                                viewBox="0 0 24 24"
+                                                                                fill="none"
+                                                                            >
+                                                                                <path
+                                                                                    d="M18 6L6 18M6 6l12 12"
+                                                                                    stroke="currentColor"
+                                                                                    strokeWidth="2"
+                                                                                    strokeLinecap="round"
+                                                                                    strokeLinejoin="round"
+                                                                                />
+                                                                            </svg>
+                                                                        </button>
+                                                                    </div>
+                                                                )
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </>
+                                        ) : (
+                                            <div className="text-center p-4 bg-slate-50 dark:bg-slate-700 rounded-md">
+                                                <p className="text-slate-600 dark:text-slate-400">
+                                                    Timetable sharing is
+                                                    currently disabled by an
+                                                    administrator.
+                                                </p>
                                             </div>
-                                        </>
-                                    ) : (
-                                        <div className="text-center p-4 bg-slate-50 dark:bg-slate-700 rounded-md">
-                                            <p className="text-slate-600 dark:text-slate-400">
-                                                Timetable sharing is currently
-                                                disabled by an administrator.
-                                            </p>
-                                        </div>
-                                    )}
-                                </div>
+                                        )}
+                                    </div>
                                 </div>
                             ) : null}
                         </>
                     )}
                 </div>
 
-            {/* User Manager Grant/Revoke Confirmation Modal */}
-            {showConfirmUserManager && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-                    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl max-w-md w-full p-6">
-                        <h3 className="text-lg font-semibold mb-4 text-slate-900 dark:text-slate-100">
-                            {showConfirmUserManager.isGranting
-                                ? 'Grant User Manager Status'
-                                : 'Revoke User Manager Status'}
-                        </h3>
-                        <p className="text-slate-600 dark:text-slate-300 mb-6">
-                            {showConfirmUserManager.isGranting ? (
-                                <>
-                                    Grant{' '}
-                                    <strong>
-                                        {showConfirmUserManager.username}
-                                    </strong>{' '}
-                                    user manager privileges? They will be able
-                                    to manage users, whitelist, and access
-                                    requests.
-                                </>
-                            ) : (
-                                <>
-                                    Revoke{' '}
-                                    <strong>
-                                        {showConfirmUserManager.username}
-                                    </strong>{' '}
-                                    user manager privileges? They will lose
-                                    access to user management features.
-                                </>
-                            )}
-                        </p>
-                        <div className="flex justify-end gap-3">
-                            <button
-                                className="btn-secondary"
-                                onClick={() => setShowConfirmUserManager(null)}
-                                disabled={userManagerChanging !== null}
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                className={
-                                    showConfirmUserManager.isGranting
-                                        ? 'btn-primary'
-                                        : 'btn-secondary bg-orange-100 text-orange-700 hover:bg-orange-200 dark:bg-orange-900/20 dark:text-orange-400 dark:hover:bg-orange-900/30'
-                                }
-                                onClick={() => {
-                                    if (showConfirmUserManager.isGranting) {
-                                        handleGrantUserManager(
-                                            showConfirmUserManager.userId
-                                        );
-                                    } else {
-                                        handleRevokeUserManager(
-                                            showConfirmUserManager.userId
-                                        );
+                {/* User Manager Grant/Revoke Confirmation Modal */}
+                {showConfirmUserManager && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl max-w-md w-full p-6">
+                            <h3 className="text-lg font-semibold mb-4 text-slate-900 dark:text-slate-100">
+                                {showConfirmUserManager.isGranting
+                                    ? 'Grant User Manager Status'
+                                    : 'Revoke User Manager Status'}
+                            </h3>
+                            <p className="text-slate-600 dark:text-slate-300 mb-6">
+                                {showConfirmUserManager.isGranting ? (
+                                    <>
+                                        Grant{' '}
+                                        <strong>
+                                            {showConfirmUserManager.username}
+                                        </strong>{' '}
+                                        user manager privileges? They will be
+                                        able to manage users, whitelist, and
+                                        access requests.
+                                    </>
+                                ) : (
+                                    <>
+                                        Revoke{' '}
+                                        <strong>
+                                            {showConfirmUserManager.username}
+                                        </strong>{' '}
+                                        user manager privileges? They will lose
+                                        access to user management features.
+                                    </>
+                                )}
+                            </p>
+                            <div className="flex justify-end gap-3">
+                                <button
+                                    className="btn-secondary"
+                                    onClick={() =>
+                                        setShowConfirmUserManager(null)
                                     }
-                                }}
-                                disabled={userManagerChanging !== null}
-                            >
-                                {userManagerChanging !== null
-                                    ? 'Loading...'
-                                    : showConfirmUserManager.isGranting
-                                    ? 'Grant'
-                                    : 'Revoke'}
-                            </button>
+                                    disabled={userManagerChanging !== null}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    className={
+                                        showConfirmUserManager.isGranting
+                                            ? 'btn-primary'
+                                            : 'btn-secondary bg-orange-100 text-orange-700 hover:bg-orange-200 dark:bg-orange-900/20 dark:text-orange-400 dark:hover:bg-orange-900/30'
+                                    }
+                                    onClick={() => {
+                                        if (showConfirmUserManager.isGranting) {
+                                            handleGrantUserManager(
+                                                showConfirmUserManager.userId
+                                            );
+                                        } else {
+                                            handleRevokeUserManager(
+                                                showConfirmUserManager.userId
+                                            );
+                                        }
+                                    }}
+                                    disabled={userManagerChanging !== null}
+                                >
+                                    {userManagerChanging !== null
+                                        ? 'Loading...'
+                                        : showConfirmUserManager.isGranting
+                                        ? 'Grant'
+                                        : 'Revoke'}
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )}
             </div>
         </div>
     );
