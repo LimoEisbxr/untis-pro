@@ -97,8 +97,36 @@ export default function SettingsModal({
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     
-    // Tab state for organized settings menu
-    const [activeTab, setActiveTab] = useState<'notifications' | 'sharing' | 'access'>('notifications');
+    // Tab state for organized settings menu - different tabs for different user types
+    const [activeTab, setActiveTab] = useState<string>(() => {
+        if (user.isAdmin) return 'access';
+        if (user.isUserManager) return 'nickname';
+        return 'nickname'; // Regular users start with nickname tab
+    });
+
+    // Get available tabs for current user type
+    const getAvailableTabs = () => {
+        if (user.isAdmin) {
+            return [
+                { id: 'access', label: 'Whitelist & Access Request' },
+                { id: 'global', label: 'Global Sharing Toggle' }
+            ];
+        }
+        if (user.isUserManager) {
+            return [
+                { id: 'nickname', label: 'Nickname Change' },
+                { id: 'sharing', label: 'Personal Sharing Settings' },
+                { id: 'notifications', label: 'Notification Settings' },
+                { id: 'access', label: 'Whitelist & Access Request' }
+            ];
+        }
+        // Regular users
+        return [
+            { id: 'nickname', label: 'Nickname Change' },
+            { id: 'sharing', label: 'Personal Sharing Settings' },
+            { id: 'notifications', label: 'Notification Settings' }
+        ];
+    };
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState<
         Array<{ id: string; username: string; displayName?: string }>
@@ -1075,8 +1103,27 @@ export default function SettingsModal({
                 </div>
 
                 <div className="overflow-y-auto max-h-[calc(90vh-80px)]">
-                    {user.isAdmin ? (
-                        // Admin User Management Section
+                    <div className="p-6">
+                        {/* Tab Navigation */}
+                        <div className="border-b border-slate-200 dark:border-slate-700 mb-6">
+                            <nav className="flex space-x-8">
+                                {getAvailableTabs().map((tab) => (
+                                    <button
+                                        key={tab.id}
+                                        onClick={() => setActiveTab(tab.id)}
+                                        className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                                            activeTab === tab.id
+                                                ? 'border-indigo-500 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400'
+                                                : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 dark:text-slate-400 dark:hover:text-slate-300 dark:hover:border-slate-600'
+                                        }`}
+                                    >
+                                        {tab.label}
+                                    </button>
+                                ))}
+                            </nav>
+                        </div>
+
+                        {/* Tab Content - will be implemented next */}
                         <>
                             {userManagementLoading ? (
                                 <div className="p-6 text-center text-slate-600 dark:text-slate-400">
@@ -2360,11 +2407,9 @@ export default function SettingsModal({
                                         </div>
                                     )
                                 )}
-                                    </div>
 
                                 {/* Sharing Settings for User Managers */}
-                                <div className={activeTab === 'sharing' ? 'block' : 'hidden'}>
-                                    {loading ? (
+                                {loading ? (
                                     <div className="text-center text-slate-600 dark:text-slate-400 pt-6">
                                         Loading sharing settings...
                                     </div>
@@ -2647,8 +2692,7 @@ export default function SettingsModal({
                                     </div>
 
                                     {/* Notification Settings */}
-                                    <div className={activeTab === 'notifications' ? 'block' : 'hidden'}>
-                                        {notificationLoading ? (
+                                    {notificationLoading ? (
                                         <div className="text-center text-slate-600 dark:text-slate-400">
                                             Loading notification settings...
                                         </div>
@@ -3175,7 +3219,6 @@ export default function SettingsModal({
                                             </p>
                                         </div>
                                     )}
-                                </div>
                                 </div>
                             ) : null}
                         </>
