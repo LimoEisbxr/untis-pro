@@ -5,6 +5,7 @@ import { fmtHM, untisToMinutes } from '../utils/dates';
 import ColorPicker from './ColorPicker';
 import { extractSubjectType } from '../utils/subjectUtils';
 import { getTeacherDisplayText, getRoomDisplayText } from '../utils/lessonChanges';
+import { getHideAdminDefaultsPreference } from '../utils/gradientPreferences';
 
 export default function LessonModal({
     lesson,
@@ -38,6 +39,7 @@ export default function LessonModal({
     const [animatingOut, setAnimatingOut] = useState(false);
     const [entered, setEntered] = useState(false);
     const [copied, setCopied] = useState(false);
+    const [hideAdminDefaults, setHideAdminDefaults] = useState(false);
 
     const lockScroll = () => {
         document.documentElement.classList.add('modal-open');
@@ -89,6 +91,13 @@ export default function LessonModal({
         if (shouldRender) document.addEventListener('keydown', handleEscape);
         return () => document.removeEventListener('keydown', handleEscape);
     }, [shouldRender, handleClose]);
+
+    // Load hideAdminDefaults preference when modal opens
+    useEffect(() => {
+        if (isOpen) {
+            setHideAdminDefaults(getHideAdminDefaultsPreference());
+        }
+    }, [isOpen]);
 
     if (!shouldRender || !lesson) return null;
 
@@ -552,6 +561,7 @@ export default function LessonModal({
                                                 defaultLessonColors?.[subjectType]
                                             }
                                             canRemoveFallback={!!isAdmin}
+                                            hideAdminDefaults={hideAdminDefaults}
                                             onColorChange={(color) =>
                                                 onColorChange(
                                                     subjectType,

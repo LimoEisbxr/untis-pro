@@ -33,6 +33,7 @@ export default function TabNavigation({
                 { id: 'nickname', label: 'Nickname Change' },
                 { id: 'sharing', label: 'Personal Sharing Settings' },
                 { id: 'notifications', label: 'Notification Settings' },
+                { id: 'gradient', label: 'Gradient Preferences' },
                 { id: 'access', label: 'Whitelist & Access Request' },
                 { id: 'analytics', label: 'Analytics' },
             ];
@@ -42,6 +43,7 @@ export default function TabNavigation({
             { id: 'nickname', label: 'Nickname Change' },
             { id: 'sharing', label: 'Personal Sharing Settings' },
             { id: 'notifications', label: 'Notification Settings' },
+            { id: 'gradient', label: 'Gradient Preferences' },
         ];
     };
 
@@ -106,6 +108,26 @@ export default function TabNavigation({
                                         >
                                             <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
                                             <path d="m13.73 21a2 2 0 0 1-3.46 0" />
+                                        </svg>
+                                    )}
+                                    {tab.id === 'gradient' && (
+                                        <svg
+                                            className="w-4 h-4"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            viewBox="0 0 24 24"
+                                            strokeWidth="2"
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                        >
+                                            <defs>
+                                                <linearGradient id="gradient-icon" x1="0%" y1="0%" x2="100%" y2="100%">
+                                                    <stop offset="0%" stopColor="currentColor" />
+                                                    <stop offset="100%" stopColor="currentColor" stopOpacity="0.3" />
+                                                </linearGradient>
+                                            </defs>
+                                            <circle cx="12" cy="12" r="3" />
+                                            <path d="M12 1v6m0 6v6m11-7h-6m-6 0H1m15.5-6.5l-3 3m-6 6l-3 3m0-12l3 3m6 6l3 3" />
                                         </svg>
                                     )}
                                     {tab.id === 'users' && (
@@ -242,6 +264,20 @@ export default function TabNavigation({
                                     >
                                         <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
                                         <path d="m13.73 21a2 2 0 0 1-3.46 0" />
+                                    </svg>
+                                )}
+                                {tab.id === 'gradient' && (
+                                    <svg
+                                        className="w-4 h-4"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                        strokeWidth="2"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                    >
+                                        <circle cx="12" cy="12" r="3" />
+                                        <path d="M12 1v6m0 6v6m11-7h-6m-6 0H1m15.5-6.5l-3 3m-6 6l-3 3m0-12l3 3m6 6l3 3" />
                                     </svg>
                                 )}
                                 {tab.id === 'users' && (
