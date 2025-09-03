@@ -1,5 +1,5 @@
 import type { FC, ReactElement } from 'react';
-import { useEffect, useState } from 'react';
+import { useState, useLayoutEffect } from 'react';
 import FitText from './FitText';
 import EllipsisIcon from './EllipsisIcon';
 import type { Lesson, LessonColors } from '../types';
@@ -51,13 +51,31 @@ const DayColumn: FC<DayColumnProps> = ({
     hideHeader = false,
 }) => {
     // Detect mobile (tailwind sm breakpoint <640px). Responsive hook to decide hiding side-by-side overlaps.
-    const [isMobile, setIsMobile] = useState<boolean>(false);
-    useEffect(() => {
-        const mq = window.matchMedia('(max-width: 639px)');
-        const update = () => setIsMobile(mq.matches);
+    // Detect mobile synchronously on first render to avoid a second-pass layout jump
+    const [isMobile, setIsMobile] = useState<boolean>(() => {
+        if (typeof window === 'undefined') return false;
+        try {
+            return window.matchMedia('(max-width: 639px)').matches;
+        } catch {
+            return false;
+        }
+    });
+    // Use layout effect so updates (e.g., orientation change) happen before paint, reducing flicker
+    useLayoutEffect(() => {
+        if (typeof window === 'undefined') return;
+        let mq: MediaQueryList | null = null;
+        try {
+            mq = window.matchMedia('(max-width: 639px)');
+        } catch {
+            return;
+        }
+        const update = () => setIsMobile(mq!.matches);
+        // In case environment changed before hydration
         update();
         mq.addEventListener('change', update);
-        return () => mq.removeEventListener('change', update);
+        return () => {
+            if (mq) mq.removeEventListener('change', update);
+        };
     }, []);
 
     // Helper function to detect if a lesson is merged (contains merge separator)

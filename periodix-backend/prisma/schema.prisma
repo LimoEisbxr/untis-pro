@@ -34,6 +34,7 @@ model User {
     lessonColors LessonColorSetting[]
     homework     Homework[]
     exams        Exam[]
+    activities   UserActivity[] // Usage statistics
 
     // Sharing relationships
     sharingWith  TimetableShare[] @relation("UserSharingWith")
@@ -279,4 +280,64 @@ model AdminNotificationSettings {
 
     // Single row constraint
     @@unique([id])
+}
+
+// Usage statistics tracking models
+model UserActivity {
+    id        String   @id @default(uuid())
+    createdAt DateTime @default(now())
+
+    // User who performed the activity
+    userId String
+    user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    // Activity details
+    action     String // 'login', 'timetable_view', 'search', 'settings', 'color_change', etc.
+    details    Json? // Additional context data
+    ipAddress  String? // For geographic analysis
+    userAgent  String? // For device analysis
+    sessionId  String? // For session tracking
+
+    @@index([userId, createdAt])
+    @@index([action, createdAt])
+    @@index([createdAt])
+}
+
+model DailyStats {
+    id   String @id @default(uuid())
+    date String @unique // YYYY-MM-DD format
+
+    // User metrics
+    totalUsers         Int @default(0)
+    activeUsers        Int @default(0)
+    newUsers           Int @default(0)
+    uniqueLogins       Int @default(0)
+
+    // Activity metrics
+    totalLogins        Int @default(0)
+    timetableViews     Int @default(0)
+    searchQueries      Int @default(0)
+    settingsOpened     Int @default(0)
+    colorChanges       Int @default(0)
+
+    // Engagement metrics
+    avgSessionDuration Float? // in minutes
+    peakHour           Int? // hour of day (0-23)
+
+    @@index([date])
+}
+
+model HourlyStats {
+    id   String @id @default(uuid())
+    date String // YYYY-MM-DD format
+    hour Int    // 0-23
+
+    // Activity counts
+    activeUsers    Int @default(0)
+    logins         Int @default(0)
+    timetableViews Int @default(0)
+    searchQueries  Int @default(0)
+
+    @@unique([date, hour])
+    @@index([date, hour])
 }

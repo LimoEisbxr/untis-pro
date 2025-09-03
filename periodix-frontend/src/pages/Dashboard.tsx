@@ -12,6 +12,7 @@ import {
     removeLessonColor,
     getDefaultLessonColors,
     getNotifications,
+    trackActivity,
 } from '../api';
 import {
     addDays,
@@ -86,7 +87,8 @@ export default function Dashboard({
     const [lessonOffsets, setLessonOffsets] = useState<LessonOffsets>({});
 
     // Initialize timetable cache hook
-    const { getTimetableData, getCachedData, invalidateCache } = useTimetableCache();
+    const { getTimetableData, getCachedData, invalidateCache } =
+        useTimetableCache();
 
     // Compute the week range based on the selected date
     const weekStartDate = useMemo(() => startOfWeek(new Date(start)), [start]);
@@ -134,6 +136,8 @@ export default function Dashboard({
     const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
     const [isLessonModalOpen, setIsLessonModalOpen] = useState(false);
 
+    // (Analytics moved into Settings modal; no tab bar on dashboard anymore)
+
     // Derive a friendly info message for admin users when their own timetable isn't available
     const adminInfoMessage = useMemo(() => {
         if (!loadError || !user?.isAdmin) return null;
@@ -161,6 +165,11 @@ export default function Dashboard({
     const loadMine = useCallback(async () => {
         setLoadError(null);
         try {
+            // Track timetable view
+            trackActivity(token, 'timetable_view', { userId: user.id }).catch(
+                console.error
+            );
+
             const res = await getTimetableData(
                 user.id,
                 user.id,
@@ -216,6 +225,11 @@ export default function Dashboard({
             /* no loading flag */
             setLoadError(null);
             try {
+                // Track timetable view for other users
+                trackActivity(token, 'timetable_view', {
+                    viewedUserId: userId,
+                }).catch(console.error);
+
                 const res = await getTimetableData(
                     user.id,
                     userId,
@@ -303,6 +317,13 @@ export default function Dashboard({
             setColorError(null);
 
             try {
+                // Track color change activity
+                trackActivity(token, 'color_change', {
+                    lessonName,
+                    color: color || 'removed',
+                    viewingUserId: selectedUser?.id,
+                }).catch(console.error);
+
                 const viewingUserId = selectedUser?.id;
                 if (color) {
                     await setLessonColor(
@@ -421,7 +442,7 @@ export default function Dashboard({
     const handleRefresh = useCallback(async () => {
         // Invalidate cache for current user and reload data
         invalidateCache(selectedUser?.id || user.id);
-        
+
         // Reload the appropriate data
         if (selectedUser) {
             await loadUser(selectedUser.id);
@@ -492,6 +513,11 @@ export default function Dashboard({
             const ac = new AbortController();
             abortRef.current = ac;
             try {
+                // Track search activity
+                trackActivity(token, 'search', { query: currentQuery }).catch(
+                    console.error
+                );
+
                 const base = API_BASE
                     ? String(API_BASE).replace(/\/$/, '')
                     : '';
@@ -596,7 +622,12 @@ export default function Dashboard({
                         <button
                             className="rounded-full p-2 hover:bg-slate-200 dark:hover:bg-slate-700"
                             title="Settings"
-                            onClick={() => setIsSettingsModalOpen(true)}
+                            onClick={() => {
+                                setIsSettingsModalOpen(true);
+                                trackActivity(token, 'settings').catch(
+                                    console.error
+                                );
+                            }}
                             aria-label="Settings"
                         >
                             <svg
@@ -657,6 +688,7 @@ export default function Dashboard({
                     </div>
                 </div>
             </header>
+
             <main className="mx-auto max-w-screen-2xl p-4">
                 <section className="card p-4">
                     <div className="space-y-2 sm:space-y-4">
