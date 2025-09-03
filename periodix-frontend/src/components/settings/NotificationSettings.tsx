@@ -95,8 +95,26 @@ export default function NotificationSettings({ token, user, isVisible }: Notific
         if (!notificationSettings) return;
         
         try {
+            // Merge settings and filter out null values to avoid backend validation errors
             const newSettings = { ...notificationSettings, ...updates };
-            await updateNotificationSettings(token, newSettings);
+            
+            // Create clean object without null values for API call
+            const cleanSettings: Partial<NotificationSettingsType> = {};
+            Object.entries(newSettings).forEach(([key, value]) => {
+                if (value !== null && value !== undefined) {
+                    (cleanSettings as Record<string, unknown>)[key] = value;
+                }
+            });
+            
+            // Only send the fields that are actually defined in the updates parameter
+            const apiPayload: Partial<NotificationSettingsType> = {};
+            Object.entries(updates).forEach(([key, value]) => {
+                if (value !== null && value !== undefined) {
+                    (apiPayload as Record<string, unknown>)[key] = value;
+                }
+            });
+            
+            await updateNotificationSettings(token, apiPayload);
             setNotificationSettings(newSettings);
         } catch (e) {
             setNotificationError(e instanceof Error ? e.message : 'Failed to update settings');
