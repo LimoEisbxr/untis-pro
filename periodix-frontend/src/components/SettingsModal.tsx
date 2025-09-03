@@ -1332,10 +1332,531 @@ export default function SettingsModal({
                         )}
 
                         {/* Placeholder for remaining tabs */}
-                        {!['nickname', 'sharing'].includes(activeTab) && (
+                        {/* Notification Settings Tab */}
+                        {activeTab === 'notifications' && !user.isAdmin && (
+                            <div>
+                                {notificationLoading ? (
+                                    <div className="text-center text-slate-600 dark:text-slate-400">
+                                        Loading notification settings...
+                                    </div>
+                                ) : notificationError ? (
+                                    <div className="text-center text-red-600 dark:text-red-400">
+                                        {notificationError}
+                                    </div>
+                                ) : (
+                                    notificationSettings && (
+                                        <div>
+                                            <h3 className="text-lg font-medium mb-4 text-slate-900 dark:text-slate-100">
+                                                Notification Preferences
+                                            </h3>
+
+                                            {/* Notification toggle */}
+                                            {isNotificationSupported() && (
+                                                <div className="mb-4">
+                                                    <div className="flex items-center justify-between">
+                                                        <div>
+                                                            <h4 className="font-medium text-slate-900 dark:text-slate-100">
+                                                                Notifications
+                                                            </h4>
+                                                            <p className="text-sm text-slate-600 dark:text-slate-400">
+                                                                {notificationPermission === 'granted'
+                                                                    ? isStandalonePWA()
+                                                                        ? 'PWA push notifications (background) enabled'
+                                                                        : 'Browser notifications (tab must be open) enabled'
+                                                                    : notificationPermissionMessage()}
+                                                            </p>
+                                                        </div>
+                                                        {canShowPermissionButton && (
+                                                            <button
+                                                                onClick={handleRequestNotificationPermission}
+                                                                className="btn-primary text-sm"
+                                                            >
+                                                                Enable
+                                                            </button>
+                                                        )}
+                                                        {notificationPermission === 'granted' && (
+                                                            <label className="relative inline-flex items-center cursor-pointer">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={notificationSettings.browserNotificationsEnabled}
+                                                                    onChange={(e) =>
+                                                                        handleToggleNotifications(e.target.checked)
+                                                                    }
+                                                                    className="sr-only peer"
+                                                                />
+                                                                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600"></div>
+                                                            </label>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Notification preferences */}
+                                            {notificationPermission === 'granted' &&
+                                                notificationSettings.browserNotificationsEnabled && (
+                                                    <div className="space-y-3 ml-4 pl-4 border-l-2 border-slate-200 dark:border-slate-700">
+                                                        <div className="flex items-center justify-between">
+                                                            <div>
+                                                                <h5 className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                                                                    Cancelled Lessons
+                                                                </h5>
+                                                                <p className="text-xs text-slate-600 dark:text-slate-400">
+                                                                    When your lessons are cancelled
+                                                                </p>
+                                                            </div>
+                                                            <label className="relative inline-flex items-center cursor-pointer">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={notificationSettings.cancelledLessonsEnabled}
+                                                                    onChange={(e) =>
+                                                                        handleUpdateNotificationSettings({
+                                                                            cancelledLessonsEnabled: e.target.checked,
+                                                                        })
+                                                                    }
+                                                                    className="sr-only peer"
+                                                                />
+                                                                <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600"></div>
+                                                            </label>
+                                                        </div>
+
+                                                        <div className="flex items-center justify-between">
+                                                            <div>
+                                                                <h5 className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                                                                    Irregular Lessons
+                                                                </h5>
+                                                                <p className="text-xs text-slate-600 dark:text-slate-400">
+                                                                    When lessons have schedule changes
+                                                                </p>
+                                                            </div>
+                                                            <label className="relative inline-flex items-center cursor-pointer">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={notificationSettings.irregularLessonsEnabled}
+                                                                    onChange={(e) =>
+                                                                        handleUpdateNotificationSettings({
+                                                                            irregularLessonsEnabled: e.target.checked,
+                                                                        })
+                                                                    }
+                                                                    className="sr-only peer"
+                                                                />
+                                                                <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600"></div>
+                                                            </label>
+                                                        </div>
+
+                                                        <div className="flex items-center justify-between">
+                                                            <div>
+                                                                <h5 className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                                                                    Timetable Changes
+                                                                </h5>
+                                                                <p className="text-xs text-slate-600 dark:text-slate-400">
+                                                                    General timetable updates
+                                                                </p>
+                                                            </div>
+                                                            <label className="relative inline-flex items-center cursor-pointer">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={notificationSettings.timetableChangesEnabled}
+                                                                    onChange={(e) =>
+                                                                        handleUpdateNotificationSettings({
+                                                                            timetableChangesEnabled: e.target.checked,
+                                                                        })
+                                                                    }
+                                                                    className="sr-only peer"
+                                                                />
+                                                                <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600"></div>
+                                                            </label>
+                                                        </div>
+
+                                                        {(user.isUserManager || user.isAdmin) && (
+                                                            <div className="flex items-center justify-between">
+                                                                <div>
+                                                                    <h5 className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                                                                        Access Requests
+                                                                    </h5>
+                                                                    <p className="text-xs text-slate-600 dark:text-slate-400">
+                                                                        New user access requests
+                                                                    </p>
+                                                                </div>
+                                                                <label className="relative inline-flex items-center cursor-pointer">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={notificationSettings.accessRequestsEnabled}
+                                                                        onChange={(e) =>
+                                                                            handleUpdateNotificationSettings({
+                                                                                accessRequestsEnabled: e.target.checked,
+                                                                            })
+                                                                        }
+                                                                        className="sr-only peer"
+                                                                    />
+                                                                    <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600"></div>
+                                                                </label>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
+                                        </div>
+                                    )
+                                )}
+                            </div>
+                        )}
+
+                        {/* Whitelist & Access Request Tab (User-Manager and Admin) */}
+                        {activeTab === 'access' && (user.isAdmin || user.isUserManager) && (
+                            <div>
+                                <h3 className="text-lg font-medium mb-4 text-slate-900 dark:text-slate-100">
+                                    Whitelist & Access Management
+                                </h3>
+                                
+                                {/* Whitelist management */}
+                                {settings?.whitelistEnabled ? (
+                                    <div className="mb-6 p-4 bg-slate-50 dark:bg-slate-900/30 rounded-lg border border-slate-200 dark:border-slate-700">
+                                        <div className="flex items-center justify-between mb-3">
+                                            <h4 className="font-medium text-slate-800 dark:text-slate-100">
+                                                Whitelist Management
+                                            </h4>
+                                        </div>
+                                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                                            <input
+                                                className="input"
+                                                placeholder="Enter username"
+                                                value={user.isAdmin ? wlValue : umWlValue}
+                                                onChange={(e) =>
+                                                    user.isAdmin 
+                                                        ? setWlValue(e.target.value)
+                                                        : setUmWlValue(e.target.value)
+                                                }
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') {
+                                                        const value = user.isAdmin ? wlValue.trim() : umWlValue.trim();
+                                                        if (value) {
+                                                            if (user.isAdmin) {
+                                                                handleAddWhitelistRule();
+                                                            } else {
+                                                                handleUserManagerAddRule(value);
+                                                            }
+                                                        }
+                                                    }
+                                                }}
+                                                disabled={user.isAdmin ? wlLoading : umWlLoading}
+                                            />
+                                            <button
+                                                className="btn-primary whitespace-nowrap"
+                                                onClick={() => {
+                                                    if (user.isAdmin) {
+                                                        handleAddWhitelistRule();
+                                                    } else {
+                                                        handleUserManagerAddRule(umWlValue.trim());
+                                                    }
+                                                }}
+                                                disabled={
+                                                    user.isAdmin 
+                                                        ? (wlLoading || !wlValue.trim())
+                                                        : (umWlLoading || !umWlValue.trim())
+                                                }
+                                            >
+                                                Add
+                                            </button>
+                                        </div>
+                                        {(user.isAdmin ? wlError : umWlError) && (
+                                            <div className="mt-2 text-sm text-red-600 dark:text-red-400">
+                                                {user.isAdmin ? wlError : umWlError}
+                                            </div>
+                                        )}
+                                        <div className="mt-4 overflow-x-auto">
+                                            <table className="min-w-full text-sm">
+                                                <thead className="text-left text-slate-700 dark:text-slate-200">
+                                                    <tr>
+                                                        <th className="py-2 pr-4">Username</th>
+                                                        <th className="py-2 pr-4">Actions</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {(user.isAdmin ? whitelist : umWhitelist).map((r) => (
+                                                        <tr
+                                                            key={r.id}
+                                                            className="border-t border-slate-200/70 dark:border-slate-700/70"
+                                                        >
+                                                            <td className="py-2 pr-4 text-slate-900 dark:text-slate-100">
+                                                                {r.value}
+                                                            </td>
+                                                            <td className="py-2 pr-4 text-slate-900 dark:text-slate-100">
+                                                                <button
+                                                                    className="btn-secondary"
+                                                                    onClick={() =>
+                                                                        user.isAdmin
+                                                                            ? handleDeleteWhitelistRule(r.id)
+                                                                            : handleUserManagerDeleteRule(r.id)
+                                                                    }
+                                                                    disabled={user.isAdmin ? wlLoading : umWlLoading}
+                                                                >
+                                                                    Delete
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                    {(user.isAdmin ? whitelist : umWhitelist).length === 0 && (
+                                                        <tr>
+                                                            <td
+                                                                colSpan={2}
+                                                                className="py-3 text-center text-slate-500 dark:text-slate-400"
+                                                            >
+                                                                No usernames whitelisted
+                                                            </td>
+                                                        </tr>
+                                                    )}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                ) : null}
+
+                                {/* Access requests management */}
+                                {settings?.whitelistEnabled ? (
+                                    <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700">
+                                        <div className="flex items-center justify-between mb-3">
+                                            <h4 className="font-medium text-blue-800 dark:text-blue-200">
+                                                Pending Access Requests
+                                            </h4>
+                                            <button
+                                                className="btn-secondary text-xs"
+                                                onClick={user.isAdmin ? loadAccessRequests : loadUserManagerAccessRequests}
+                                                disabled={user.isAdmin ? arLoading : umArLoading}
+                                            >
+                                                {(user.isAdmin ? arLoading : umArLoading) ? 'Loading...' : 'Refresh'}
+                                            </button>
+                                        </div>
+                                        {(user.isAdmin ? arError : umArError) && (
+                                            <div className="mb-3 text-sm text-red-600 dark:text-red-400">
+                                                {user.isAdmin ? arError : umArError}
+                                            </div>
+                                        )}
+                                        <div className="overflow-x-auto">
+                                            <table className="min-w-full text-sm">
+                                                <thead className="text-left text-blue-700 dark:text-blue-200">
+                                                    <tr>
+                                                        <th className="py-2 pr-4">Username</th>
+                                                        <th className="py-2 pr-4">Message</th>
+                                                        <th className="py-2 pr-4">Requested</th>
+                                                        <th className="py-2 pr-4">Actions</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {(user.isAdmin ? accessRequests : umAccessRequests).map((request) => (
+                                                        <tr
+                                                            key={request.id}
+                                                            className="border-t border-blue-200/70 dark:border-blue-700/70"
+                                                        >
+                                                            <td className="py-2 pr-4 text-slate-900 dark:text-slate-100 font-medium">
+                                                                {request.username}
+                                                            </td>
+                                                            <td className="py-2 pr-4 text-slate-700 dark:text-slate-300 max-w-xs">
+                                                                {request.message ? (
+                                                                    <div className="truncate" title={request.message}>
+                                                                        {request.message}
+                                                                    </div>
+                                                                ) : (
+                                                                    <span className="text-slate-500 italic">No message</span>
+                                                                )}
+                                                            </td>
+                                                            <td className="py-2 pr-4 text-slate-600 dark:text-slate-400 text-xs">
+                                                                {new Date(request.createdAt).toLocaleDateString()}
+                                                            </td>
+                                                            <td className="py-2 pr-4">
+                                                                <div className="flex gap-2">
+                                                                    <button
+                                                                        className="btn-primary text-xs px-2 py-1"
+                                                                        disabled={user.isAdmin ? arLoading : umArLoading}
+                                                                        onClick={() =>
+                                                                            user.isAdmin
+                                                                                ? handleAcceptAccessRequest(request.id)
+                                                                                : handleUserManagerAcceptAccessRequest(request.id)
+                                                                        }
+                                                                    >
+                                                                        Accept
+                                                                    </button>
+                                                                    <button
+                                                                        className="btn-secondary text-xs px-2 py-1"
+                                                                        disabled={user.isAdmin ? arLoading : umArLoading}
+                                                                        onClick={() =>
+                                                                            user.isAdmin
+                                                                                ? handleDeclineAccessRequest(request.id)
+                                                                                : handleUserManagerDeclineAccessRequest(request.id)
+                                                                        }
+                                                                    >
+                                                                        Decline
+                                                                    </button>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                    {(user.isAdmin ? accessRequests : umAccessRequests).length === 0 &&
+                                                        !(user.isAdmin ? arLoading : umArLoading) && (
+                                                            <tr>
+                                                                <td
+                                                                    colSpan={4}
+                                                                    className="py-3 text-center text-slate-500 dark:text-slate-400"
+                                                                >
+                                                                    No pending access requests
+                                                                </td>
+                                                            </tr>
+                                                        )}
+                                                    {(user.isAdmin ? arLoading : umArLoading) && (
+                                                        <tr>
+                                                            <td
+                                                                colSpan={4}
+                                                                className="py-3 text-center text-slate-500 dark:text-slate-400"
+                                                            >
+                                                                Loading access requests...
+                                                            </td>
+                                                        </tr>
+                                                    )}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                ) : null}
+                            </div>
+                        )}
+
+                        {/* Global Sharing Toggle Tab (Admin only) */}
+                        {activeTab === 'global' && user.isAdmin && (
+                            <div>
+                                <h3 className="text-lg font-medium mb-4 text-slate-900 dark:text-slate-100">
+                                    Global Settings
+                                </h3>
+                                
+                                {/* Global sharing control */}
+                                {settings && (
+                                    <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <h4 className="font-medium text-red-800 dark:text-red-200">
+                                                    Global Sharing Control
+                                                </h4>
+                                                <p className="text-sm text-red-600 dark:text-red-300">
+                                                    Disable all timetable sharing for everyone
+                                                </p>
+                                            </div>
+                                            <label className="relative inline-flex items-center cursor-pointer">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={settings.globalSharingEnabled}
+                                                    onChange={(e) =>
+                                                        handleToggleGlobalSharing(e.target.checked)
+                                                    }
+                                                    className="sr-only peer"
+                                                />
+                                                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-red-300 dark:peer-focus:ring-red-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-red-600"></div>
+                                            </label>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Admin Notification Settings */}
+                                {adminNotificationLoading ? (
+                                    <div className="mb-6 text-center text-slate-600 dark:text-slate-400">
+                                        Loading notification settings...
+                                    </div>
+                                ) : adminNotificationError ? (
+                                    <div className="mb-6 text-center text-red-600 dark:text-red-400">
+                                        {adminNotificationError}
+                                    </div>
+                                ) : (
+                                    adminNotificationSettings && (
+                                        <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                                            <h4 className="font-medium text-blue-800 dark:text-blue-200 mb-4">
+                                                Notification System Settings
+                                            </h4>
+
+                                            <div className="space-y-4">
+                                                <div className="flex items-center justify-between">
+                                                    <div>
+                                                        <h5 className="font-medium text-blue-800 dark:text-blue-200">
+                                                            Timetable Notifications
+                                                        </h5>
+                                                        <p className="text-sm text-blue-600 dark:text-blue-300">
+                                                            Enable automatic notifications for timetable changes
+                                                        </p>
+                                                    </div>
+                                                    <label className="relative inline-flex items-center cursor-pointer">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={adminNotificationSettings.enableTimetableNotifications}
+                                                            onChange={(e) =>
+                                                                handleUpdateAdminNotificationSettings({
+                                                                    enableTimetableNotifications: e.target.checked,
+                                                                })
+                                                            }
+                                                            className="sr-only peer"
+                                                        />
+                                                        <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-blue-600"></div>
+                                                    </label>
+                                                </div>
+
+                                                <div className="flex items-center justify-between">
+                                                    <div>
+                                                        <h5 className="font-medium text-blue-800 dark:text-blue-200">
+                                                            Access Request Notifications
+                                                        </h5>
+                                                        <p className="text-sm text-blue-600 dark:text-blue-300">
+                                                            Notify user managers about new access requests
+                                                        </p>
+                                                    </div>
+                                                    <label className="relative inline-flex items-center cursor-pointer">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={adminNotificationSettings.enableAccessRequestNotifications}
+                                                            onChange={(e) =>
+                                                                handleUpdateAdminNotificationSettings({
+                                                                    enableAccessRequestNotifications: e.target.checked,
+                                                                })
+                                                            }
+                                                            className="sr-only peer"
+                                                        />
+                                                        <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-blue-600"></div>
+                                                    </label>
+                                                </div>
+
+                                                <div>
+                                                    <label className="block text-sm font-medium text-blue-800 dark:text-blue-200 mb-2">
+                                                        Timetable Check Interval (minutes)
+                                                    </label>
+                                                    <p className="text-xs text-blue-600 dark:text-blue-300 mb-2">
+                                                        How often to check for timetable changes (5-1440 minutes)
+                                                    </p>
+                                                    <div className="flex items-center gap-2">
+                                                        <input
+                                                            type="number"
+                                                            min="5"
+                                                            max="1440"
+                                                            value={adminNotificationSettings.timetableFetchInterval}
+                                                            onChange={(e) => {
+                                                                const value = parseInt(e.target.value);
+                                                                if (value >= 5 && value <= 1440) {
+                                                                    handleUpdateAdminNotificationSettings({
+                                                                        timetableFetchInterval: value,
+                                                                    });
+                                                                }
+                                                            }}
+                                                            className="w-20 px-2 py-1 text-sm border border-blue-300 dark:border-blue-600 rounded bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100"
+                                                        />
+                                                        <span className="text-sm text-blue-600 dark:text-blue-300">
+                                                            minutes
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )
+                                )}
+                            </div>
+                        )}
+
+                        {/* Fallback for unhandled tabs */}
+                        {!['nickname', 'sharing', 'notifications', 'access', 'global'].includes(activeTab) && (
                             <div>
                                 <p className="text-slate-600 dark:text-slate-400">
-                                    Tab content for "{activeTab}" will be implemented next.
+                                    Tab content for "{activeTab}" is not implemented.
                                     Current user type: {user.isAdmin ? 'Admin' : user.isUserManager ? 'User Manager' : 'Regular User'}
                                 </p>
                             </div>
