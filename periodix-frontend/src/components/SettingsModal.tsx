@@ -950,20 +950,6 @@ export default function SettingsModal({
         }
     };
 
-    // Get available tabs based on user type
-    const getAvailableTabs = () => {
-        const tabs: Array<{key: 'notifications' | 'sharing' | 'access', label: string}> = [
-            { key: 'notifications', label: 'Notification Settings' },
-            { key: 'sharing', label: 'Timetable Sharing Settings' }
-        ];
-        
-        if (user.isAdmin || user.isUserManager) {
-            tabs.push({ key: 'access', label: 'Access Requests & Whitelist' });
-        }
-        
-        return tabs;
-    };
-
     // Load settings when modal opens (with stable callbacks)
     useEffect(() => {
         if (isOpen) {
@@ -2633,28 +2619,32 @@ export default function SettingsModal({
                                     </div>
 
                                     {/* Tab Navigation */}
-                                    <div className="border-b border-slate-200 dark:border-slate-700">
+                                    <div className="border-b border-slate-200 dark:border-slate-700 mb-6">
                                         <nav className="flex space-x-8">
-                                            {getAvailableTabs().map((tab) => (
-                                                <button
-                                                    key={tab.key}
-                                                    onClick={() => setActiveTab(tab.key)}
-                                                    className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                                                        activeTab === tab.key
-                                                            ? 'border-indigo-500 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400'
-                                                            : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 dark:text-slate-400 dark:hover:text-slate-300 dark:hover:border-slate-600'
-                                                    }`}
-                                                >
-                                                    {tab.label}
-                                                </button>
-                                            ))}
+                                            <button
+                                                onClick={() => setActiveTab('notifications')}
+                                                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                                                    activeTab === 'notifications'
+                                                        ? 'border-indigo-500 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400'
+                                                        : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 dark:text-slate-400 dark:hover:text-slate-300 dark:hover:border-slate-600'
+                                                }`}
+                                            >
+                                                Notification Settings
+                                            </button>
+                                            <button
+                                                onClick={() => setActiveTab('sharing')}
+                                                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                                                    activeTab === 'sharing'
+                                                        ? 'border-indigo-500 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400'
+                                                        : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 dark:text-slate-400 dark:hover:text-slate-300 dark:hover:border-slate-600'
+                                                }`}
+                                            >
+                                                Timetable Sharing Settings
+                                            </button>
                                         </nav>
                                     </div>
 
-                                    {/* Tab Content - Notifications */}
-                                    {activeTab === 'notifications' && (
-                                        <div>
-                                            {/* Notification Settings */}
+                                    {/* Notification Settings */}
                                     {notificationLoading ? (
                                         <div className="text-center text-slate-600 dark:text-slate-400">
                                             Loading notification settings...
