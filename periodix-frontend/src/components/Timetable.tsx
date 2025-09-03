@@ -925,7 +925,7 @@ export default function Timetable({
     return (
         <div
             ref={containerRef}
-            className="w-full overflow-x-hidden pt-[env(safe-area-inset-top)]"
+            className="relative w-full overflow-x-hidden pt-[env(safe-area-inset-top)]"
         >
             {isDeveloperModeEnabled && (
                 <div className="mb-4 flex justify-end px-2">
@@ -962,16 +962,16 @@ export default function Timetable({
                 </div>
             )}
 
-            {/* Pull-to-refresh indicator */}
+            {/* Pull-to-refresh indicator - overlaid above everything */}
             {(isPulling || isRefreshing) && (
                 <div 
-                    className="flex justify-center items-center py-2 transition-transform duration-300 ease-out"
+                    className="absolute top-0 left-0 right-0 z-50 flex justify-center items-center py-3 transition-all duration-300 ease-out"
                     style={{
-                        transform: `translateY(${isPulling ? Math.max(0, pullDistance - 40) : 0}px)`,
+                        transform: `translateY(${isPulling ? Math.max(0, pullDistance * 0.8) : 20}px)`,
                         opacity: isPulling ? Math.min(1, pullDistance / refreshThreshold) : 1
                     }}
                 >
-                    <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
+                    <div className="flex items-center gap-2 px-4 py-2 bg-white/95 dark:bg-slate-800/95 backdrop-blur rounded-full shadow-lg border border-slate-200/60 dark:border-slate-600/60 text-slate-600 dark:text-slate-400">
                         {isRefreshing ? (
                             <>
                                 <div className="animate-spin rounded-full h-5 w-5 border-2 border-sky-600 border-t-transparent"></div>
