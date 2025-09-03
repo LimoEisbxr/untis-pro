@@ -161,8 +161,12 @@ export default function SharingSettings({ token, user, isVisible, onUserUpdate }
         return null;
     }
 
+    if (!isVisible) {
+        return null; // Don't render when not visible
+    }
+
     return (
-        <div className="p-6 space-y-6">
+        <div className="space-y-6">
             {/* Display Name Section */}
             <div>
                 <h3 className="font-medium text-slate-900 dark:text-slate-100 mb-3">

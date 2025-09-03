@@ -73,8 +73,12 @@ export default function AdminUserManagement({ token, user, isVisible }: AdminUse
         return null;
     }
 
+    if (!isVisible) {
+        return null; // Don't render when not visible
+    }
+
     return (
-        <div className="p-6 space-y-6">
+        <div className="space-y-6">
             {/* Global sharing control */}
             {settings && (
                 <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">

@@ -96,6 +96,10 @@ export default function UserManagerAccessManagement({ token, user, isVisible }: 
         return null;
     }
 
+    if (!isVisible) {
+        return null; // Don't render when not visible
+    }
+
     return (
         <div className="space-y-6">
             {/* Header */}
