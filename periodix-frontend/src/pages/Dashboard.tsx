@@ -14,6 +14,7 @@ import {
     getNotifications,
     trackActivity,
 } from '../api';
+import { getHideAdminDefaultsPreference } from '../utils/gradientPreferences';
 import {
     addDays,
     fmtLocal,
@@ -85,6 +86,7 @@ export default function Dashboard({
     const [defaultLessonColors, setDefaultLessonColors] =
         useState<LessonColors>({});
     const [lessonOffsets, setLessonOffsets] = useState<LessonOffsets>({});
+    const [hideAdminDefaults, setHideAdminDefaults] = useState<boolean>(false);
 
     // Initialize timetable cache hook
     const { getTimetableData, getCachedData, invalidateCache } =
@@ -309,6 +311,21 @@ export default function Dashboard({
         loadLessonColors();
         loadDefaults();
     }, [token]);
+
+    // Load hideAdminDefaults preference from localStorage
+    useEffect(() => {
+        setHideAdminDefaults(getHideAdminDefaultsPreference());
+        
+        // Listen for localStorage changes (in case user changes setting in another tab)
+        const handleStorageChange = (e: StorageEvent) => {
+            if (e.key === 'hideAdminDefaultGradients') {
+                setHideAdminDefaults(getHideAdminDefaultsPreference());
+            }
+        };
+        
+        window.addEventListener('storage', handleStorageChange);
+        return () => window.removeEventListener('storage', handleStorageChange);
+    }, []);
 
     // Handle lesson color changes
     const handleColorChange = useCallback(
@@ -995,6 +1012,7 @@ export default function Dashboard({
                             weekStart={weekStartDate}
                             lessonColors={lessonColors}
                             defaultLessonColors={defaultLessonColors}
+                            hideAdminDefaults={hideAdminDefaults}
                             isAdmin={!!user.isAdmin}
                             onColorChange={handleColorChange}
                             serverLessonOffsets={lessonOffsets}

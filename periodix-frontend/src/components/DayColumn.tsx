@@ -28,6 +28,7 @@ export type DayColumnProps = {
     BOTTOM_PAD_PX: number;
     lessonColors: LessonColors;
     defaultLessonColors: LessonColors;
+    hideAdminDefaults?: boolean;
     onLessonClick: (lesson: Lesson) => void;
     isToday?: boolean;
     gradientOffsets?: Record<string, number>; // subject -> offset (0..1)
@@ -45,6 +46,7 @@ const DayColumn: FC<DayColumnProps> = ({
     BOTTOM_PAD_PX,
     lessonColors,
     defaultLessonColors,
+    hideAdminDefaults = false,
     onLessonClick,
     isToday = false,
     gradientOffsets,
@@ -275,7 +277,7 @@ const DayColumn: FC<DayColumnProps> = ({
 
                     const effectiveColor =
                         lessonColors[subjectType] ??
-                        defaultLessonColors[subjectType] ??
+                        (hideAdminDefaults ? null : defaultLessonColors[subjectType]) ??
                         null;
                     const offset = gradientOffsets?.[subjectType] ?? 0.5;
                     const baseGradient = effectiveColor
