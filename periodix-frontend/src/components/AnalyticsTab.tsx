@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { 
     getAnalyticsOverview, 
     trackActivity,
@@ -30,7 +30,7 @@ export default function AnalyticsTab({ token }: AnalyticsTabProps) {
         trackActivity(token, 'analytics_view').catch(console.error);
     }, [token]);
 
-    const loadAnalytics = async () => {
+    const loadAnalytics = useCallback(async () => {
         try {
             setError(null);
             const data = await getAnalyticsOverview(token);
@@ -44,11 +44,11 @@ export default function AnalyticsTab({ token }: AnalyticsTabProps) {
             setLoading(false);
             setRefreshing(false);
         }
-    };
+    }, [token]);
 
     useEffect(() => {
         loadAnalytics();
-    }, [token]);
+    }, [token, loadAnalytics]);
 
     const handleRefresh = async () => {
         setRefreshing(true);

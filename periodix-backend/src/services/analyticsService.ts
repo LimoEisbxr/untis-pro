@@ -327,6 +327,8 @@ async function updateHourlyStats(action: string): Promise<void> {
  */
 async function updateDailyStats(userId: string, action: string): Promise<void> {
     const today = new Date().toISOString().split('T')[0];
+    const todayStart = new Date(today + 'T00:00:00.000Z');
+    const todayEnd = new Date(today + 'T23:59:59.999Z');
 
     try {
         // Check if user is new today
@@ -338,28 +340,72 @@ async function updateDailyStats(userId: string, action: string): Promise<void> {
         const isNewUser = user?.createdAt.toISOString().split('T')[0] === today;
 
         // Get current stats or create new
-        await (prisma as any).dailyStats.upsert({
+        const existingStats = await (prisma as any).dailyStats.findUnique({
             where: { date: today },
-            update: {
-                totalLogins: { increment: action === 'login' ? 1 : 0 },
-                timetableViews: { increment: action === 'timetable_view' ? 1 : 0 },
-                searchQueries: { increment: action === 'search' ? 1 : 0 },
-                settingsOpened: { increment: action === 'settings' ? 1 : 0 },
-                colorChanges: { increment: action === 'color_change' ? 1 : 0 },
-            },
-            create: {
-                date: today,
-                totalUsers: await (prisma as any).user.count(),
-                activeUsers: 1,
-                newUsers: isNewUser ? 1 : 0,
-                uniqueLogins: action === 'login' ? 1 : 0,
-                totalLogins: action === 'login' ? 1 : 0,
-                timetableViews: action === 'timetable_view' ? 1 : 0,
-                searchQueries: action === 'search' ? 1 : 0,
-                settingsOpened: action === 'settings' ? 1 : 0,
-                colorChanges: action === 'color_change' ? 1 : 0,
-            },
         });
+
+        if (existingStats) {
+            // Count distinct users who were active today (including the current activity)
+            const activeUsersToday = await (prisma as any).userActivity.groupBy({
+                by: ['userId'],
+                where: {
+                    createdAt: {
+                        gte: todayStart,
+                        lte: todayEnd,
+                    },
+                },
+                _count: { userId: true },
+            });
+
+            const currentActiveUsers = activeUsersToday.length;
+
+            // Count unique users who logged in today
+            const uniqueLoginsToday = await (prisma as any).userActivity.groupBy({
+                by: ['userId'],
+                where: {
+                    action: 'login',
+                    createdAt: {
+                        gte: todayStart,
+                        lte: todayEnd,
+                    },
+                },
+                _count: { userId: true },
+            });
+
+            const currentUniqueLogins = uniqueLoginsToday.length;
+
+            // Update existing record with correct counts
+            await (prisma as any).dailyStats.update({
+                where: { date: today },
+                data: {
+                    activeUsers: currentActiveUsers,
+                    uniqueLogins: currentUniqueLogins,
+                    totalUsers: await (prisma as any).user.count(),
+                    totalLogins: { increment: action === 'login' ? 1 : 0 },
+                    timetableViews: { increment: action === 'timetable_view' ? 1 : 0 },
+                    searchQueries: { increment: action === 'search' ? 1 : 0 },
+                    settingsOpened: { increment: action === 'settings' ? 1 : 0 },
+                    colorChanges: { increment: action === 'color_change' ? 1 : 0 },
+                    newUsers: { increment: isNewUser ? 1 : 0 },
+                },
+            });
+        } else {
+            // Create new record
+            await (prisma as any).dailyStats.create({
+                data: {
+                    date: today,
+                    totalUsers: await (prisma as any).user.count(),
+                    activeUsers: 1, // First user active today
+                    newUsers: isNewUser ? 1 : 0,
+                    uniqueLogins: action === 'login' ? 1 : 0,
+                    totalLogins: action === 'login' ? 1 : 0,
+                    timetableViews: action === 'timetable_view' ? 1 : 0,
+                    searchQueries: action === 'search' ? 1 : 0,
+                    settingsOpened: action === 'settings' ? 1 : 0,
+                    colorChanges: action === 'color_change' ? 1 : 0,
+                },
+            });
+        }
     } catch (error) {
         console.error('Failed to update daily stats:', error);
     }
