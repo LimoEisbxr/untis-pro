@@ -1344,6 +1344,7 @@ export default function Timetable({
                                                         className="rounded-full bg-rose-500/95 px-1 py-[1px] text-[10px] font-semibold text-white shadow-lg"
                                                         style={{
                                                             filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))',
+                                                            textShadow: '0 0 2px rgba(255,255,255,0.8), 0 0 4px rgba(255,255,255,0.6), 1px 1px 0 rgba(255,255,255,0.4), -1px -1px 0 rgba(255,255,255,0.4), 1px -1px 0 rgba(255,255,255,0.4), -1px 1px 0 rgba(255,255,255,0.4)',
                                                         }}
                                                     >
                                                         {fmtHM(nowMin)}
