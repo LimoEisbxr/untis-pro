@@ -13,6 +13,7 @@ import { verifyUntisCredentials } from '../services/untisService.js';
 import { signToken, authMiddleware } from '../server/authMiddleware.js';
 import { untisUserLimiter } from '../server/untisRateLimiter.js';
 import { prisma } from '../store/prisma.js';
+import { trackActivity, type TrackingData } from '../services/analyticsService.js';
 
 const router = Router();
 
@@ -34,6 +35,21 @@ router.post('/login', untisUserLimiter, async (req, res) => {
         parsed.data.password === ADMIN_PASSWORD
     ) {
         const token = signToken({ userId: 'admin', isAdmin: true });
+        
+        // Track admin login activity
+        const trackingData: TrackingData = {
+            userId: 'admin',
+            action: 'login',
+        };
+        
+        const ipAddr = req.ip || req.connection.remoteAddress;
+        if (ipAddr) trackingData.ipAddress = ipAddr;
+        
+        const userAgent = req.get('User-Agent');
+        if (userAgent) trackingData.userAgent = userAgent;
+        
+        trackActivity(trackingData).catch(console.error);
+        
         return res.json({
             token,
             user: {
@@ -49,6 +65,21 @@ router.post('/login', untisUserLimiter, async (req, res) => {
     const existingUser = await findUserByCredentials({ ...parsed.data });
     if (existingUser) {
         const token = signToken({ userId: existingUser.id });
+        
+        // Track login activity for existing user
+        const trackingData: TrackingData = {
+            userId: existingUser.id,
+            action: 'login',
+        };
+        
+        const ipAddr = req.ip || req.connection.remoteAddress;
+        if (ipAddr) trackingData.ipAddress = ipAddr;
+        
+        const userAgent = req.get('User-Agent');
+        if (userAgent) trackingData.userAgent = userAgent;
+        
+        trackActivity(trackingData).catch(console.error);
+        
         return res.json({
             token,
             user: {
@@ -97,6 +128,21 @@ router.post('/login', untisUserLimiter, async (req, res) => {
     // Create user with Untis credentials
     const user = await createUserIfNotExists({ ...parsed.data });
     const token = signToken({ userId: user.id });
+    
+    // Track login activity for newly created user
+    const trackingData: TrackingData = {
+        userId: user.id,
+        action: 'login',
+    };
+    
+    const ipAddr = req.ip || req.connection.remoteAddress;
+    if (ipAddr) trackingData.ipAddress = ipAddr;
+    
+    const userAgent = req.get('User-Agent');
+    if (userAgent) trackingData.userAgent = userAgent;
+    
+    trackActivity(trackingData).catch(console.error);
+    
     res.json({
         token,
         user: {
