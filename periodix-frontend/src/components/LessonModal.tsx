@@ -5,7 +5,6 @@ import { fmtHM, untisToMinutes } from '../utils/dates';
 import ColorPicker from './ColorPicker';
 import { extractSubjectType } from '../utils/subjectUtils';
 import { getTeacherDisplayText, getRoomDisplayText } from '../utils/lessonChanges';
-import { getHideAdminDefaultsPreference } from '../utils/gradientPreferences';
 
 export default function LessonModal({
     lesson,
@@ -14,6 +13,7 @@ export default function LessonModal({
     isDeveloperMode,
     lessonColors,
     defaultLessonColors,
+    hideAdminDefaults = false,
     isAdmin,
     onColorChange,
     gradientOffsets,
@@ -26,6 +26,7 @@ export default function LessonModal({
     isDeveloperMode: boolean;
     lessonColors?: LessonColors;
     defaultLessonColors?: LessonColors;
+    hideAdminDefaults?: boolean;
     isAdmin?: boolean;
     onColorChange?: (
         lessonName: string,
@@ -39,7 +40,6 @@ export default function LessonModal({
     const [animatingOut, setAnimatingOut] = useState(false);
     const [entered, setEntered] = useState(false);
     const [copied, setCopied] = useState(false);
-    const [hideAdminDefaults, setHideAdminDefaults] = useState(false);
 
     const lockScroll = () => {
         document.documentElement.classList.add('modal-open');
@@ -91,13 +91,6 @@ export default function LessonModal({
         if (shouldRender) document.addEventListener('keydown', handleEscape);
         return () => document.removeEventListener('keydown', handleEscape);
     }, [shouldRender, handleClose]);
-
-    // Load hideAdminDefaults preference when modal opens
-    useEffect(() => {
-        if (isOpen) {
-            setHideAdminDefaults(getHideAdminDefaultsPreference());
-        }
-    }, [isOpen]);
 
     if (!shouldRender || !lesson) return null;
 

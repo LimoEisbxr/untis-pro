@@ -1470,6 +1470,7 @@ export default function Timetable({
                 isDeveloperMode={isDeveloperMode}
                 lessonColors={lessonColors}
                 defaultLessonColors={defaultLessonColors}
+                hideAdminDefaults={hideAdminDefaults}
                 isAdmin={isAdmin}
                 onColorChange={onColorChange}
                 gradientOffsets={gradientOffsets}
