@@ -1008,12 +1008,7 @@ export default function Timetable({
                 Loading…
             </div>
         );
-    if (!hasLessons)
-        return (
-            <div className="rounded-lg border border-dashed p-4 text-center text-slate-600 dark:text-slate-300">
-                No timetable for this week.
-            </div>
-        );
+
 
     return (
         <div
@@ -1385,6 +1380,15 @@ export default function Timetable({
                                         </div>
                                     );
                                 })}
+
+                                {/* Empty state overlay when no lessons for current week */}
+                                {!hasLessons && (
+                                    <div className="absolute inset-0 flex items-center justify-center z-50">
+                                        <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm rounded-lg border border-dashed border-slate-300 dark:border-slate-600 p-6 text-center text-slate-600 dark:text-slate-300 shadow-lg">
+                                            No timetable for this week.
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
                             {/* Next Week */}

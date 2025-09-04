@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Empty Timetable Test</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Simulate the timetable structure with an empty state overlay */
+        .timetable-container {
+            position: relative;
+            width: 100%;
+            overflow-x: hidden;
+            padding-top: env(safe-area-inset-top);
+        }
+        
+        .week-view {
+            display: flex;
+            width: 100%;
+            position: relative;
+        }
+        
+        .time-axis {
+            width: 56px;
+            background: linear-gradient(to bottom, #f8fafc, #f1f5f9);
+            border-radius: 0.5rem 0 0 0.5rem;
+            border: 1px solid #e2e8f0;
+            border-right: none;
+        }
+        
+        .sliding-container {
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .sliding-track {
+            display: flex;
+            transform: translateX(calc(-33.333% + 0px));
+            width: 300%;
+            transition: none;
+            gap: 0.75rem;
+        }
+        
+        .week-section {
+            display: flex;
+            gap: 0.25rem;
+            position: relative;
+            width: calc(33.333% - 0.5rem);
+        }
+        
+        .day-column {
+            flex: 1;
+            min-height: 300px;
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.5rem;
+        }
+        
+        .empty-overlay {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+        }
+        
+        .empty-message {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(4px);
+            border-radius: 0.5rem;
+            border: 2px dashed #cbd5e1;
+            padding: 1.5rem;
+            text-align: center;
+            color: #64748b;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* Simulate touch interaction */
+        .sliding-track:hover {
+            cursor: grab;
+        }
+        
+        .sliding-track:active {
+            cursor: grabbing;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-slate-50 via-slate-100 to-sky-50 min-h-screen p-4">
+    <div class="max-w-6xl mx-auto">
+        <h1 class="text-3xl font-bold text-slate-800 mb-2">Empty Timetable Swipe Test</h1>
+        <p class="text-slate-600 mb-8">This simulates how the empty timetable state looks with swipe functionality intact. Try dragging left/right on the timetable area below.</p>
+        
+        <!-- Sticky weekday header -->
+        <div class="sticky top-0 z-30 bg-gradient-to-b from-white/85 to-white/60 backdrop-blur rounded-lg ring-1 ring-black/5 border border-slate-300/60 shadow-sm mb-2 px-2">
+            <div class="grid" style="grid-template-columns: 56px repeat(5, 1fr);">
+                <div class="h-10 flex items-center justify-center text-xs font-medium text-slate-500">
+                    Time
+                </div>
+                <div class="h-10 flex flex-col items-center justify-center py-1">
+                    <div class="text-xs font-semibold leading-tight text-slate-700">Mon</div>
+                    <div class="text-xs font-medium text-slate-500">14/12</div>
+                </div>
+                <div class="h-10 flex flex-col items-center justify-center py-1">
+                    <div class="text-xs font-semibold leading-tight text-slate-700">Tue</div>
+                    <div class="text-xs font-medium text-slate-500">15/12</div>
+                </div>
+                <div class="h-10 flex flex-col items-center justify-center py-1">
+                    <div class="text-xs font-semibold leading-tight text-slate-700">Wed</div>
+                    <div class="text-xs font-medium text-slate-500">16/12</div>
+                </div>
+                <div class="h-10 flex flex-col items-center justify-center py-1">
+                    <div class="text-xs font-semibold leading-tight text-slate-700">Thu</div>
+                    <div class="text-xs font-medium text-slate-500">17/12</div>
+                </div>
+                <div class="h-10 flex flex-col items-center justify-center py-1">
+                    <div class="text-xs font-semibold leading-tight text-slate-700">Fri</div>
+                    <div class="text-xs font-medium text-slate-500">18/12</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main timetable container -->
+        <div class="timetable-container">
+            <div class="overflow-hidden w-full">
+                <div class="week-view">
+                    <!-- Time axis -->
+                    <div class="time-axis">
+                        <div class="p-2 text-xs text-slate-500">
+                            <div class="mb-2">8:00</div>
+                            <div class="mb-2">9:00</div>
+                            <div class="mb-2">10:00</div>
+                            <div class="mb-2">11:00</div>
+                            <div class="mb-2">12:00</div>
+                            <div class="mb-2">13:00</div>
+                            <div class="mb-2">14:00</div>
+                            <div class="mb-2">15:00</div>
+                            <div class="mb-2">16:00</div>
+                            <div class="mb-2">17:00</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Sliding container -->
+                    <div class="sliding-container">
+                        <div class="sliding-track" id="slidingTrack">
+                            <!-- Previous Week -->
+                            <div class="week-section">
+                                <div class="day-column"></div>
+                                <div class="day-column"></div>
+                                <div class="day-column"></div>
+                                <div class="day-column"></div>
+                                <div class="day-column"></div>
+                            </div>
+                            
+                            <!-- Current Week (with empty overlay) -->
+                            <div class="week-section">
+                                <div class="day-column"></div>
+                                <div class="day-column"></div>
+                                <div class="day-column"></div>
+                                <div class="day-column"></div>
+                                <div class="day-column"></div>
+                                
+                                <!-- Empty state overlay -->
+                                <div class="empty-overlay">
+                                    <div class="empty-message">
+                                        No timetable for this week.
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Next Week -->
+                            <div class="week-section">
+                                <div class="day-column"></div>
+                                <div class="day-column"></div>
+                                <div class="day-column"></div>
+                                <div class="day-column"></div>
+                                <div class="day-column"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="mt-8 p-4 bg-blue-50 rounded-lg">
+            <h3 class="font-semibold text-blue-800 mb-2">Test Instructions:</h3>
+            <ul class="text-blue-700 text-sm space-y-1">
+                <li>• Try dragging left/right on the timetable area</li>
+                <li>• The empty message overlay should remain visible</li>
+                <li>• Swiping should feel responsive even with no lessons</li>
+                <li>• The visual design should look polished and integrated</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // Simple touch/mouse interaction simulation
+        let startX = 0;
+        let currentX = 0;
+        let isDragging = false;
+        let translateX = 0;
+        
+        const slidingTrack = document.getElementById('slidingTrack');
+        
+        function handleStart(clientX) {
+            startX = clientX;
+            isDragging = true;
+            slidingTrack.style.cursor = 'grabbing';
+        }
+        
+        function handleMove(clientX) {
+            if (!isDragging) return;
+            
+            currentX = clientX;
+            const deltaX = currentX - startX;
+            const newTranslateX = translateX + deltaX;
+            
+            // Apply some resistance
+            const resistanceFactor = 0.6;
+            const adjustedDelta = deltaX * resistanceFactor;
+            
+            slidingTrack.style.transform = `translateX(calc(-33.333% + ${newTranslateX}px))`;
+        }
+        
+        function handleEnd() {
+            if (!isDragging) return;
+            
+            const deltaX = currentX - startX;
+            
+            // Simple snap back to center
+            if (Math.abs(deltaX) < 100) {
+                slidingTrack.style.transform = 'translateX(calc(-33.333% + 0px))';
+                translateX = 0;
+            } else {
+                // Simulate week navigation
+                if (deltaX > 0) {
+                    console.log('Navigate to previous week');
+                } else {
+                    console.log('Navigate to next week');
+                }
+                slidingTrack.style.transform = 'translateX(calc(-33.333% + 0px))';
+                translateX = 0;
+            }
+            
+            isDragging = false;
+            slidingTrack.style.cursor = 'grab';
+        }
+        
+        // Mouse events
+        slidingTrack.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            handleStart(e.clientX);
+        });
+        
+        document.addEventListener('mousemove', (e) => {
+            handleMove(e.clientX);
+        });
+        
+        document.addEventListener('mouseup', handleEnd);
+        
+        // Touch events
+        slidingTrack.addEventListener('touchstart', (e) => {
+            handleStart(e.touches[0].clientX);
+        });
+        
+        slidingTrack.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            handleMove(e.touches[0].clientX);
+        });
+        
+        slidingTrack.addEventListener('touchend', handleEnd);
+    </script>
+</body>
+</html>
