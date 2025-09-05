@@ -22,6 +22,12 @@ export const getHideAdminDefaultsPreference = (): boolean => {
 export const setHideAdminDefaultsPreference = (value: boolean): void => {
     try {
         localStorage.setItem(HIDE_ADMIN_DEFAULTS_KEY, JSON.stringify(value));
+        
+        // Dispatch a custom event to notify components in the same tab
+        // The standard 'storage' event only fires in other tabs
+        window.dispatchEvent(new CustomEvent('hideAdminDefaultsChanged', {
+            detail: { value }
+        }));
     } catch (error) {
         console.warn('Failed to save gradient preference to localStorage:', error);
     }

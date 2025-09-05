@@ -323,8 +323,17 @@ export default function Dashboard({
             }
         };
         
+        // Listen for custom event (for changes in the same tab)
+        const handleCustomChange = (e: CustomEvent) => {
+            setHideAdminDefaults(e.detail.value);
+        };
+        
         window.addEventListener('storage', handleStorageChange);
-        return () => window.removeEventListener('storage', handleStorageChange);
+        window.addEventListener('hideAdminDefaultsChanged', handleCustomChange as EventListener);
+        return () => {
+            window.removeEventListener('storage', handleStorageChange);
+            window.removeEventListener('hideAdminDefaultsChanged', handleCustomChange as EventListener);
+        };
     }, []);
 
     // Handle lesson color changes
