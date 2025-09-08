@@ -1,12 +1,15 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { adminOrUserManagerOnly } from '../server/authMiddleware.js';
-import { 
-    trackActivity, 
-    getDashboardStats, 
+import {
+    adminOrUserManagerOnly,
+    authMiddleware,
+} from '../server/authMiddleware.js';
+import {
+    trackActivity,
+    getDashboardStats,
     getUserEngagementMetrics,
     getActivityTrends,
-    type TrackingData
+    type TrackingData,
 } from '../services/analyticsService.js';
 
 const router = Router();
@@ -17,7 +20,7 @@ const trackActivitySchema = z.object({
     details: z.record(z.unknown()).optional(),
 });
 
-router.post('/track', async (req, res) => {
+router.post('/track', authMiddleware, async (req, res) => {
     const parsed = trackActivitySchema.safeParse(req.body);
     if (!parsed.success) {
         return res.status(400).json({ error: parsed.error.flatten() });
@@ -33,21 +36,21 @@ router.post('/track', async (req, res) => {
             userId,
             action: parsed.data.action,
         };
-        
+
         if (parsed.data.details) {
             trackingData.details = parsed.data.details;
         }
-        
+
         const ipAddr = req.ip || req.connection.remoteAddress;
         if (ipAddr) {
             trackingData.ipAddress = ipAddr;
         }
-        
+
         const userAgent = req.get('User-Agent');
         if (userAgent) {
             trackingData.userAgent = userAgent;
         }
-        
+
         if ((req as any).sessionID) {
             trackingData.sessionId = (req as any).sessionID;
         }
@@ -97,11 +100,12 @@ router.get('/trends', adminOrUserManagerOnly, async (_req, res) => {
 // Get comprehensive analytics data - accessible by admin or user-manager
 router.get('/overview', adminOrUserManagerOnly, async (_req, res) => {
     try {
-        const [dashboardStats, engagementMetrics, activityTrends] = await Promise.all([
-            getDashboardStats(),
-            getUserEngagementMetrics(),
-            getActivityTrends(),
-        ]);
+        const [dashboardStats, engagementMetrics, activityTrends] =
+            await Promise.all([
+                getDashboardStats(),
+                getUserEngagementMetrics(),
+                getActivityTrends(),
+            ]);
 
         res.json({
             dashboard: dashboardStats,

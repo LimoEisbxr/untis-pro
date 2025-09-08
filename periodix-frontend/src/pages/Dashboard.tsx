@@ -13,7 +13,17 @@ import {
     getDefaultLessonColors,
     getNotifications,
     trackActivity,
+    getNotificationSettings,
+    getVapidPublicKey,
+    subscribeToPushNotifications as apiSubscribeToPush,
+    updateNotificationSettings,
 } from '../api';
+import {
+    isServiceWorkerSupported,
+    isIOS,
+    isStandalonePWA,
+    subscribeToPushNotifications as utilsSubscribeToPush,
+} from '../utils/notifications';
 import {
     addDays,
     fmtLocal,
@@ -455,7 +465,54 @@ export default function Dashboard({
     const loadNotifications = useCallback(async () => {
         try {
             const response = await getNotifications(token);
-            setNotifications(response.notifications);
+            // Show browser notifications for newly arrived items if user enabled them
+            setNotifications((prev) => {
+                const prevIds = new Set(prev.map((n) => n.id));
+                const next = response.notifications;
+                try {
+                    // Read user settings from local storage cache written by settings screen if present
+                    const raw = localStorage.getItem(
+                        'periodix:notificationSettings'
+                    );
+                    const settings = raw ? JSON.parse(raw) : null;
+                    const perm = Notification?.permission;
+                    const appVisible =
+                        typeof document !== 'undefined' &&
+                        document.visibilityState === 'visible';
+                    if (
+                        settings?.browserNotificationsEnabled &&
+                        perm === 'granted' &&
+                        Array.isArray(next) &&
+                        // Avoid duplicates: don't show when app is visible (user just opened it)
+                        !appVisible &&
+                        // If push is enabled, rely on service worker push instead of poll-based toasts
+                        !settings?.pushNotificationsEnabled
+                    ) {
+                        // Notify only for truly new, unread items
+                        next.forEach((n) => {
+                            if (!prevIds.has(n.id) && !n.read) {
+                                try {
+                                    new Notification(n.title, {
+                                        body: n.message,
+                                        icon: '/icon-192.png',
+                                        badge: '/icon-192.png',
+                                        tag: `periodix-${n.id}`,
+                                        data: {
+                                            ...(n.data || {}),
+                                            notificationId: n.id,
+                                        },
+                                    });
+                                } catch {
+                                    // Ignore notification errors
+                                }
+                            }
+                        });
+                    }
+                } catch {
+                    // Ignore storage/permission parse issues
+                }
+                return next;
+            });
         } catch (error) {
             console.error('Failed to load notifications:', error);
         }
@@ -469,6 +526,82 @@ export default function Dashboard({
         const interval = setInterval(loadNotifications, 30000);
         return () => clearInterval(interval);
     }, [loadNotifications]);
+
+    // Cache notification settings for browser notifications gating
+    useEffect(() => {
+        getNotificationSettings(token)
+            .then((data) => {
+                try {
+                    localStorage.setItem(
+                        'periodix:notificationSettings',
+                        JSON.stringify(data.settings)
+                    );
+                } catch {
+                    // ignore localStorage errors
+                }
+            })
+            .catch(() => {
+                // ignore errors
+            });
+    }, [token]);
+
+    // Auto-setup push subscription if permission is already granted
+    useEffect(() => {
+        let cancelled = false;
+        const run = async () => {
+            try {
+                if (!isServiceWorkerSupported()) return;
+                if (Notification?.permission !== 'granted') return;
+                // iOS requires installed PWA; other platforms OK in tab
+                if (isIOS() && !isStandalonePWA()) return;
+
+                const [{ settings }, { publicKey }] = await Promise.all([
+                    getNotificationSettings(token),
+                    getVapidPublicKey(),
+                ]);
+                if (cancelled) return;
+                if (!publicKey) return;
+
+                // If already enabled, still ensure backend knows latest subscription
+                const sub = await utilsSubscribeToPush(publicKey);
+                if (!sub) return;
+
+                await apiSubscribeToPush(token, {
+                    endpoint: sub.endpoint,
+                    p256dh: btoa(
+                        String.fromCharCode(
+                            ...new Uint8Array(sub.getKey('p256dh')!)
+                        )
+                    ),
+                    auth: btoa(
+                        String.fromCharCode(
+                            ...new Uint8Array(sub.getKey('auth')!)
+                        )
+                    ),
+                    userAgent: navigator.userAgent,
+                    deviceType: /mobi/i.test(navigator.userAgent)
+                        ? 'mobile'
+                        : /tablet|ipad|playbook|silk/i.test(navigator.userAgent)
+                        ? 'tablet'
+                        : 'desktop',
+                });
+
+                if (!settings.pushNotificationsEnabled) {
+                    await updateNotificationSettings(token, {
+                        pushNotificationsEnabled: true,
+                        browserNotificationsEnabled:
+                            settings.browserNotificationsEnabled ?? true,
+                    }).catch(() => {});
+                }
+            } catch {
+                // best-effort only
+            }
+        };
+        run();
+        return () => {
+            cancelled = true;
+        };
+    }, [token]);
 
     // Check if user should see onboarding
     useEffect(() => {
@@ -923,7 +1056,7 @@ export default function Dashboard({
                                 </button>
                             </div>
                             {/* Week picker with calendar week display */}
-                            <div className="flex items-end gap-3 ml-auto mr-5">
+                            <div className="flex items-end gap-3 ml-auto sm:mr-0 mr-[max(env(safe-area-inset-right),1.25rem)]">
                                 <div>
                                     <div className="flex justify-between items-center">
                                         <label className="label sm:text-sm text-[11px]">

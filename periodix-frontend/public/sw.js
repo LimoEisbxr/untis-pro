@@ -52,25 +52,44 @@ self.addEventListener('push', (event) => {
     }
 
     event.waitUntil(
-        self.registration.showNotification(notificationData.title, {
-            body: notificationData.body,
-            icon: notificationData.icon,
-            badge: notificationData.badge,
-            tag: notificationData.tag,
-            requireInteraction: notificationData.requireInteraction,
-            data: notificationData.data,
-            actions: [
-                {
-                    action: 'view',
-                    title: 'View',
-                    icon: '/icon-192.png',
-                },
-                {
-                    action: 'dismiss',
-                    title: 'Dismiss',
-                },
-            ],
-        })
+        (async () => {
+            try {
+                const tag = notificationData.data?.notificationId
+                    ? `periodix-${notificationData.data.notificationId}`
+                    : notificationData.tag;
+                if (tag && self.registration.getNotifications) {
+                    const existing = await self.registration.getNotifications({
+                        tag,
+                        includeTriggered: true,
+                    });
+                    existing.forEach((n) => n.close());
+                }
+            } catch (e) {
+                // ignore errors closing existing notifications
+            }
+
+            return self.registration.showNotification(notificationData.title, {
+                body: notificationData.body,
+                icon: notificationData.icon,
+                badge: notificationData.badge,
+                tag: notificationData.data?.notificationId
+                    ? `periodix-${notificationData.data.notificationId}`
+                    : notificationData.tag,
+                requireInteraction: notificationData.requireInteraction,
+                data: notificationData.data,
+                actions: [
+                    {
+                        action: 'view',
+                        title: 'View',
+                        icon: '/icon-192.png',
+                    },
+                    {
+                        action: 'dismiss',
+                        title: 'Dismiss',
+                    },
+                ],
+            });
+        })()
     );
 });
 

@@ -24,7 +24,7 @@ export default function TabNavigation({
             return [
                 { id: 'access', label: 'Whitelist & Access Request' },
                 { id: 'users', label: 'User Management' },
-                { id: 'global', label: 'Global Sharing Toggle' },
+                { id: 'global', label: 'Global Settings' },
                 { id: 'analytics', label: 'Analytics' },
             ];
         }

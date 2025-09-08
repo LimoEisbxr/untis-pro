@@ -1,10 +1,10 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
-import { 
-    getAnalyticsOverview, 
+import {
+    getAnalyticsOverview,
     trackActivity,
-    type DashboardStats, 
-    type UserEngagementMetrics, 
-    type ActivityTrends 
+    type DashboardStats,
+    type UserEngagementMetrics,
+    type ActivityTrends,
 } from '../api';
 
 interface AnalyticsTabProps {
@@ -20,9 +20,14 @@ interface ChartData {
 export default function AnalyticsTab({ token }: AnalyticsTabProps) {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null);
-    const [engagementMetrics, setEngagementMetrics] = useState<UserEngagementMetrics | null>(null);
-    const [activityTrends, setActivityTrends] = useState<ActivityTrends | null>(null);
+    const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(
+        null
+    );
+    const [engagementMetrics, setEngagementMetrics] =
+        useState<UserEngagementMetrics | null>(null);
+    const [activityTrends, setActivityTrends] = useState<ActivityTrends | null>(
+        null
+    );
     const [refreshing, setRefreshing] = useState(false);
 
     // Track analytics view
@@ -39,7 +44,9 @@ export default function AnalyticsTab({ token }: AnalyticsTabProps) {
             setActivityTrends(data.trends);
         } catch (err) {
             console.error('Failed to load analytics:', err);
-            setError(err instanceof Error ? err.message : 'Failed to load analytics');
+            setError(
+                err instanceof Error ? err.message : 'Failed to load analytics'
+            );
         } finally {
             setLoading(false);
             setRefreshing(false);
@@ -58,30 +65,42 @@ export default function AnalyticsTab({ token }: AnalyticsTabProps) {
     // Chart data preparations
     const hourlyChartData = useMemo((): ChartData => {
         if (!activityTrends?.hourlyActivity) return { labels: [], data: [] };
-        
+
         return {
-            labels: activityTrends.hourlyActivity.map(h => h.label),
-            data: activityTrends.hourlyActivity.map(h => h.count),
+            labels: activityTrends.hourlyActivity.map((h) => h.label),
+            data: activityTrends.hourlyActivity.map((h) => h.count),
         };
     }, [activityTrends]);
 
+    // Precompute maximum once to avoid render-time recomputation jitter
+    const maxHourlyValue = useMemo(() => {
+        const vals = hourlyChartData.data;
+        return vals.length ? Math.max(...vals, 1) : 1;
+    }, [hourlyChartData]);
+
     const growthChartData = useMemo((): ChartData => {
-        if (!engagementMetrics?.userGrowthTrend) return { labels: [], data: [] };
-        
+        if (!engagementMetrics?.userGrowthTrend)
+            return { labels: [], data: [] };
+
         return {
-            labels: engagementMetrics.userGrowthTrend.map(d => 
-                new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+            labels: engagementMetrics.userGrowthTrend.map((d) =>
+                new Date(d.date).toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                })
             ),
-            data: engagementMetrics.userGrowthTrend.map(d => d.totalUsers),
+            data: engagementMetrics.userGrowthTrend.map((d) => d.totalUsers),
         };
     }, [engagementMetrics]);
 
     const featureUsageData = useMemo(() => {
         if (!activityTrends?.featureUsage) return [];
-        
-        return activityTrends.featureUsage.map(f => ({
+
+        return activityTrends.featureUsage.map((f) => ({
             ...f,
-            displayName: f.feature.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+            displayName: f.feature
+                .replace(/_/g, ' ')
+                .replace(/\b\w/g, (l) => l.toUpperCase()),
         }));
     }, [activityTrends]);
 
@@ -92,7 +111,10 @@ export default function AnalyticsTab({ token }: AnalyticsTabProps) {
                     <div className="h-8 bg-slate-200 dark:bg-slate-700 rounded w-1/3"></div>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                         {[...Array(4)].map((_, i) => (
-                            <div key={i} className="h-24 bg-slate-200 dark:bg-slate-700 rounded"></div>
+                            <div
+                                key={i}
+                                className="h-24 bg-slate-200 dark:bg-slate-700 rounded"
+                            ></div>
                         ))}
                     </div>
                     <div className="h-64 bg-slate-200 dark:bg-slate-700 rounded"></div>
@@ -150,7 +172,9 @@ export default function AnalyticsTab({ token }: AnalyticsTabProps) {
                     title="Refresh data"
                 >
                     <svg
-                        className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`}
+                        className={`w-4 h-4 ${
+                            refreshing ? 'animate-spin' : ''
+                        }`}
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -171,7 +195,9 @@ export default function AnalyticsTab({ token }: AnalyticsTabProps) {
                 <div className="bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-blue-900/20 dark:to-indigo-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
                     <div className="flex items-center justify-between">
                         <div>
-                            <p className="text-blue-600 dark:text-blue-400 text-sm font-medium">Total Users</p>
+                            <p className="text-blue-600 dark:text-blue-400 text-sm font-medium">
+                                Total Users
+                            </p>
                             <p className="text-2xl font-bold text-blue-900 dark:text-blue-100">
                                 {dashboardStats?.totalUsers || 0}
                             </p>
@@ -183,7 +209,9 @@ export default function AnalyticsTab({ token }: AnalyticsTabProps) {
                 <div className="bg-gradient-to-br from-green-50 to-emerald-100 dark:from-green-900/20 dark:to-emerald-900/20 p-4 rounded-lg border border-green-200 dark:border-green-800">
                     <div className="flex items-center justify-between">
                         <div>
-                            <p className="text-green-600 dark:text-green-400 text-sm font-medium">Active Today</p>
+                            <p className="text-green-600 dark:text-green-400 text-sm font-medium">
+                                Active Today
+                            </p>
                             <p className="text-2xl font-bold text-green-900 dark:text-green-100">
                                 {dashboardStats?.activeUsersToday || 0}
                             </p>
@@ -195,7 +223,9 @@ export default function AnalyticsTab({ token }: AnalyticsTabProps) {
                 <div className="bg-gradient-to-br from-purple-50 to-violet-100 dark:from-purple-900/20 dark:to-violet-900/20 p-4 rounded-lg border border-purple-200 dark:border-purple-800">
                     <div className="flex items-center justify-between">
                         <div>
-                            <p className="text-purple-600 dark:text-purple-400 text-sm font-medium">Logins Today</p>
+                            <p className="text-purple-600 dark:text-purple-400 text-sm font-medium">
+                                Logins Today
+                            </p>
                             <p className="text-2xl font-bold text-purple-900 dark:text-purple-100">
                                 {dashboardStats?.totalLoginsToday || 0}
                             </p>
@@ -207,7 +237,9 @@ export default function AnalyticsTab({ token }: AnalyticsTabProps) {
                 <div className="bg-gradient-to-br from-amber-50 to-orange-100 dark:from-amber-900/20 dark:to-orange-900/20 p-4 rounded-lg border border-amber-200 dark:border-amber-800">
                     <div className="flex items-center justify-between">
                         <div>
-                            <p className="text-amber-600 dark:text-amber-400 text-sm font-medium">Retention Rate</p>
+                            <p className="text-amber-600 dark:text-amber-400 text-sm font-medium">
+                                Retention Rate
+                            </p>
                             <p className="text-2xl font-bold text-amber-900 dark:text-amber-100">
                                 {engagementMetrics?.retentionRate || 0}%
                             </p>
@@ -220,21 +252,27 @@ export default function AnalyticsTab({ token }: AnalyticsTabProps) {
             {/* Additional Stats Row */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="card p-4">
-                    <h3 className="font-semibold text-slate-900 dark:text-slate-100 mb-2">📅 Timetable Views Today</h3>
+                    <h3 className="font-semibold text-slate-900 dark:text-slate-100 mb-2">
+                        📅 Timetable Views Today
+                    </h3>
                     <p className="text-3xl font-bold text-sky-600 dark:text-sky-400">
                         {dashboardStats?.timetableViewsToday || 0}
                     </p>
                 </div>
 
                 <div className="card p-4">
-                    <h3 className="font-semibold text-slate-900 dark:text-slate-100 mb-2">🔍 Searches Today</h3>
+                    <h3 className="font-semibold text-slate-900 dark:text-slate-100 mb-2">
+                        🔍 Searches Today
+                    </h3>
                     <p className="text-3xl font-bold text-indigo-600 dark:text-indigo-400">
                         {dashboardStats?.searchQueriesToday || 0}
                     </p>
                 </div>
 
                 <div className="card p-4">
-                    <h3 className="font-semibold text-slate-900 dark:text-slate-100 mb-2">⏱️ Avg Session</h3>
+                    <h3 className="font-semibold text-slate-900 dark:text-slate-100 mb-2">
+                        ⏱️ Avg Session
+                    </h3>
                     <p className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">
                         {formatDuration(dashboardStats?.avgSessionDuration)}
                     </p>
@@ -248,26 +286,46 @@ export default function AnalyticsTab({ token }: AnalyticsTabProps) {
                     <h3 className="font-semibold text-slate-900 dark:text-slate-100 mb-4">
                         📊 Today's Activity by Hour
                     </h3>
-                    <div className="h-64 flex items-end justify-between gap-1">
-                        {hourlyChartData.data.map((value, index) => {
-                            const maxValue = Math.max(...hourlyChartData.data, 1);
-                            const height = (value / maxValue) * 100;
-                            return (
-                                <div key={index} className="flex flex-col items-center gap-1 flex-1">
-                                    <div className="text-xs text-slate-600 dark:text-slate-400 font-mono">
-                                        {value > 0 ? value : ''}
-                                    </div>
+                    <div className="overflow-x-auto">
+                        <div className="h-64 flex items-end gap-1 sm:gap-1.5 px-1 min-w-[720px] sm:min-w-0 sm:justify-between">
+                            {hourlyChartData.data.map((value, index) => {
+                                const height = (value / maxHourlyValue) * 100;
+                                const showLabel = index % 3 === 0; // reduce label density on small screens
+                                return (
                                     <div
-                                        className="bg-gradient-to-t from-sky-500 to-sky-300 dark:from-sky-600 dark:to-sky-400 rounded-t min-h-[2px] w-full"
-                                        style={{ height: `${Math.max(height, 2)}%` }}
-                                        title={`${hourlyChartData.labels[index]}: ${value} activities`}
-                                    ></div>
-                                    <div className="text-xs text-slate-500 dark:text-slate-400 rotate-45 origin-center">
-                                        {hourlyChartData.labels[index]?.split(':')[0]}
+                                        key={index}
+                                        className="flex flex-col items-center gap-1 w-6 sm:flex-1"
+                                    >
+                                        <div className="hidden sm:block text-xs text-slate-600 dark:text-slate-400 font-mono">
+                                            {value > 0 ? value : ''}
+                                        </div>
+                                        <div
+                                            className="bg-gradient-to-t from-sky-500 to-sky-300 dark:from-sky-600 dark:to-sky-400 rounded-t min-h-[2px] w-full"
+                                            style={{
+                                                height: `${Math.max(
+                                                    height,
+                                                    2
+                                                )}%`,
+                                            }}
+                                            title={`${hourlyChartData.labels[index]}: ${value} activities`}
+                                        ></div>
+                                        <div
+                                            className={`text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 rotate-45 origin-center ${
+                                                showLabel
+                                                    ? ''
+                                                    : 'invisible sm:visible'
+                                            }`}
+                                        >
+                                            {
+                                                hourlyChartData.labels[
+                                                    index
+                                                ]?.split(':')[0]
+                                            }
+                                        </div>
                                     </div>
-                                </div>
-                            );
-                        })}
+                                );
+                            })}
+                        </div>
                     </div>
                 </div>
 
@@ -278,20 +336,32 @@ export default function AnalyticsTab({ token }: AnalyticsTabProps) {
                     </h3>
                     <div className="h-64 flex items-end justify-between gap-1">
                         {growthChartData.data.map((value, index) => {
-                            const maxValue = Math.max(...growthChartData.data, 1);
+                            const maxValue = Math.max(
+                                ...growthChartData.data,
+                                1
+                            );
                             const height = (value / maxValue) * 100;
                             return (
-                                <div key={index} className="flex flex-col items-center gap-1 flex-1">
+                                <div
+                                    key={index}
+                                    className="flex flex-col items-center gap-1 flex-1"
+                                >
                                     <div className="text-xs text-slate-600 dark:text-slate-400 font-mono">
                                         {value}
                                     </div>
                                     <div
                                         className="bg-gradient-to-t from-emerald-500 to-emerald-300 dark:from-emerald-600 dark:to-emerald-400 rounded-t min-h-[2px] w-full"
-                                        style={{ height: `${Math.max(height, 2)}%` }}
+                                        style={{
+                                            height: `${Math.max(height, 2)}%`,
+                                        }}
                                         title={`${growthChartData.labels[index]}: ${value} total users`}
                                     ></div>
                                     <div className="text-xs text-slate-500 dark:text-slate-400 rotate-45 origin-center">
-                                        {growthChartData.labels[index]?.split(' ')[1]}
+                                        {
+                                            growthChartData.labels[
+                                                index
+                                            ]?.split(' ')[1]
+                                        }
                                     </div>
                                 </div>
                             );
@@ -309,11 +379,19 @@ export default function AnalyticsTab({ token }: AnalyticsTabProps) {
                     </h3>
                     <div className="space-y-3">
                         {featureUsageData.slice(0, 8).map((feature, index) => (
-                            <div key={feature.feature} className="flex items-center justify-between">
+                            <div
+                                key={feature.feature}
+                                className="flex items-center justify-between"
+                            >
                                 <div className="flex items-center gap-3">
-                                    <div className="w-3 h-3 rounded-full" style={{ 
-                                        backgroundColor: `hsl(${(index * 47) % 360}, 70%, 50%)` 
-                                    }}></div>
+                                    <div
+                                        className="w-3 h-3 rounded-full"
+                                        style={{
+                                            backgroundColor: `hsl(${
+                                                (index * 47) % 360
+                                            }, 70%, 50%)`,
+                                        }}
+                                    ></div>
                                     <span className="text-sm font-medium text-slate-900 dark:text-slate-100">
                                         {feature.displayName}
                                     </span>
@@ -337,33 +415,41 @@ export default function AnalyticsTab({ token }: AnalyticsTabProps) {
                         🏆 Most Active Users (Last 7 Days)
                     </h3>
                     <div className="space-y-3">
-                        {engagementMetrics?.mostActiveUsers.slice(0, 8).map((user) => (
-                            <div key={user.userId} className="flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center text-white font-semibold text-sm">
-                                        {(user.displayName || user.username).charAt(0).toUpperCase()}
-                                    </div>
-                                    <div>
-                                        <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                                            {user.displayName || user.username}
+                        {engagementMetrics?.mostActiveUsers
+                            .slice(0, 8)
+                            .map((user) => (
+                                <div
+                                    key={user.userId}
+                                    className="flex items-center justify-between"
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center text-white font-semibold text-sm">
+                                            {(user.displayName || user.username)
+                                                .charAt(0)
+                                                .toUpperCase()}
                                         </div>
-                                        {user.displayName && (
-                                            <div className="text-xs text-slate-500 dark:text-slate-400">
-                                                @{user.username}
+                                        <div>
+                                            <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                                                {user.displayName ||
+                                                    user.username}
                                             </div>
-                                        )}
+                                            {user.displayName && (
+                                                <div className="text-xs text-slate-500 dark:text-slate-400">
+                                                    @{user.username}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                                            {user.activityCount}
+                                        </div>
+                                        <div className="text-xs text-slate-500 dark:text-slate-400">
+                                            activities
+                                        </div>
                                     </div>
                                 </div>
-                                <div className="text-right">
-                                    <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-                                        {user.activityCount}
-                                    </div>
-                                    <div className="text-xs text-slate-500 dark:text-slate-400">
-                                        activities
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
+                            ))}
                     </div>
                 </div>
             </div>
@@ -376,21 +462,27 @@ export default function AnalyticsTab({ token }: AnalyticsTabProps) {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div className="text-center">
                         <div className="text-2xl mb-2">⏰</div>
-                        <div className="text-sm text-slate-600 dark:text-slate-400">Peak Hour Today</div>
+                        <div className="text-sm text-slate-600 dark:text-slate-400">
+                            Peak Hour Today
+                        </div>
                         <div className="text-xl font-semibold text-slate-900 dark:text-slate-100">
                             {formatHour(dashboardStats?.peakHour)}
                         </div>
                     </div>
                     <div className="text-center">
                         <div className="text-2xl mb-2">🆕</div>
-                        <div className="text-sm text-slate-600 dark:text-slate-400">New Users Today</div>
+                        <div className="text-sm text-slate-600 dark:text-slate-400">
+                            New Users Today
+                        </div>
                         <div className="text-xl font-semibold text-slate-900 dark:text-slate-100">
                             {dashboardStats?.newUsersToday || 0}
                         </div>
                     </div>
                     <div className="text-center">
                         <div className="text-2xl mb-2">🔄</div>
-                        <div className="text-sm text-slate-600 dark:text-slate-400">7-Day Retention</div>
+                        <div className="text-sm text-slate-600 dark:text-slate-400">
+                            7-Day Retention
+                        </div>
                         <div className="text-xl font-semibold text-slate-900 dark:text-slate-100">
                             {engagementMetrics?.retentionRate || 0}%
                         </div>
@@ -401,7 +493,8 @@ export default function AnalyticsTab({ token }: AnalyticsTabProps) {
             {/* Footer */}
             <div className="text-center text-sm text-slate-500 dark:text-slate-400">
                 <p>
-                    Analytics data is updated in real-time. Last refreshed: {new Date().toLocaleTimeString()}
+                    Analytics data is updated in real-time. Last refreshed:{' '}
+                    {new Date().toLocaleTimeString()}
                 </p>
             </div>
         </div>

@@ -293,7 +293,7 @@ export default function SettingsModal({
                                     </div>
                                 )}
 
-                                {/* Global Sharing Toggle Tab - Available for Admins only */}
+                                {/* Global Settings Tab - Available for Admins only */}
                                 {user.isAdmin && (
                                     <div
                                         className={`${
@@ -305,10 +305,12 @@ export default function SettingsModal({
                                         <div className="space-y-6">
                                             <div className="border-b border-slate-200 dark:border-slate-700 pb-4">
                                                 <h3 className="text-lg font-medium text-slate-900 dark:text-slate-100">
-                                                    Global Sharing Control
+                                                    Global Settings
                                                 </h3>
                                                 <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                                                    System-wide sharing settings
+                                                    System-wide configuration
+                                                    for sharing and
+                                                    notifications
                                                 </p>
                                             </div>
                                             {/* Use existing AdminUserManagement component which has global sharing toggle */}

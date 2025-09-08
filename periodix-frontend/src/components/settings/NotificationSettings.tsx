@@ -17,6 +17,7 @@ import {
     isStandalonePWA,
     isIOS,
     getiOSVersion,
+    isServiceWorkerSupported,
     subscribeToPushNotifications as utilsSubscribeToPush,
     unsubscribeFromPushNotifications as utilsUnsubscribeFromPush,
     getDeviceType,
@@ -113,6 +114,14 @@ export default function NotificationSettings({
         try {
             const data = await getNotificationSettings(token);
             setNotificationSettings(data.settings);
+            try {
+                localStorage.setItem(
+                    'periodix:notificationSettings',
+                    JSON.stringify(data.settings)
+                );
+            } catch {
+                // ignore localStorage failures
+            }
         } catch (e) {
             setNotificationError(
                 e instanceof Error
@@ -146,6 +155,14 @@ export default function NotificationSettings({
             const resp = await updateNotificationSettings(token, apiPayload);
             if (resp?.settings) {
                 setNotificationSettings(resp.settings);
+                try {
+                    localStorage.setItem(
+                        'periodix:notificationSettings',
+                        JSON.stringify(resp.settings)
+                    );
+                } catch {
+                    // ignore localStorage failures
+                }
             }
         } catch (e) {
             await loadNotificationSettings();
@@ -176,6 +193,9 @@ export default function NotificationSettings({
                             ...new Uint8Array(subscription.getKey('auth')!)
                         )
                     ),
+                    // Extra metadata to help backend segment devices and debug
+                    userAgent: navigator.userAgent,
+                    deviceType: getDeviceType(),
                 });
                 return true;
             }
@@ -224,8 +244,13 @@ export default function NotificationSettings({
                     browserNotificationsEnabled: true,
                 });
 
-                // For mobile PWA, also try to set up push notifications
-                if (isMobilePWA) {
+                // Try to set up push notifications where supported.
+                // iOS requires installed PWA; other platforms work in browser tabs too.
+                const canAttemptPush =
+                    isServiceWorkerSupported() &&
+                    !iosTooOld &&
+                    (!isIOS() || isStandalonePWA());
+                if (canAttemptPush) {
                     try {
                         await ensurePushSubscription();
                         await handleUpdateNotificationSettings({
@@ -269,7 +294,11 @@ export default function NotificationSettings({
 
                 // Attempt push subscription BEFORE settings update so we can send a single update call
                 let pushOK = false;
-                if (isStandalonePWA() && !iosTooOld && !iosNeedsInstall) {
+                const canAttemptPush =
+                    isServiceWorkerSupported() &&
+                    !iosTooOld &&
+                    (!isIOS() || isStandalonePWA());
+                if (canAttemptPush) {
                     pushOK = await ensurePushSubscription();
                 }
 

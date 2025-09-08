@@ -22,6 +22,7 @@ export interface NotificationData {
     data?: any;
     userId: string;
     expiresAt?: Date;
+    notificationId?: string;
 }
 
 export class NotificationService {
@@ -40,7 +41,7 @@ export class NotificationService {
     // Create a notification
     async createNotification(data: NotificationData): Promise<void> {
         try {
-            await (prisma as any).notification.create({
+            const created = await (prisma as any).notification.create({
                 data: {
                     userId: data.userId,
                     type: data.type,
@@ -49,10 +50,14 @@ export class NotificationService {
                     data: data.data || null,
                     expiresAt: data.expiresAt,
                 },
+                select: { id: true },
             });
 
             // Try to send push notification if user has subscriptions
-            await this.sendPushNotification(data);
+            await this.sendPushNotification({
+                ...data,
+                notificationId: created.id,
+            });
         } catch (error) {
             console.error('Failed to create notification:', error);
         }
@@ -103,9 +108,12 @@ export class NotificationService {
                 body: data.message,
                 icon: '/icon-192.png',
                 badge: '/icon-192.png',
-                tag: `periodix-${data.type}`,
+                tag: data.notificationId
+                    ? `periodix-${data.notificationId}`
+                    : `periodix-${data.type}`,
                 data: {
                     type: data.type,
+                    notificationId: data.notificationId,
                     ...data.data,
                 },
                 actions: [

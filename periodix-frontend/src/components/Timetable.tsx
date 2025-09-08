@@ -938,7 +938,14 @@ export default function Timetable({
             : [];
         for (const l of lessons) {
             const dStr = yyyymmddToISO(l.date);
-            if (byDay[dStr]) byDay[dStr].push(l);
+            if (byDay[dStr])
+                byDay[dStr].push({
+                    ...l,
+                    // Only show homework on the day it's due
+                    homework: (l.homework || []).filter(
+                        (hw) => hw.date === l.date
+                    ),
+                });
         }
         for (const k of Object.keys(byDay)) {
             byDay[k].sort(
@@ -962,7 +969,13 @@ export default function Timetable({
 
         for (const l of lessons) {
             const dStr = yyyymmddToISO(l.date);
-            if (byDay[dStr]) byDay[dStr].push(l);
+            if (byDay[dStr])
+                byDay[dStr].push({
+                    ...l,
+                    homework: (l.homework || []).filter(
+                        (hw) => hw.date === l.date
+                    ),
+                });
         }
         for (const k of Object.keys(byDay)) {
             byDay[k].sort(
@@ -986,7 +999,13 @@ export default function Timetable({
 
         for (const l of lessons) {
             const dStr = yyyymmddToISO(l.date);
-            if (byDay[dStr]) byDay[dStr].push(l);
+            if (byDay[dStr])
+                byDay[dStr].push({
+                    ...l,
+                    homework: (l.homework || []).filter(
+                        (hw) => hw.date === l.date
+                    ),
+                });
         }
         for (const k of Object.keys(byDay)) {
             byDay[k].sort(
@@ -1008,7 +1027,6 @@ export default function Timetable({
                 Loading…
             </div>
         );
-
 
     return (
         <div
@@ -1130,7 +1148,14 @@ export default function Timetable({
 
             {/* Unified horizontal week view (fits viewport width) */}
             {/* Sticky weekday header (separate from columns so it stays visible during vertical scroll) */}
-            <div className="sticky top-0 z-30 bg-gradient-to-b from-white/85 to-white/60 dark:from-slate-900/85 dark:to-slate-900/60 backdrop-blur supports-[backdrop-filter]:backdrop-blur rounded-lg ring-1 ring-black/5 dark:ring-white/10 border border-slate-300/60 dark:border-slate-600/60 shadow-sm mb-2 px-1 sm:px-2">
+            <div
+                className="sticky top-0 z-30 bg-gradient-to-b from-white/85 to-white/60 dark:from-slate-900/85 dark:to-slate-900/60 backdrop-blur supports-[backdrop-filter]:backdrop-blur rounded-lg ring-1 ring-black/5 dark:ring-white/10 border border-slate-300/60 dark:border-slate-600/60 shadow-sm mb-2 px-1 sm:px-2"
+                style={{
+                    // Respect right safe area on devices with display cutouts while keeping minimal padding elsewhere
+                    paddingRight: 'max(env(safe-area-inset-right), 0.25rem)',
+                    paddingLeft: 'max(env(safe-area-inset-left), 0.25rem)',
+                }}
+            >
                 <div
                     className="grid"
                     style={{

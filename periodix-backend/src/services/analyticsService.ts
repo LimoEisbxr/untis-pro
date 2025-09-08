@@ -60,22 +60,36 @@ export interface ActivityTrends {
  */
 export async function trackActivity(data: TrackingData): Promise<void> {
     try {
-        await (prisma as any).userActivity.create({
-            data: {
-                userId: data.userId,
-                action: data.action,
-                details: data.details || {},
-                ipAddress: data.ipAddress,
-                userAgent: data.userAgent,
-                sessionId: data.sessionId,
-            },
-        });
+        // Skip tracking for admin pseudo-user (no DB row, FK would fail). We also exclude admin from stats.
+        if (data.userId === 'admin') return;
 
-        // Update hourly stats
-        await updateHourlyStats(data.action);
-        
+        // Best-effort: insert activity row
+        try {
+            await (prisma as any).userActivity.create({
+                data: {
+                    userId: data.userId,
+                    action: data.action,
+                    details: data.details || {},
+                    ipAddress: data.ipAddress,
+                    userAgent: data.userAgent,
+                    sessionId: data.sessionId,
+                },
+            });
+        } catch (err) {
+            console.error('Failed to insert user activity:', err);
+        }
+
+        // Update hourly stats (best-effort)
+        try {
+            await updateHourlyStats(data.action);
+        } catch (err) {
+            console.error('Failed to update hourly stats:', err);
+        }
+
         // Update daily stats (async, don't wait)
-        updateDailyStats(data.userId, data.action).catch(console.error);
+        updateDailyStats(data.userId, data.action).catch((err) =>
+            console.error('Failed to update daily stats:', err)
+        );
     } catch (error) {
         console.error('Failed to track activity:', error);
         // Don't throw - tracking failures shouldn't break app functionality
@@ -122,16 +136,80 @@ export async function getDashboardStats(): Promise<DashboardStats> {
         where: { date: today },
     });
 
-    return {
+    // Derive peak hour from hourly stats if not yet stored
+    let peakHour: number | undefined = todayStats?.peakHour ?? undefined;
+    try {
+        const hourly = await (prisma as any).hourlyStats.findMany({
+            where: { date: today },
+            orderBy: { hour: 'asc' },
+        });
+        if (hourly?.length) {
+            let max = -1;
+            let maxHour = 0;
+            for (const h of hourly as any[]) {
+                const count =
+                    (h.logins || 0) +
+                    (h.timetableViews || 0) +
+                    (h.searchQueries || 0);
+                if (count > max) {
+                    max = count;
+                    maxHour = h.hour;
+                }
+            }
+            if (max >= 0) peakHour = maxHour;
+        }
+    } catch (e) {
+        console.error('Failed to derive peak hour:', e);
+    }
+
+    // Derive average session duration (very rough): for users with >=2 activities today,
+    // duration = max(createdAt) - min(createdAt); average over users, minutes.
+    let avgSessionDuration: number | undefined =
+        todayStats?.avgSessionDuration ?? undefined;
+    try {
+        const grouped = await (prisma as any).userActivity.groupBy({
+            by: ['userId'],
+            where: { createdAt: { gte: todayStart, lte: todayEnd } },
+            _count: { _all: true },
+            _min: { createdAt: true },
+            _max: { createdAt: true },
+        });
+        const durations: number[] = [];
+        for (const g of grouped as any[]) {
+            if (
+                (g?._count?._all ?? 0) >= 2 &&
+                g._min?.createdAt &&
+                g._max?.createdAt
+            ) {
+                const diffMs =
+                    new Date(g._max.createdAt).getTime() -
+                    new Date(g._min.createdAt).getTime();
+                if (diffMs > 0) durations.push(diffMs / 60000); // minutes
+            }
+        }
+        if (durations.length) {
+            avgSessionDuration =
+                Math.round(
+                    (durations.reduce((a, b) => a + b, 0) / durations.length) *
+                        10
+                ) / 10;
+        }
+    } catch (e) {
+        console.error('Failed to derive avg session duration:', e);
+    }
+
+    const base: DashboardStats = {
         totalUsers,
         activeUsersToday,
         newUsersToday,
         totalLoginsToday: todayStats?.totalLogins || 0,
         timetableViewsToday: todayStats?.timetableViews || 0,
         searchQueriesToday: todayStats?.searchQueries || 0,
-        avgSessionDuration: todayStats?.avgSessionDuration,
-        peakHour: todayStats?.peakHour,
     };
+    if (avgSessionDuration !== undefined)
+        (base as any).avgSessionDuration = avgSessionDuration;
+    if (peakHour !== undefined) (base as any).peakHour = peakHour;
+    return base;
 }
 
 /**
@@ -166,15 +244,24 @@ export async function getUserEngagementMetrics(): Promise<UserEngagementMetrics>
         take: 10,
     });
 
-    const processedActiveUsers = mostActiveUsers.map((user: any) => ({
-        userId: user.id,
-        username: user.username,
-        displayName: user.displayName,
-        activityCount: user.activities.length,
-        lastActivity: user.activities.length > 0 
-            ? new Date(Math.max(...user.activities.map((a: any) => new Date(a.createdAt).getTime())))
-            : new Date(0),
-    })).filter((user: any) => user.activityCount > 0);
+    const processedActiveUsers = mostActiveUsers
+        .map((user: any) => ({
+            userId: user.id,
+            username: user.username,
+            displayName: user.displayName,
+            activityCount: user.activities.length,
+            lastActivity:
+                user.activities.length > 0
+                    ? new Date(
+                          Math.max(
+                              ...user.activities.map((a: any) =>
+                                  new Date(a.createdAt).getTime()
+                              )
+                          )
+                      )
+                    : new Date(0),
+        }))
+        .filter((user: any) => user.activityCount > 0);
 
     // User growth trend (last 30 days)
     const thirtyDaysAgo = new Date();
@@ -229,7 +316,11 @@ export async function getActivityTrends(): Promise<ActivityTrends> {
         const stat = hourlyStats.find((s: any) => s.hour === hour);
         return {
             hour,
-            count: (stat?.activeUsers || 0) + (stat?.logins || 0) + (stat?.timetableViews || 0),
+            // Only count event totals to avoid double-counting (activeUsers is not an event counter)
+            count:
+                (stat?.logins || 0) +
+                (stat?.timetableViews || 0) +
+                (stat?.searchQueries || 0),
             label: `${hour.toString().padStart(2, '0')}:00`,
         };
     });
@@ -272,11 +363,17 @@ export async function getActivityTrends(): Promise<ActivityTrends> {
         },
     });
 
-    const totalFeatureUsage = featureUsageRaw.reduce((sum: number, item: any) => sum + item._count.action, 0);
+    const totalFeatureUsage = featureUsageRaw.reduce(
+        (sum: number, item: any) => sum + item._count.action,
+        0
+    );
     const featureUsage = featureUsageRaw.map((item: any) => ({
         feature: item.action,
         count: item._count.action,
-        percentage: totalFeatureUsage > 0 ? Math.round((item._count.action / totalFeatureUsage) * 100) : 0,
+        percentage:
+            totalFeatureUsage > 0
+                ? Math.round((item._count.action / totalFeatureUsage) * 100)
+                : 0,
     }));
 
     return {
@@ -303,15 +400,17 @@ async function updateHourlyStats(action: string): Promise<void> {
                 },
             },
             update: {
-                activeUsers: { increment: action === 'login' ? 1 : 0 },
+                // activeUsers is not a strict counter here; avoid incrementing to prevent double counting
                 logins: { increment: action === 'login' ? 1 : 0 },
-                timetableViews: { increment: action === 'timetable_view' ? 1 : 0 },
+                timetableViews: {
+                    increment: action === 'timetable_view' ? 1 : 0,
+                },
                 searchQueries: { increment: action === 'search' ? 1 : 0 },
             },
             create: {
                 date,
                 hour,
-                activeUsers: action === 'login' ? 1 : 0,
+                activeUsers: 0,
                 logins: action === 'login' ? 1 : 0,
                 timetableViews: action === 'timetable_view' ? 1 : 0,
                 searchQueries: action === 'search' ? 1 : 0,
@@ -337,7 +436,10 @@ async function updateDailyStats(userId: string, action: string): Promise<void> {
             select: { createdAt: true },
         });
 
-        const isNewUser = user?.createdAt.toISOString().split('T')[0] === today;
+        const isNewUser = !!(
+            user?.createdAt &&
+            new Date(user.createdAt).toISOString().split('T')[0] === today
+        );
 
         // Get current stats or create new
         const existingStats = await (prisma as any).dailyStats.findUnique({
@@ -346,21 +448,25 @@ async function updateDailyStats(userId: string, action: string): Promise<void> {
 
         if (existingStats) {
             // Count distinct users who were active today (including the current activity)
-            const activeUsersToday = await (prisma as any).userActivity.groupBy({
-                by: ['userId'],
-                where: {
-                    createdAt: {
-                        gte: todayStart,
-                        lte: todayEnd,
+            const activeUsersToday = await (prisma as any).userActivity.groupBy(
+                {
+                    by: ['userId'],
+                    where: {
+                        createdAt: {
+                            gte: todayStart,
+                            lte: todayEnd,
+                        },
                     },
-                },
-                _count: { userId: true },
-            });
+                    _count: { userId: true },
+                }
+            );
 
             const currentActiveUsers = activeUsersToday.length;
 
             // Count unique users who logged in today
-            const uniqueLoginsToday = await (prisma as any).userActivity.groupBy({
+            const uniqueLoginsToday = await (
+                prisma as any
+            ).userActivity.groupBy({
                 by: ['userId'],
                 where: {
                     action: 'login',
@@ -382,10 +488,16 @@ async function updateDailyStats(userId: string, action: string): Promise<void> {
                     uniqueLogins: currentUniqueLogins,
                     totalUsers: await (prisma as any).user.count(),
                     totalLogins: { increment: action === 'login' ? 1 : 0 },
-                    timetableViews: { increment: action === 'timetable_view' ? 1 : 0 },
+                    timetableViews: {
+                        increment: action === 'timetable_view' ? 1 : 0,
+                    },
                     searchQueries: { increment: action === 'search' ? 1 : 0 },
-                    settingsOpened: { increment: action === 'settings' ? 1 : 0 },
-                    colorChanges: { increment: action === 'color_change' ? 1 : 0 },
+                    settingsOpened: {
+                        increment: action === 'settings' ? 1 : 0,
+                    },
+                    colorChanges: {
+                        increment: action === 'color_change' ? 1 : 0,
+                    },
                     newUsers: { increment: isNewUser ? 1 : 0 },
                 },
             });
@@ -419,10 +531,18 @@ async function calculateRetentionRate(): Promise<number> {
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-    const todayStart = new Date(today.toISOString().split('T')[0] + 'T00:00:00.000Z');
-    const todayEnd = new Date(today.toISOString().split('T')[0] + 'T23:59:59.999Z');
-    const sevenDaysAgoStart = new Date(sevenDaysAgo.toISOString().split('T')[0] + 'T00:00:00.000Z');
-    const sevenDaysAgoEnd = new Date(sevenDaysAgo.toISOString().split('T')[0] + 'T23:59:59.999Z');
+    const todayStart = new Date(
+        today.toISOString().split('T')[0] + 'T00:00:00.000Z'
+    );
+    const todayEnd = new Date(
+        today.toISOString().split('T')[0] + 'T23:59:59.999Z'
+    );
+    const sevenDaysAgoStart = new Date(
+        sevenDaysAgo.toISOString().split('T')[0] + 'T00:00:00.000Z'
+    );
+    const sevenDaysAgoEnd = new Date(
+        sevenDaysAgo.toISOString().split('T')[0] + 'T23:59:59.999Z'
+    );
 
     try {
         // Users active 7 days ago
@@ -459,7 +579,9 @@ async function calculateRetentionRate(): Promise<number> {
             },
         });
 
-        return Math.round((retainedUsers / usersActiveSevenDaysAgo.length) * 100);
+        return Math.round(
+            (retainedUsers / usersActiveSevenDaysAgo.length) * 100
+        );
     } catch (error) {
         console.error('Failed to calculate retention rate:', error);
         return 0;
