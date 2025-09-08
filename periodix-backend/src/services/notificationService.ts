@@ -28,6 +28,7 @@ export interface NotificationData {
 export class NotificationService {
     private static instance: NotificationService;
     private intervalId: NodeJS.Timeout | null = null;
+    private upcomingIntervalId: NodeJS.Timeout | null = null;
 
     private constructor() {}
 
@@ -129,9 +130,46 @@ export class NotificationService {
                 ],
             });
 
-            // Send push notification to all user's devices
+            // Send push notification to all user's devices with per-device preferences
             const pushPromises = subscriptions.map(async (sub: any) => {
                 try {
+                    const devicePrefs = (user.notificationSettings?.devicePreferences || {}) as Record<string, any>;
+                    const entry = devicePrefs[sub.endpoint] || {};
+                    // Map type -> per-device flag key and default behavior
+                    let flagKey: string | null = null;
+                    let requireTrue = false; // when true, only send if flag strictly true
+                    switch (data.type) {
+                        case 'upcoming_lesson':
+                            flagKey = 'upcomingLessonsEnabled';
+                            requireTrue = true; // default off
+                            break;
+                        case 'cancelled_lesson':
+                            flagKey = 'cancelledLessonsEnabled';
+                            break;
+                        case 'irregular_lesson':
+                            flagKey = 'irregularLessonsEnabled';
+                            break;
+                        case 'timetable_change':
+                            flagKey = 'timetableChangesEnabled';
+                            break;
+                        case 'access_request':
+                            flagKey = 'accessRequestsEnabled';
+                            break;
+                        default:
+                            flagKey = null;
+                    }
+                    if (flagKey) {
+                        const value = entry[flagKey];
+                        if (requireTrue) {
+                            if (value !== true) {
+                                return; // skip unless explicitly enabled on this device
+                            }
+                        } else {
+                            if (value === false) {
+                                return; // skip if explicitly disabled on this device
+                            }
+                        }
+                    }
                     const pushSubscription = {
                         endpoint: sub.endpoint,
                         keys: {
@@ -196,6 +234,9 @@ export class NotificationService {
                 return settings.cancelledLessonsEnabled;
             case 'irregular_lesson':
                 return settings.irregularLessonsEnabled;
+            case 'upcoming_lesson':
+                // Per-device setting handled later; don't block globally here
+                return true;
             case 'access_request':
                 return settings.accessRequestsEnabled;
             default:
@@ -350,7 +391,10 @@ export class NotificationService {
 
                 // Check irregular lessons based on user's time scope preference
                 if (
-                    lesson.code === 'irregular' &&
+                    (lesson.code === 'irregular' ||
+                        // treat room/teacher orgname markers as irregular too
+                        lesson.te?.some((t: any) => t.orgname) ||
+                        lesson.ro?.some((r: any) => r.orgname)) &&
                     user.notificationSettings?.irregularLessonsEnabled
                 ) {
                     const scope =
@@ -367,68 +411,120 @@ export class NotificationService {
                     }
 
                     if (shouldNotify) {
+                        const irregularFlags: string[] = [];
+                        if (lesson.code === 'irregular')
+                            irregularFlags.push('schedule');
+                        if (lesson.te?.some((t: any) => t.orgname))
+                            irregularFlags.push('teacher');
+                        if (lesson.ro?.some((r: any) => r.orgname))
+                            irregularFlags.push('room');
                         await this.createNotification({
                             type: 'irregular_lesson',
                             title: 'Irregular Lesson',
                             message: `${
                                 lesson.su?.[0]?.name || 'Lesson'
-                            } has irregular scheduling`,
+                            } has irregular changes (${irregularFlags.join(
+                                ', '
+                            )})`,
                             userId: user.id,
                             data: lesson,
                         });
                     }
                 }
 
-                // Check for room/teacher changes (also count as irregular)
-                const hasTeacherChanges =
-                    lesson.te?.some((t: any) => t.orgname) || false;
-                const hasRoomChanges =
-                    lesson.ro?.some((r: any) => r.orgname) || false;
+                // Room/teacher changes are handled under irregular_lesson above
+            }
 
-                if (
-                    (hasTeacherChanges || hasRoomChanges) &&
-                    user.notificationSettings?.irregularLessonsEnabled
-                ) {
-                    const scope =
-                        user.notificationSettings?.irregularLessonsTimeScope ||
-                        'day';
-                    let shouldNotify = false;
+            // Upcoming lesson reminders (Beta): send 5 minutes before start time
+            if (user.notificationSettings) {
+                const now = new Date();
+                const nowMinutes = now.getHours() * 60 + now.getMinutes();
+                const todayYmd =
+                    now.getFullYear() * 10000 +
+                    (now.getMonth() + 1) * 100 +
+                    now.getDate();
 
-                    if (scope === 'day') {
-                        shouldNotify = lesson.date === todayString;
-                    } else if (scope === 'week') {
-                        shouldNotify =
-                            lesson.date >= startOfWeekString &&
-                            lesson.date <= endOfWeekString;
-                    }
+                // helper to convert Untis HHmm int to minutes
+                const toMinutes = (hhmm: number) =>
+                    Math.floor(hhmm / 100) * 60 + (hhmm % 100);
 
-                    if (shouldNotify) {
-                        const changedItems = [];
-                        if (hasTeacherChanges) {
-                            const teacherChanges = lesson.te
-                                ?.filter((t: any) => t.orgname)
-                                .map((t: any) => `${t.orgname} → ${t.name}`);
-                            changedItems.push(
-                                `Teacher: ${teacherChanges?.join(', ')}`
-                            );
+                for (const lesson of lessons) {
+                    if (!lesson?.startTime) continue;
+                    if (lesson.date !== todayYmd) continue;
+                    if (lesson.code === 'cancelled') continue; // don't remind cancelled
+
+                    const startMin = toMinutes(lesson.startTime);
+                    const diff = startMin - nowMinutes; // minutes until start
+                    if (diff === 5) {
+                        // Only send if at least one device opted in for upcoming reminders
+                        const devicePrefs = (user.notificationSettings
+                            ?.devicePreferences || {}) as Record<string, any>;
+                        const anyDeviceEnabled = Object.values(
+                            devicePrefs
+                        ).some((p: any) => p?.upcomingLessonsEnabled);
+                        if (!anyDeviceEnabled) continue;
+                        // Build shortform info: subject, time, room, teacher
+                        const subject = lesson.su?.[0]?.name || 'Lesson';
+                        const hh = String(
+                            Math.floor(lesson.startTime / 100)
+                        ).padStart(2, '0');
+                        const mm = String(lesson.startTime % 100).padStart(
+                            2,
+                            '0'
+                        );
+                        const room = lesson.ro
+                            ?.map((r: any) => r.name)
+                            .join(', ');
+                        const teacher = lesson.te
+                            ?.map((t: any) => t.name)
+                            .join(', ');
+                        const irregular =
+                            lesson.code === 'irregular' ||
+                            lesson.te?.some((t: any) => t.orgname) ||
+                            lesson.ro?.some((r: any) => r.orgname);
+
+                        const irregularParts: string[] = [];
+                        if (lesson.te?.some((t: any) => t.orgname)) {
+                            const changes = lesson.te
+                                .filter((t: any) => t.orgname)
+                                .map((t: any) => `${t.orgname} → ${t.name}`)
+                                .join(', ');
+                            if (changes)
+                                irregularParts.push(`Teacher: ${changes}`);
                         }
-                        if (hasRoomChanges) {
-                            const roomChanges = lesson.ro
-                                ?.filter((r: any) => r.orgname)
-                                .map((r: any) => `${r.orgname} → ${r.name}`);
-                            changedItems.push(
-                                `Room: ${roomChanges?.join(', ')}`
-                            );
+                        if (lesson.ro?.some((r: any) => r.orgname)) {
+                            const changes = lesson.ro
+                                .filter((r: any) => r.orgname)
+                                .map((r: any) => `${r.orgname} → ${r.name}`)
+                                .join(', ');
+                            if (changes)
+                                irregularParts.push(`Room: ${changes}`);
                         }
+
+                        const title = 'Upcoming lesson in 5 minutes';
+                        const details = [
+                            `${subject} @ ${hh}:${mm}`,
+                            room ? `Room ${room}` : undefined,
+                            teacher ? `with ${teacher}` : undefined,
+                        ].filter(Boolean);
+                        const message =
+                            details.join(' • ') +
+                            (irregular && irregularParts.length
+                                ? ` — Irregular: ${irregularParts.join(', ')}`
+                                : '');
 
                         await this.createNotification({
-                            type: 'room_teacher_change',
-                            title: 'Room/Teacher Change',
-                            message: `${
-                                lesson.su?.[0]?.name || 'Lesson'
-                            }: ${changedItems.join(', ')}`,
+                            type: 'upcoming_lesson',
+                            title,
+                            message,
                             userId: user.id,
-                            data: lesson,
+                            data: {
+                                lesson,
+                                irregular,
+                                irregularDetails: irregularParts,
+                            },
+                            // auto-expire shortly after start time
+                            expiresAt: new Date(now.getTime() + 60 * 60 * 1000),
                         });
                     }
                 }
@@ -438,6 +534,26 @@ export class NotificationService {
                 `Failed to check timetable changes for user ${user.id}:`,
                 error
             );
+        }
+    }
+
+    // Fast path: check upcoming lessons for all users with setting enabled
+    private async checkUpcomingLessons(): Promise<void> {
+        try {
+            const users = await (prisma as any).user.findMany({
+                where: {
+                    notificationSettings: { pushNotificationsEnabled: true },
+                },
+                include: {
+                    notificationSettings: true,
+                    timetables: { orderBy: { createdAt: 'desc' }, take: 1 },
+                },
+            });
+            for (const user of users) {
+                await this.checkUserTimetableChanges(user);
+            }
+        } catch (e) {
+            console.error('checkUpcomingLessons failed:', e);
         }
     }
 
@@ -459,6 +575,17 @@ export class NotificationService {
             await this.checkTimetableChanges();
         }, intervalMinutes * 60 * 1000); // Convert minutes to milliseconds
 
+        // Separate fast loop for upcoming lesson reminders (runs every 60s)
+        if (!this.upcomingIntervalId) {
+            this.upcomingIntervalId = setInterval(async () => {
+                try {
+                    await this.checkUpcomingLessons();
+                } catch (e) {
+                    console.error('Upcoming lesson check failed:', e);
+                }
+            }, 60 * 1000);
+        }
+
         console.log(
             `Notification service started with ${intervalMinutes} minute interval`
         );
@@ -470,6 +597,11 @@ export class NotificationService {
             clearInterval(this.intervalId);
             this.intervalId = null;
             console.log('Notification service stopped');
+        }
+        if (this.upcomingIntervalId) {
+            clearInterval(this.upcomingIntervalId);
+            this.upcomingIntervalId = null;
+            console.log('Upcoming reminder loop stopped');
         }
     }
 

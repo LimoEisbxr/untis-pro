@@ -34,6 +34,15 @@ export default function NotificationSettings({
     user,
     isVisible,
 }: NotificationSettingsProps) {
+    type DevicePrefs = NonNullable<NotificationSettingsType['devicePreferences']>;
+    interface DevicePrefEntry {
+        upcomingLessonsEnabled?: boolean; // default off
+        cancelledLessonsEnabled?: boolean; // default follows global
+        irregularLessonsEnabled?: boolean; // default follows global
+        timetableChangesEnabled?: boolean; // default follows global
+        accessRequestsEnabled?: boolean; // default follows global
+        [key: string]: unknown;
+    }
     // Notification settings state
     const [notificationSettings, setNotificationSettings] =
         useState<NotificationSettingsType | null>(null);
@@ -46,6 +55,12 @@ export default function NotificationSettings({
     );
     // Prevent rapid double toggles / race conditions when enabling/disabling
     const [toggleInFlight, setToggleInFlight] = useState(false);
+    // Per-device upcoming reminder state
+    const [endpoint, setEndpoint] = useState<string | null>(null);
+    const [deviceToggleBusy, setDeviceToggleBusy] = useState(false);
+    const [deviceToggleError, setDeviceToggleError] = useState<string | null>(
+        null
+    );
 
     // Derived notification gating (iOS / PWA constraints)
     const iosVersion = getiOSVersion();
@@ -107,6 +122,27 @@ export default function NotificationSettings({
         if (!isVisible) return;
         loadNotificationSettings();
     }, [isVisible, token]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // Resolve current device's push endpoint for per-device preferences
+    useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            try {
+                if (!isServiceWorkerSupported()) {
+                    if (!cancelled) setEndpoint(null);
+                    return;
+                }
+                const reg = await navigator.serviceWorker.ready;
+                const sub = await reg.pushManager.getSubscription();
+                if (!cancelled) setEndpoint(sub?.endpoint ?? null);
+            } catch {
+                if (!cancelled) setEndpoint(null);
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [isVisible, notificationPermission]);
 
     const loadNotificationSettings = async () => {
         setNotificationLoading(true);
@@ -412,22 +448,51 @@ export default function NotificationSettings({
                                     Cancelled lessons
                                 </h5>
                                 <p className="text-xs text-slate-500 dark:text-slate-400">
-                                    Get notified when lessons are cancelled
+                                    Get notified when lessons are cancelled (this device)
                                 </p>
                             </div>
                             <label className="relative inline-flex items-center cursor-pointer">
                                 <input
                                     type="checkbox"
-                                    checked={
-                                        notificationSettings?.cancelledLessonsEnabled ||
-                                        false
-                                    }
-                                    onChange={(e) =>
-                                        handleUpdateNotificationSettings({
-                                            cancelledLessonsEnabled:
-                                                e.target.checked,
-                                        })
-                                    }
+                                    checked={(() => {
+                                        const ep = endpoint ?? '';
+                                        const prefs: DevicePrefs = (notificationSettings?.devicePreferences ?? {}) as DevicePrefs;
+                                        const entry = ep ? (prefs[ep] as DevicePrefEntry | undefined) : undefined;
+                                        // default is global true unless explicitly disabled at device level
+                                        const globalOn = notificationSettings?.cancelledLessonsEnabled ?? true;
+                                        const perDevice = entry?.cancelledLessonsEnabled as boolean | undefined;
+                                        return perDevice === undefined ? globalOn : perDevice === true;
+                                    })()}
+                                    onChange={async (e) => {
+                                        setDeviceToggleError(null);
+                                        setDeviceToggleBusy(true);
+                                        try {
+                                            let ep = endpoint;
+                                            if (!ep) {
+                                                const ok = await ensurePushSubscription();
+                                                if (!ok) throw new Error('Push subscription required');
+                                                const reg = await navigator.serviceWorker.ready;
+                                                const sub = await reg.pushManager.getSubscription();
+                                                ep = sub?.endpoint ?? null;
+                                                setEndpoint(ep);
+                                            }
+                                            if (!ep) throw new Error('No device endpoint available');
+                                            const prefs: DevicePrefs = (notificationSettings?.devicePreferences ?? {}) as DevicePrefs;
+                                            const current = (prefs[ep] ?? {}) as Record<string, unknown>;
+                                            const nextPrefs: DevicePrefs = {
+                                                ...prefs,
+                                                [ep]: {
+                                                    ...current,
+                                                    cancelledLessonsEnabled: e.target.checked,
+                                                } as DevicePrefEntry,
+                                            };
+                                            await handleUpdateNotificationSettings({ devicePreferences: nextPrefs });
+                                        } catch (err) {
+                                            setDeviceToggleError(err instanceof Error ? err.message : 'Failed to update device setting');
+                                        } finally {
+                                            setDeviceToggleBusy(false);
+                                        }
+                                    }}
                                     className="sr-only peer"
                                 />
                                 <div className="relative w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600"></div>
@@ -440,22 +505,139 @@ export default function NotificationSettings({
                                     Irregular lessons
                                 </h5>
                                 <p className="text-xs text-slate-500 dark:text-slate-400">
-                                    Get notified when lesson locations or times
-                                    change
+                                    Get notified when lesson times, rooms, or teachers change (this device)
                                 </p>
                             </div>
                             <label className="relative inline-flex items-center cursor-pointer">
                                 <input
                                     type="checkbox"
-                                    checked={
-                                        notificationSettings?.irregularLessonsEnabled ||
-                                        false
-                                    }
-                                    onChange={(e) =>
-                                        handleUpdateNotificationSettings({
-                                            irregularLessonsEnabled:
-                                                e.target.checked,
-                                        })
+                                    checked={(() => {
+                                        const ep = endpoint ?? '';
+                                        const prefs: DevicePrefs = (notificationSettings?.devicePreferences ?? {}) as DevicePrefs;
+                                        const entry = ep ? (prefs[ep] as DevicePrefEntry | undefined) : undefined;
+                                        const globalOn = notificationSettings?.irregularLessonsEnabled ?? true;
+                                        const perDevice = entry?.irregularLessonsEnabled as boolean | undefined;
+                                        return perDevice === undefined ? globalOn : perDevice === true;
+                                    })()}
+                                    onChange={async (e) => {
+                                        setDeviceToggleError(null);
+                                        setDeviceToggleBusy(true);
+                                        try {
+                                            let ep = endpoint;
+                                            if (!ep) {
+                                                const ok = await ensurePushSubscription();
+                                                if (!ok) throw new Error('Push subscription required');
+                                                const reg = await navigator.serviceWorker.ready;
+                                                const sub = await reg.pushManager.getSubscription();
+                                                ep = sub?.endpoint ?? null;
+                                                setEndpoint(ep);
+                                            }
+                                            if (!ep) throw new Error('No device endpoint available');
+                                            const prefs: DevicePrefs = (notificationSettings?.devicePreferences ?? {}) as DevicePrefs;
+                                            const current = (prefs[ep] ?? {}) as Record<string, unknown>;
+                                            const nextPrefs: DevicePrefs = {
+                                                ...prefs,
+                                                [ep]: {
+                                                    ...current,
+                                                    irregularLessonsEnabled: e.target.checked,
+                                                } as DevicePrefEntry,
+                                            };
+                                            await handleUpdateNotificationSettings({ devicePreferences: nextPrefs });
+                                        } catch (err) {
+                                            setDeviceToggleError(err instanceof Error ? err.message : 'Failed to update device setting');
+                                        } finally {
+                                            setDeviceToggleBusy(false);
+                                        }
+                                    }}
+                                    className="sr-only peer"
+                                />
+                                <div className="relative w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600"></div>
+                            </label>
+                        </div>
+
+                        {/* Upcoming lessons (Beta) — per device toggle */}
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h5 className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                                    Upcoming lessons (Beta)
+                                </h5>
+                                <p className="text-xs text-slate-500 dark:text-slate-400">
+                                    Reminder 5 minutes before your next lesson on this device; irregular changes highlighted
+                                </p>
+                                {!endpoint && (
+                                    <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
+                                        Enable notifications to activate per-device reminders.
+                                    </p>
+                                )}
+                                {deviceToggleError && (
+                                    <p className="mt-1 text-[11px] text-red-600 dark:text-red-400">{deviceToggleError}</p>
+                                )}
+                            </div>
+                            <label
+                                className={`relative inline-flex items-center ${
+                                    notificationPermission !== 'granted' ||
+                                    !notificationSettings?.browserNotificationsEnabled
+                                        ? 'opacity-50 cursor-not-allowed'
+                                        : 'cursor-pointer'
+                                }`}
+                            >
+                <input
+                                    type="checkbox"
+                                    checked={(() => {
+                    const ep = endpoint ?? '';
+                    const prefs: DevicePrefs = (notificationSettings?.devicePreferences ?? {}) as DevicePrefs;
+                    const entry = ep ? (prefs[ep] as DevicePrefEntry | undefined) : undefined;
+                    return !!(entry && entry.upcomingLessonsEnabled === true);
+                                    })()}
+                                    onChange={async (e) => {
+                                        if (
+                                            notificationPermission !== 'granted' ||
+                                            !notificationSettings?.browserNotificationsEnabled
+                                        )
+                                            return;
+                                        setDeviceToggleError(null);
+                                        setDeviceToggleBusy(true);
+                                        try {
+                                            let ep = endpoint;
+                                            if (!ep) {
+                                                const ok = await ensurePushSubscription();
+                                                if (!ok) throw new Error('Push subscription required');
+                                                try {
+                                                    const reg = await navigator.serviceWorker.ready;
+                                                    const sub = await reg.pushManager.getSubscription();
+                                                    ep = sub?.endpoint ?? null;
+                                                    setEndpoint(ep);
+                                                } catch {
+                                                    // ignore
+                                                }
+                                            }
+                                            if (!ep) throw new Error('No device endpoint available');
+
+                                            const prefs: DevicePrefs = (notificationSettings?.devicePreferences ?? {}) as DevicePrefs;
+                                            const current = (prefs[ep] ?? {}) as Record<string, unknown>;
+                                            const nextPrefs: DevicePrefs = {
+                                                ...prefs,
+                                                [ep]: {
+                                                    ...current,
+                                                    upcomingLessonsEnabled: e.target.checked,
+                                                } as DevicePrefEntry,
+                                            };
+
+                                            await handleUpdateNotificationSettings({
+                                                devicePreferences: nextPrefs,
+                                            } as Partial<NotificationSettingsType>);
+                                        } catch (err) {
+                                            setDeviceToggleError(
+                                                err instanceof Error ? err.message : 'Failed to update device setting'
+                                            );
+                                        } finally {
+                                            setDeviceToggleBusy(false);
+                                        }
+                                    }}
+                                    disabled={
+                                        deviceToggleBusy ||
+                                        notificationPermission !== 'granted' ||
+                                        !notificationSettings?.browserNotificationsEnabled
                                     }
                                     className="sr-only peer"
                                 />
@@ -469,22 +651,50 @@ export default function NotificationSettings({
                                     Timetable changes
                                 </h5>
                                 <p className="text-xs text-slate-500 dark:text-slate-400">
-                                    Get notified about general timetable updates
+                                    Get notified about general timetable updates (this device)
                                 </p>
                             </div>
                             <label className="relative inline-flex items-center cursor-pointer">
                                 <input
                                     type="checkbox"
-                                    checked={
-                                        notificationSettings?.timetableChangesEnabled ||
-                                        false
-                                    }
-                                    onChange={(e) =>
-                                        handleUpdateNotificationSettings({
-                                            timetableChangesEnabled:
-                                                e.target.checked,
-                                        })
-                                    }
+                                    checked={(() => {
+                                        const ep = endpoint ?? '';
+                                        const prefs: DevicePrefs = (notificationSettings?.devicePreferences ?? {}) as DevicePrefs;
+                                        const entry = ep ? (prefs[ep] as DevicePrefEntry | undefined) : undefined;
+                                        const globalOn = notificationSettings?.timetableChangesEnabled ?? true;
+                                        const perDevice = entry?.timetableChangesEnabled as boolean | undefined;
+                                        return perDevice === undefined ? globalOn : perDevice === true;
+                                    })()}
+                                    onChange={async (e) => {
+                                        setDeviceToggleError(null);
+                                        setDeviceToggleBusy(true);
+                                        try {
+                                            let ep = endpoint;
+                                            if (!ep) {
+                                                const ok = await ensurePushSubscription();
+                                                if (!ok) throw new Error('Push subscription required');
+                                                const reg = await navigator.serviceWorker.ready;
+                                                const sub = await reg.pushManager.getSubscription();
+                                                ep = sub?.endpoint ?? null;
+                                                setEndpoint(ep);
+                                            }
+                                            if (!ep) throw new Error('No device endpoint available');
+                                            const prefs: DevicePrefs = (notificationSettings?.devicePreferences ?? {}) as DevicePrefs;
+                                            const current = (prefs[ep] ?? {}) as Record<string, unknown>;
+                                            const nextPrefs: DevicePrefs = {
+                                                ...prefs,
+                                                [ep]: {
+                                                    ...current,
+                                                    timetableChangesEnabled: e.target.checked,
+                                                } as DevicePrefEntry,
+                                            };
+                                            await handleUpdateNotificationSettings({ devicePreferences: nextPrefs });
+                                        } catch (err) {
+                                            setDeviceToggleError(err instanceof Error ? err.message : 'Failed to update device setting');
+                                        } finally {
+                                            setDeviceToggleBusy(false);
+                                        }
+                                    }}
                                     className="sr-only peer"
                                 />
                                 <div className="relative w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600"></div>
@@ -498,22 +708,50 @@ export default function NotificationSettings({
                                         Access requests
                                     </h5>
                                     <p className="text-xs text-slate-500 dark:text-slate-400">
-                                        Get notified when users request access
+                                        Get notified when users request access (this device)
                                     </p>
                                 </div>
                                 <label className="relative inline-flex items-center cursor-pointer">
                                     <input
                                         type="checkbox"
-                                        checked={
-                                            notificationSettings?.accessRequestsEnabled ||
-                                            false
-                                        }
-                                        onChange={(e) =>
-                                            handleUpdateNotificationSettings({
-                                                accessRequestsEnabled:
-                                                    e.target.checked,
-                                            })
-                                        }
+                                        checked={(() => {
+                                            const ep = endpoint ?? '';
+                                            const prefs: DevicePrefs = (notificationSettings?.devicePreferences ?? {}) as DevicePrefs;
+                                            const entry = ep ? (prefs[ep] as DevicePrefEntry | undefined) : undefined;
+                                            const globalOn = notificationSettings?.accessRequestsEnabled ?? true;
+                                            const perDevice = entry?.accessRequestsEnabled as boolean | undefined;
+                                            return perDevice === undefined ? globalOn : perDevice === true;
+                                        })()}
+                                        onChange={async (e) => {
+                                            setDeviceToggleError(null);
+                                            setDeviceToggleBusy(true);
+                                            try {
+                                                let ep = endpoint;
+                                                if (!ep) {
+                                                    const ok = await ensurePushSubscription();
+                                                    if (!ok) throw new Error('Push subscription required');
+                                                    const reg = await navigator.serviceWorker.ready;
+                                                    const sub = await reg.pushManager.getSubscription();
+                                                    ep = sub?.endpoint ?? null;
+                                                    setEndpoint(ep);
+                                                }
+                                                if (!ep) throw new Error('No device endpoint available');
+                                                const prefs: DevicePrefs = (notificationSettings?.devicePreferences ?? {}) as DevicePrefs;
+                                                const current = (prefs[ep] ?? {}) as Record<string, unknown>;
+                                                const nextPrefs: DevicePrefs = {
+                                                    ...prefs,
+                                                    [ep]: {
+                                                        ...current,
+                                                        accessRequestsEnabled: e.target.checked,
+                                                    } as DevicePrefEntry,
+                                                };
+                                                await handleUpdateNotificationSettings({ devicePreferences: nextPrefs });
+                                            } catch (err) {
+                                                setDeviceToggleError(err instanceof Error ? err.message : 'Failed to update device setting');
+                                            } finally {
+                                                setDeviceToggleBusy(false);
+                                            }
+                                        }}
                                         className="sr-only peer"
                                     />
                                     <div className="relative w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600"></div>

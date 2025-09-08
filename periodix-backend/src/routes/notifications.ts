@@ -140,11 +140,13 @@ router.get('/settings', authMiddleware, async (req, res) => {
                     browserNotificationsEnabled: false,
                     pushNotificationsEnabled: false,
                     timetableChangesEnabled: true,
-                    accessRequestsEnabled: (req.user as any).isUserManager || false,
+                    accessRequestsEnabled:
+                        (req.user as any).isUserManager || false,
                     irregularLessonsEnabled: true,
                     cancelledLessonsEnabled: true,
                     cancelledLessonsTimeScope: 'day',
                     irregularLessonsTimeScope: 'day',
+                    upcomingLessonsEnabled: false,
                 },
             });
         }
@@ -166,6 +168,7 @@ const updateSettingsSchema = z.object({
     cancelledLessonsEnabled: z.boolean().optional(),
     cancelledLessonsTimeScope: z.enum(['day', 'week']).optional(),
     irregularLessonsTimeScope: z.enum(['day', 'week']).optional(),
+    upcomingLessonsEnabled: z.boolean().optional(),
     devicePreferences: z.record(z.any()).optional(),
 });
 
@@ -217,13 +220,17 @@ router.post('/subscribe', authMiddleware, async (req, res) => {
 
     try {
         // Check if subscription already exists
-        const existing = await (prisma as any).notificationSubscription.findUnique({
+        const existing = await (
+            prisma as any
+        ).notificationSubscription.findUnique({
             where: { endpoint: parsed.data.endpoint },
         });
 
         if (existing) {
             // Update existing subscription
-            const subscription = await (prisma as any).notificationSubscription.update({
+            const subscription = await (
+                prisma as any
+            ).notificationSubscription.update({
                 where: { endpoint: parsed.data.endpoint },
                 data: {
                     userId: req.user.id,
@@ -238,7 +245,9 @@ router.post('/subscribe', authMiddleware, async (req, res) => {
         }
 
         // Create new subscription
-        const subscription = await (prisma as any).notificationSubscription.create({
+        const subscription = await (
+            prisma as any
+        ).notificationSubscription.create({
             data: {
                 userId: req.user.id,
                 endpoint: parsed.data.endpoint,
@@ -263,13 +272,17 @@ router.delete('/subscribe/:endpoint', authMiddleware, async (req, res) => {
     }
 
     if (!req.params.endpoint) {
-        return res.status(400).json({ error: 'Endpoint parameter is required' });
+        return res
+            .status(400)
+            .json({ error: 'Endpoint parameter is required' });
     }
 
     try {
         const endpoint = decodeURIComponent(req.params.endpoint);
-        
-        const subscription = await (prisma as any).notificationSubscription.findFirst({
+
+        const subscription = await (
+            prisma as any
+        ).notificationSubscription.findFirst({
             where: {
                 endpoint,
                 userId: req.user.id,
@@ -296,7 +309,9 @@ router.delete('/subscribe/:endpoint', authMiddleware, async (req, res) => {
 router.get('/vapid-public-key', (req, res) => {
     const publicKey = process.env.VAPID_PUBLIC_KEY;
     if (!publicKey) {
-        return res.status(503).json({ error: 'Push notifications not configured' });
+        return res
+            .status(503)
+            .json({ error: 'Push notifications not configured' });
     }
     res.json({ publicKey });
 });

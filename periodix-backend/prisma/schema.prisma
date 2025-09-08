@@ -233,6 +233,7 @@ model NotificationSettings {
     accessRequestsEnabled   Boolean @default(true) // Only relevant for user managers
     irregularLessonsEnabled Boolean @default(true)
     cancelledLessonsEnabled Boolean @default(true)
+    upcomingLessonsEnabled  Boolean @default(false) // Beta: 5-min pre-lesson reminder
 
     // Time scope preferences for notifications
     cancelledLessonsTimeScope String @default("day") // "day" | "week"
@@ -292,11 +293,11 @@ model UserActivity {
     user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
     // Activity details
-    action     String // 'login', 'timetable_view', 'search', 'settings', 'color_change', etc.
-    details    Json? // Additional context data
-    ipAddress  String? // For geographic analysis
-    userAgent  String? // For device analysis
-    sessionId  String? // For session tracking
+    action    String // 'login', 'timetable_view', 'search', 'settings', 'color_change', etc.
+    details   Json? // Additional context data
+    ipAddress String? // For geographic analysis
+    userAgent String? // For device analysis
+    sessionId String? // For session tracking
 
     @@index([userId, createdAt])
     @@index([action, createdAt])
@@ -308,17 +309,17 @@ model DailyStats {
     date String @unique // YYYY-MM-DD format
 
     // User metrics
-    totalUsers         Int @default(0)
-    activeUsers        Int @default(0)
-    newUsers           Int @default(0)
-    uniqueLogins       Int @default(0)
+    totalUsers   Int @default(0)
+    activeUsers  Int @default(0)
+    newUsers     Int @default(0)
+    uniqueLogins Int @default(0)
 
     // Activity metrics
-    totalLogins        Int @default(0)
-    timetableViews     Int @default(0)
-    searchQueries      Int @default(0)
-    settingsOpened     Int @default(0)
-    colorChanges       Int @default(0)
+    totalLogins    Int @default(0)
+    timetableViews Int @default(0)
+    searchQueries  Int @default(0)
+    settingsOpened Int @default(0)
+    colorChanges   Int @default(0)
 
     // Engagement metrics
     avgSessionDuration Float? // in minutes
@@ -330,7 +331,7 @@ model DailyStats {
 model HourlyStats {
     id   String @id @default(uuid())
     date String // YYYY-MM-DD format
-    hour Int    // 0-23
+    hour Int // 0-23
 
     // Activity counts
     activeUsers    Int @default(0)

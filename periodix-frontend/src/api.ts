@@ -2,7 +2,14 @@ type ViteImportMeta = { env?: { VITE_API_BASE?: string } };
 const API_BASE: string | undefined = (import.meta as unknown as ViteImportMeta)
     .env?.VITE_API_BASE;
 
-import type { LessonColors, LessonOffsets, User, Notification, NotificationSettings, AdminNotificationSettings } from './types';
+import type {
+    LessonColors,
+    LessonOffsets,
+    User,
+    Notification,
+    NotificationSettings,
+    AdminNotificationSettings,
+} from './types';
 
 export async function api<T>(
     path: string,
@@ -175,7 +182,9 @@ export type SharingSettings = {
     whitelistEnabled?: boolean;
 };
 
-export async function getSharingSettings(token: string): Promise<SharingSettings> {
+export async function getSharingSettings(
+    token: string
+): Promise<SharingSettings> {
     return api<SharingSettings>('/api/sharing/settings', { token });
 }
 
@@ -225,11 +234,12 @@ export async function updateGlobalSharing(
 export async function searchUsersToShare(
     token: string,
     query: string
-): Promise<{ users: Array<{ id: string; username: string; displayName?: string }> }> {
-    return api<{ users: Array<{ id: string; username: string; displayName?: string }> }>(
-        `/api/users/search-to-share?q=${encodeURIComponent(query)}`,
-        { token }
-    );
+): Promise<{
+    users: Array<{ id: string; username: string; displayName?: string }>;
+}> {
+    return api<{
+        users: Array<{ id: string; username: string; displayName?: string }>;
+    }>(`/api/users/search-to-share?q=${encodeURIComponent(query)}`, { token });
 }
 
 // Admin user management
@@ -237,46 +247,53 @@ export async function updateUserDisplayName(
     token: string,
     userId: string,
     displayName: string | null
-): Promise<{ user: { id: string; username: string; displayName: string | null } }> {
-    return api<{ user: { id: string; username: string; displayName: string | null } }>(
-        `/api/admin/users/${userId}`,
-        {
-            method: 'PATCH',
-            token,
-            body: JSON.stringify({ displayName }),
-        }
-    );
+): Promise<{
+    user: { id: string; username: string; displayName: string | null };
+}> {
+    return api<{
+        user: { id: string; username: string; displayName: string | null };
+    }>(`/api/admin/users/${userId}`, {
+        method: 'PATCH',
+        token,
+        body: JSON.stringify({ displayName }),
+    });
 }
 
 // New: current user can update their own display name
 export async function updateMyDisplayName(
     token: string,
     displayName: string | null
-): Promise<{ user: { id: string; username: string; displayName: string | null } }> {
-    return api<{ user: { id: string; username: string; displayName: string | null } }>(
-        `/api/users/me`,
-        {
-            method: 'PATCH',
-            token,
-            body: JSON.stringify({ displayName }),
-        }
-    );
+): Promise<{
+    user: { id: string; username: string; displayName: string | null };
+}> {
+    return api<{
+        user: { id: string; username: string; displayName: string | null };
+    }>(`/api/users/me`, {
+        method: 'PATCH',
+        token,
+        body: JSON.stringify({ displayName }),
+    });
 }
 
 // New: Whitelist management (username-only)
 export type WhitelistRule = { id: string; value: string; createdAt: string };
-export async function listWhitelist(token: string): Promise<{ rules: WhitelistRule[] }> {
+export async function listWhitelist(
+    token: string
+): Promise<{ rules: WhitelistRule[] }> {
     return api<{ rules: WhitelistRule[] }>(`/api/admin/whitelist`, { token });
 }
 export async function addWhitelistRule(
     token: string,
     value: string
 ): Promise<{ rule: WhitelistRule; created: boolean }> {
-    return api<{ rule: WhitelistRule; created: boolean }>(`/api/admin/whitelist`, {
-        method: 'POST',
-        token,
-        body: JSON.stringify({ value }),
-    });
+    return api<{ rule: WhitelistRule; created: boolean }>(
+        `/api/admin/whitelist`,
+        {
+            method: 'POST',
+            token,
+            body: JSON.stringify({ value }),
+        }
+    );
 }
 export async function deleteWhitelistRule(
     token: string,
@@ -289,30 +306,45 @@ export async function deleteWhitelistRule(
 }
 
 // Access request API functions
-export type AccessRequest = { id: string; username: string; message?: string; createdAt: string };
+export type AccessRequest = {
+    id: string;
+    username: string;
+    message?: string;
+    createdAt: string;
+};
 
 export async function createAccessRequest(
     username: string,
     message?: string
 ): Promise<{ request: AccessRequest; success: boolean }> {
-    return api<{ request: AccessRequest; success: boolean }>('/api/access-request', {
-        method: 'POST',
-        body: JSON.stringify({ username, message }),
-    });
+    return api<{ request: AccessRequest; success: boolean }>(
+        '/api/access-request',
+        {
+            method: 'POST',
+            body: JSON.stringify({ username, message }),
+        }
+    );
 }
 
-export async function listAccessRequests(token: string): Promise<{ requests: AccessRequest[] }> {
-    return api<{ requests: AccessRequest[] }>('/api/admin/access-requests', { token });
+export async function listAccessRequests(
+    token: string
+): Promise<{ requests: AccessRequest[] }> {
+    return api<{ requests: AccessRequest[] }>('/api/admin/access-requests', {
+        token,
+    });
 }
 
 export async function acceptAccessRequest(
     token: string,
     id: string
 ): Promise<{ success: boolean; message?: string }> {
-    return api<{ success: boolean; message?: string }>(`/api/admin/access-requests/${id}/accept`, {
-        method: 'POST',
-        token,
-    });
+    return api<{ success: boolean; message?: string }>(
+        `/api/admin/access-requests/${id}/accept`,
+        {
+            method: 'POST',
+            token,
+        }
+    );
 }
 
 export async function declineAccessRequest(
@@ -326,53 +358,81 @@ export async function declineAccessRequest(
 }
 
 // Admin user management functions
-export async function listAllUsers(
-    token: string
-): Promise<{ users: Array<{ id: string; username: string; displayName: string | null; isUserManager: boolean }> }> {
-    return api<{ users: Array<{ id: string; username: string; displayName: string | null; isUserManager: boolean }> }>(
-        '/api/admin/users',
-        { token }
-    );
+export async function listAllUsers(token: string): Promise<{
+    users: Array<{
+        id: string;
+        username: string;
+        displayName: string | null;
+        isUserManager: boolean;
+    }>;
+}> {
+    return api<{
+        users: Array<{
+            id: string;
+            username: string;
+            displayName: string | null;
+            isUserManager: boolean;
+        }>;
+    }>('/api/admin/users', { token });
 }
 
 export async function deleteUser(
     token: string,
     userId: string
 ): Promise<{ ok: boolean; count: number }> {
-    return api<{ ok: boolean; count: number }>(
-        `/api/admin/users/${userId}`,
-        {
-            method: 'DELETE',
-            token,
-        }
-    );
+    return api<{ ok: boolean; count: number }>(`/api/admin/users/${userId}`, {
+        method: 'DELETE',
+        token,
+    });
 }
 
 // User-manager management (admin only)
 export async function grantUserManagerStatus(
     token: string,
     userId: string
-): Promise<{ user: { id: string; username: string; displayName: string | null; isUserManager: boolean } }> {
-    return api<{ user: { id: string; username: string; displayName: string | null; isUserManager: boolean } }>(
-        `/api/admin/users/${userId}/grant-user-manager`,
-        {
-            method: 'PATCH',
-            token,
-        }
-    );
+): Promise<{
+    user: {
+        id: string;
+        username: string;
+        displayName: string | null;
+        isUserManager: boolean;
+    };
+}> {
+    return api<{
+        user: {
+            id: string;
+            username: string;
+            displayName: string | null;
+            isUserManager: boolean;
+        };
+    }>(`/api/admin/users/${userId}/grant-user-manager`, {
+        method: 'PATCH',
+        token,
+    });
 }
 
 export async function revokeUserManagerStatus(
     token: string,
     userId: string
-): Promise<{ user: { id: string; username: string; displayName: string | null; isUserManager: boolean } }> {
-    return api<{ user: { id: string; username: string; displayName: string | null; isUserManager: boolean } }>(
-        `/api/admin/users/${userId}/revoke-user-manager`,
-        {
-            method: 'PATCH',
-            token,
-        }
-    );
+): Promise<{
+    user: {
+        id: string;
+        username: string;
+        displayName: string | null;
+        isUserManager: boolean;
+    };
+}> {
+    return api<{
+        user: {
+            id: string;
+            username: string;
+            displayName: string | null;
+            isUserManager: boolean;
+        };
+    }>(`/api/admin/users/${userId}/revoke-user-manager`, {
+        method: 'PATCH',
+        token,
+    });
 }
 
 // User-manager API functions (accessible by admin or user-manager)
@@ -380,30 +440,38 @@ export async function userManagerUpdateUserDisplayName(
     token: string,
     userId: string,
     displayName: string | null
-): Promise<{ user: { id: string; username: string; displayName: string | null } }> {
-    return api<{ user: { id: string; username: string; displayName: string | null } }>(
-        `/api/user-manager/users/${userId}`,
-        {
-            method: 'PATCH',
-            token,
-            body: JSON.stringify({ displayName }),
-        }
-    );
+): Promise<{
+    user: { id: string; username: string; displayName: string | null };
+}> {
+    return api<{
+        user: { id: string; username: string; displayName: string | null };
+    }>(`/api/user-manager/users/${userId}`, {
+        method: 'PATCH',
+        token,
+        body: JSON.stringify({ displayName }),
+    });
 }
 
-export async function userManagerListWhitelist(token: string): Promise<{ rules: WhitelistRule[] }> {
-    return api<{ rules: WhitelistRule[] }>('/api/user-manager/whitelist', { token });
+export async function userManagerListWhitelist(
+    token: string
+): Promise<{ rules: WhitelistRule[] }> {
+    return api<{ rules: WhitelistRule[] }>('/api/user-manager/whitelist', {
+        token,
+    });
 }
 
 export async function userManagerAddWhitelistRule(
     token: string,
     value: string
 ): Promise<{ rule: WhitelistRule; created: boolean }> {
-    return api<{ rule: WhitelistRule; created: boolean }>('/api/user-manager/whitelist', {
-        method: 'POST',
-        token,
-        body: JSON.stringify({ value }),
-    });
+    return api<{ rule: WhitelistRule; created: boolean }>(
+        '/api/user-manager/whitelist',
+        {
+            method: 'POST',
+            token,
+            body: JSON.stringify({ value }),
+        }
+    );
 }
 
 export async function userManagerDeleteWhitelistRule(
@@ -416,46 +484,66 @@ export async function userManagerDeleteWhitelistRule(
     });
 }
 
-export async function userManagerListAccessRequests(token: string): Promise<{ requests: AccessRequest[] }> {
-    return api<{ requests: AccessRequest[] }>('/api/user-manager/access-requests', { token });
+export async function userManagerListAccessRequests(
+    token: string
+): Promise<{ requests: AccessRequest[] }> {
+    return api<{ requests: AccessRequest[] }>(
+        '/api/user-manager/access-requests',
+        { token }
+    );
 }
 
 export async function userManagerAcceptAccessRequest(
     token: string,
     id: string
 ): Promise<{ success: boolean; message?: string }> {
-    return api<{ success: boolean; message?: string }>(`/api/user-manager/access-requests/${id}/accept`, {
-        method: 'POST',
-        token,
-    });
+    return api<{ success: boolean; message?: string }>(
+        `/api/user-manager/access-requests/${id}/accept`,
+        {
+            method: 'POST',
+            token,
+        }
+    );
 }
 
 export async function userManagerDeclineAccessRequest(
     token: string,
     id: string
 ): Promise<{ success: boolean }> {
-    return api<{ success: boolean }>(`/api/user-manager/access-requests/${id}`, {
-        method: 'DELETE',
-        token,
-    });
+    return api<{ success: boolean }>(
+        `/api/user-manager/access-requests/${id}`,
+        {
+            method: 'DELETE',
+            token,
+        }
+    );
 }
 
 // Notification API functions
-export async function getNotifications(token: string): Promise<{ notifications: Notification[] }> {
-    return api<{ notifications: Notification[] }>('/api/notifications', { token });
+export async function getNotifications(
+    token: string
+): Promise<{ notifications: Notification[] }> {
+    return api<{ notifications: Notification[] }>('/api/notifications', {
+        token,
+    });
 }
 
 export async function markNotificationAsRead(
     token: string,
     notificationId: string
 ): Promise<{ success: boolean }> {
-    return api<{ success: boolean }>(`/api/notifications/${notificationId}/read`, {
-        method: 'PATCH',
-        token,
-    });
+    return api<{ success: boolean }>(
+        `/api/notifications/${notificationId}/read`,
+        {
+            method: 'PATCH',
+            token,
+        }
+    );
 }
 
-export async function markAllNotificationsAsRead(token: string): Promise<{ success: boolean }> {
+export async function markAllNotificationsAsRead(
+    token: string
+): Promise<{ success: boolean }> {
     return api<{ success: boolean }>('/api/notifications/read-all', {
         method: 'PATCH',
         token,
@@ -472,27 +560,39 @@ export async function deleteNotification(
     });
 }
 
-export async function getNotificationSettings(token: string): Promise<{ settings: NotificationSettings }> {
-    return api<{ settings: NotificationSettings }>('/api/notifications/settings', { token });
+export async function getNotificationSettings(
+    token: string
+): Promise<{ settings: NotificationSettings }> {
+    return api<{ settings: NotificationSettings }>(
+        '/api/notifications/settings',
+        { token }
+    );
 }
 
 export async function updateNotificationSettings(
     token: string,
-    settings: Partial<Pick<NotificationSettings, 
-        'browserNotificationsEnabled' | 
-        'pushNotificationsEnabled' | 
-        'timetableChangesEnabled' | 
-        'accessRequestsEnabled' | 
-        'irregularLessonsEnabled' | 
-        'cancelledLessonsEnabled' | 
-        'devicePreferences'
-    >>
+    settings: Partial<
+        Pick<
+            NotificationSettings,
+            | 'browserNotificationsEnabled'
+            | 'pushNotificationsEnabled'
+            | 'timetableChangesEnabled'
+            | 'accessRequestsEnabled'
+            | 'irregularLessonsEnabled'
+            | 'cancelledLessonsEnabled'
+            | 'upcomingLessonsEnabled'
+            | 'devicePreferences'
+        >
+    >
 ): Promise<{ settings: NotificationSettings; success: boolean }> {
-    return api<{ settings: NotificationSettings; success: boolean }>('/api/notifications/settings', {
-        method: 'PUT',
-        token,
-        body: JSON.stringify(settings),
-    });
+    return api<{ settings: NotificationSettings; success: boolean }>(
+        '/api/notifications/settings',
+        {
+            method: 'PUT',
+            token,
+            body: JSON.stringify(settings),
+        }
+    );
 }
 
 export async function subscribeToPushNotifications(
@@ -505,21 +605,27 @@ export async function subscribeToPushNotifications(
         deviceType?: 'mobile' | 'desktop' | 'tablet';
     }
 ): Promise<{ subscription: Record<string, unknown>; success: boolean }> {
-    return api<{ subscription: Record<string, unknown>; success: boolean }>('/api/notifications/subscribe', {
-        method: 'POST',
-        token,
-        body: JSON.stringify(subscription),
-    });
+    return api<{ subscription: Record<string, unknown>; success: boolean }>(
+        '/api/notifications/subscribe',
+        {
+            method: 'POST',
+            token,
+            body: JSON.stringify(subscription),
+        }
+    );
 }
 
 export async function unsubscribeFromPushNotifications(
     token: string,
     endpoint: string
 ): Promise<{ success: boolean }> {
-    return api<{ success: boolean }>(`/api/notifications/subscribe/${encodeURIComponent(endpoint)}`, {
-        method: 'DELETE',
-        token,
-    });
+    return api<{ success: boolean }>(
+        `/api/notifications/subscribe/${encodeURIComponent(endpoint)}`,
+        {
+            method: 'DELETE',
+            token,
+        }
+    );
 }
 
 // Get VAPID public key for push notifications
@@ -528,23 +634,34 @@ export async function getVapidPublicKey(): Promise<{ publicKey: string }> {
 }
 
 // Admin notification settings
-export async function getAdminNotificationSettings(token: string): Promise<{ settings: AdminNotificationSettings }> {
-    return api<{ settings: AdminNotificationSettings }>('/api/admin/notification-settings', { token });
+export async function getAdminNotificationSettings(
+    token: string
+): Promise<{ settings: AdminNotificationSettings }> {
+    return api<{ settings: AdminNotificationSettings }>(
+        '/api/admin/notification-settings',
+        { token }
+    );
 }
 
 export async function updateAdminNotificationSettings(
     token: string,
-    settings: Partial<Pick<AdminNotificationSettings, 
-        'timetableFetchInterval' | 
-        'enableTimetableNotifications' | 
-        'enableAccessRequestNotifications'
-    >>
+    settings: Partial<
+        Pick<
+            AdminNotificationSettings,
+            | 'timetableFetchInterval'
+            | 'enableTimetableNotifications'
+            | 'enableAccessRequestNotifications'
+        >
+    >
 ): Promise<{ settings: AdminNotificationSettings; success: boolean }> {
-    return api<{ settings: AdminNotificationSettings; success: boolean }>('/api/admin/notification-settings', {
-        method: 'PUT',
-        token,
-        body: JSON.stringify(settings),
-    });
+    return api<{ settings: AdminNotificationSettings; success: boolean }>(
+        '/api/admin/notification-settings',
+        {
+            method: 'PUT',
+            token,
+            body: JSON.stringify(settings),
+        }
+    );
 }
 
 // Analytics API functions
@@ -612,19 +729,32 @@ export async function trackActivity(
     });
 }
 
-export async function getDashboardStats(token: string): Promise<{ stats: DashboardStats }> {
-    return api<{ stats: DashboardStats }>('/api/analytics/dashboard', { token });
+export async function getDashboardStats(
+    token: string
+): Promise<{ stats: DashboardStats }> {
+    return api<{ stats: DashboardStats }>('/api/analytics/dashboard', {
+        token,
+    });
 }
 
-export async function getUserEngagementMetrics(token: string): Promise<{ metrics: UserEngagementMetrics }> {
-    return api<{ metrics: UserEngagementMetrics }>('/api/analytics/engagement', { token });
+export async function getUserEngagementMetrics(
+    token: string
+): Promise<{ metrics: UserEngagementMetrics }> {
+    return api<{ metrics: UserEngagementMetrics }>(
+        '/api/analytics/engagement',
+        { token }
+    );
 }
 
-export async function getActivityTrends(token: string): Promise<{ trends: ActivityTrends }> {
+export async function getActivityTrends(
+    token: string
+): Promise<{ trends: ActivityTrends }> {
     return api<{ trends: ActivityTrends }>('/api/analytics/trends', { token });
 }
 
-export async function getAnalyticsOverview(token: string): Promise<AnalyticsOverview> {
+export async function getAnalyticsOverview(
+    token: string
+): Promise<AnalyticsOverview> {
     return api<AnalyticsOverview>('/api/analytics/overview', { token });
 }
 
