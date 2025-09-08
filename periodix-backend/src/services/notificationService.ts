@@ -133,7 +133,8 @@ export class NotificationService {
             // Send push notification to all user's devices with per-device preferences
             const pushPromises = subscriptions.map(async (sub: any) => {
                 try {
-                    const devicePrefs = (user.notificationSettings?.devicePreferences || {}) as Record<string, any>;
+                    const devicePrefs = (user.notificationSettings
+                        ?.devicePreferences || {}) as Record<string, any>;
                     const entry = devicePrefs[sub.endpoint] || {};
                     // Map type -> per-device flag key and default behavior
                     let flagKey: string | null = null;
