@@ -12,8 +12,12 @@ router.get('/', authMiddleware, async (req, res) => {
             return res.status(401).json({ error: 'Unauthorized' });
         }
 
+        const now = new Date();
         const notifications = await (prisma as any).notification.findMany({
-            where: { userId: req.user.id },
+            where: {
+                userId: req.user.id,
+                OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+            },
             orderBy: { createdAt: 'desc' },
             take: 50, // Limit to 50 most recent
         });
@@ -109,8 +113,10 @@ router.delete('/:id', authMiddleware, async (req, res) => {
             return res.status(404).json({ error: 'Notification not found' });
         }
 
-        await (prisma as any).notification.delete({
+        // Soft-delete: expire now and mark as read
+        await (prisma as any).notification.update({
             where: { id: parsed.data.notificationId },
+            data: { expiresAt: new Date(), read: true },
         });
 
         res.json({ success: true });

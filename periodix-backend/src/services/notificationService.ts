@@ -106,7 +106,10 @@ export class NotificationService {
                     | undefined;
 
                 // If this is a unique constraint violation (P2002), the notification already exists.
-                if (code === 'P2002' || msg.includes('Unique constraint failed')) {
+                if (
+                    code === 'P2002' ||
+                    msg.includes('Unique constraint failed')
+                ) {
                     return; // do not create a duplicate, and do not re-send push
                 }
 
