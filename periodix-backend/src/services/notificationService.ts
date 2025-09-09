@@ -32,6 +32,9 @@ export class NotificationService {
     private static instance: NotificationService;
     private intervalId: NodeJS.Timeout | null = null;
     private upcomingIntervalId: NodeJS.Timeout | null = null;
+    // Reentrancy guards to avoid overlapping runs
+    private isCheckingChanges = false;
+    private isCheckingUpcoming = false;
 
     private constructor() {}
 
@@ -81,7 +84,7 @@ export class NotificationService {
                 // ignore and proceed
             }
 
-            // Create with dedupeKey when the column exists, otherwise retry without
+            // Create with dedupeKey when possible. If unique constraint triggers, treat as already created.
             let created: { id: string } | null = null;
             try {
                 created = await (prisma as any).notification.create({
@@ -97,18 +100,38 @@ export class NotificationService {
                     select: { id: true },
                 });
             } catch (e: any) {
-                // Retry without dedupeKey for older schemas
-                created = await (prisma as any).notification.create({
-                    data: {
-                        userId: data.userId,
-                        type: data.type,
-                        title: data.title,
-                        message: data.message,
-                        data: data.data || null,
-                        expiresAt: data.expiresAt,
-                    },
-                    select: { id: true },
-                });
+                const msg = String(e?.message || '');
+                const code = (e && (e.code || (e.meta && e.meta.code))) as
+                    | string
+                    | undefined;
+
+                // If this is a unique constraint violation (P2002), the notification already exists.
+                if (code === 'P2002' || msg.includes('Unique constraint failed')) {
+                    return; // do not create a duplicate, and do not re-send push
+                }
+
+                // Fallback only if the dedupeKey column truly doesn't exist in the database/client
+                const columnMissing =
+                    msg.includes('Unknown arg `dedupeKey`') ||
+                    msg.includes('column "dedupeKey" does not exist') ||
+                    msg.includes('No such column: dedupeKey');
+                if (columnMissing) {
+                    created = await (prisma as any).notification.create({
+                        data: {
+                            userId: data.userId,
+                            type: data.type,
+                            title: data.title,
+                            message: data.message,
+                            data: data.data || null,
+                            expiresAt: data.expiresAt,
+                        },
+                        select: { id: true },
+                    });
+                } else {
+                    // Unknown error — log and abort to avoid duplicate sending
+                    console.error('notification.create failed:', e);
+                    return;
+                }
             }
 
             // Try to send push notification if user has subscriptions
@@ -803,16 +826,26 @@ export class NotificationService {
         const intervalMinutes = adminSettings?.timetableFetchInterval || 30;
 
         this.intervalId = setInterval(async () => {
-            await this.checkTimetableChanges();
+            if (this.isCheckingChanges) return;
+            this.isCheckingChanges = true;
+            try {
+                await this.checkTimetableChanges();
+            } finally {
+                this.isCheckingChanges = false;
+            }
         }, intervalMinutes * 60 * 1000); // Convert minutes to milliseconds
 
         // Separate fast loop for upcoming lesson reminders (runs every 60s)
         if (!this.upcomingIntervalId) {
             this.upcomingIntervalId = setInterval(async () => {
+                if (this.isCheckingUpcoming) return;
+                this.isCheckingUpcoming = true;
                 try {
                     await this.checkUpcomingLessons();
                 } catch (e) {
                     console.error('Upcoming lesson check failed:', e);
+                } finally {
+                    this.isCheckingUpcoming = false;
                 }
             }, 60 * 1000);
         }
