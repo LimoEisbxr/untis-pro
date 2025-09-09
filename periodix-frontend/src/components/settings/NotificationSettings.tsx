@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import NotificationTimeScopeSelector from './NotificationTimeScopeSelector';
 import type {
     User,
     NotificationSettings as NotificationSettingsType,
@@ -453,6 +454,46 @@ export default function NotificationSettings({
                                     Get notified when lessons are cancelled
                                     (this device)
                                 </p>
+                                {/* Day/Week scope selector */}
+                                {(() => {
+                                    const ep = endpoint ?? '';
+                                    const prefs: DevicePrefs =
+                                        (notificationSettings?.devicePreferences ??
+                                            {}) as DevicePrefs;
+                                    const entry = ep
+                                        ? (prefs[ep] as
+                                              | DevicePrefEntry
+                                              | undefined)
+                                        : undefined;
+                                    const globalOn =
+                                        notificationSettings?.cancelledLessonsEnabled ??
+                                        true;
+                                    const perDevice =
+                                        entry?.cancelledLessonsEnabled as
+                                            | boolean
+                                            | undefined;
+                                    const enabled =
+                                        perDevice === undefined
+                                            ? globalOn
+                                            : perDevice === true;
+                                    return (
+                                        <NotificationTimeScopeSelector
+                                            name="cancelledScope"
+                                            value={
+                                                notificationSettings?.cancelledLessonsTimeScope
+                                            }
+                                            onChange={(val) =>
+                                                handleUpdateNotificationSettings(
+                                                    {
+                                                        cancelledLessonsTimeScope:
+                                                            val,
+                                                    }
+                                                )
+                                            }
+                                            disabled={!enabled}
+                                        />
+                                    );
+                                })()}
                             </div>
                             <label className="relative inline-flex items-center cursor-pointer">
                                 <input
@@ -543,6 +584,46 @@ export default function NotificationSettings({
                                     Get notified when lesson times, rooms, or
                                     teachers change (this device)
                                 </p>
+                                {/* Day/Week scope selector */}
+                                {(() => {
+                                    const ep = endpoint ?? '';
+                                    const prefs: DevicePrefs =
+                                        (notificationSettings?.devicePreferences ??
+                                            {}) as DevicePrefs;
+                                    const entry = ep
+                                        ? (prefs[ep] as
+                                              | DevicePrefEntry
+                                              | undefined)
+                                        : undefined;
+                                    const globalOn =
+                                        notificationSettings?.irregularLessonsEnabled ??
+                                        true;
+                                    const perDevice =
+                                        entry?.irregularLessonsEnabled as
+                                            | boolean
+                                            | undefined;
+                                    const enabled =
+                                        perDevice === undefined
+                                            ? globalOn
+                                            : perDevice === true;
+                                    return (
+                                        <NotificationTimeScopeSelector
+                                            name="irregularScope"
+                                            value={
+                                                notificationSettings?.irregularLessonsTimeScope
+                                            }
+                                            onChange={(val) =>
+                                                handleUpdateNotificationSettings(
+                                                    {
+                                                        irregularLessonsTimeScope:
+                                                            val,
+                                                    }
+                                                )
+                                            }
+                                            disabled={!enabled}
+                                        />
+                                    );
+                                })()}
                             </div>
                             <label className="relative inline-flex items-center cursor-pointer">
                                 <input
