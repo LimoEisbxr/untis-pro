@@ -40,9 +40,29 @@ export class NotificationService {
         return NotificationService.instance;
     }
 
-    // Create a notification
+    // Create a notification (with basic deduplication)
     async createNotification(data: NotificationData): Promise<void> {
         try {
+            // Basic dedupe: skip if same (userId, type, title, message) was created recently
+            // This prevents spam after restarts or tight loops.
+            const thirtyDaysAgo = new Date(
+                Date.now() - 30 * 24 * 60 * 60 * 1000
+            );
+            const existing = await (prisma as any).notification.findFirst({
+                where: {
+                    userId: data.userId,
+                    type: data.type,
+                    title: data.title,
+                    message: data.message,
+                    createdAt: { gt: thirtyDaysAgo },
+                },
+                select: { id: true },
+            });
+
+            if (existing) {
+                return; // already notified recently
+            }
+
             const created = await (prisma as any).notification.create({
                 data: {
                     userId: data.userId,
@@ -291,24 +311,80 @@ export class NotificationService {
                 return;
             }
 
-            // Get all users who have timetable notifications enabled
-            const users = await (prisma as any).user.findMany({
+            // Compute current ISO week range
+            const now = new Date();
+            const startOfISOWeek = (d: Date) => {
+                const nd = new Date(d);
+                nd.setHours(0, 0, 0, 0);
+                const day = nd.getDay(); // 0=Sun..6=Sat
+                const diff = day === 0 ? -6 : 1 - day; // shift to Monday
+                nd.setDate(nd.getDate() + diff);
+                return nd;
+            };
+            const endOfISOWeek = (d: Date) => {
+                const start = startOfISOWeek(d);
+                const end = new Date(start);
+                end.setDate(start.getDate() + 6);
+                end.setHours(23, 59, 59, 999);
+                return end;
+            };
+            const s = startOfISOWeek(now).toISOString();
+            const e = endOfISOWeek(now).toISOString();
+
+            // Refresh cache for users who either enabled push (for upcoming) OR timetable change notifications
+            const usersToRefresh = await (prisma as any).user.findMany({
                 where: {
-                    notificationSettings: {
-                        timetableChangesEnabled: true,
-                    },
+                    OR: [
+                        {
+                            notificationSettings: {
+                                pushNotificationsEnabled: true,
+                            },
+                        },
+                        {
+                            notificationSettings: {
+                                timetableChangesEnabled: true,
+                            },
+                        },
+                    ],
                 },
                 include: {
                     notificationSettings: true,
-                    timetables: {
-                        orderBy: { createdAt: 'desc' },
-                        take: 1,
-                    },
+                    timetables: { orderBy: { createdAt: 'desc' }, take: 1 },
                 },
             });
 
-            for (const user of users) {
-                await this.checkUserTimetableChanges(user);
+            for (const user of usersToRefresh) {
+                let tmpUser = user as any;
+                try {
+                    const fresh = await getOrFetchTimetableRange({
+                        requesterId: user.id,
+                        targetUserId: user.id,
+                        start: s,
+                        end: e,
+                    });
+                    tmpUser = {
+                        ...user,
+                        timetables: [
+                            {
+                                ...(user.timetables?.[0] || {}),
+                                payload: fresh?.payload ?? [],
+                            },
+                        ],
+                    } as any;
+                } catch (fetchErr) {
+                    // If fetching fails (e.g., missing Untis credentials), fall back to existing cache
+                    console.warn(
+                        `Admin interval refresh failed for ${user.id}:`,
+                        (fetchErr as any)?.message || fetchErr
+                    );
+                }
+
+                // Only check irregular/cancelled changes for users who enabled it
+                if (user.notificationSettings?.timetableChangesEnabled) {
+                    await this.checkUserTimetableChanges(tmpUser, {
+                        onlyUpcoming: false,
+                    });
+                }
             }
         } catch (error) {
             console.error('Failed to check timetable changes:', error);
@@ -316,7 +392,10 @@ export class NotificationService {
     }
 
     // Check for changes in a specific user's timetable
-    private async checkUserTimetableChanges(user: any): Promise<void> {
+    private async checkUserTimetableChanges(
+        user: any,
+        options?: { onlyUpcoming?: boolean }
+    ): Promise<void> {
         try {
             // This is a simplified version - in a real implementation you would:
             // 1. Fetch the latest timetable from WebUntis
@@ -359,86 +438,112 @@ export class NotificationService {
                 (endOfWeek.getMonth() + 1) * 100 +
                 endOfWeek.getDate();
 
-            for (const lesson of lessons) {
-                // Check cancelled lessons based on user's time scope preference
-                if (
-                    lesson.code === 'cancelled' &&
-                    user.notificationSettings?.cancelledLessonsEnabled
-                ) {
-                    const scope =
-                        user.notificationSettings?.cancelledLessonsTimeScope ||
-                        'day';
-                    let shouldNotify = false;
+            // Helper formatters for messages
+            const formatYmd = (n: number | undefined) => {
+                if (!n || typeof n !== 'number') return '';
+                const y = Math.floor(n / 10000);
+                const m = Math.floor((n % 10000) / 100);
+                const d = n % 100;
+                return `${String(y)}-${String(m).padStart(2, '0')}-${String(
+                    d
+                ).padStart(2, '0')}`;
+            };
+            const formatHm = (hhmm: number | undefined) => {
+                if (!hhmm && hhmm !== 0) return '';
+                const hh = Math.floor((hhmm as number) / 100);
+                const mm = (hhmm as number) % 100;
+                return `${String(hh).padStart(2, '0')}:${String(mm).padStart(
+                    2,
+                    '0'
+                )}`;
+            };
 
-                    if (scope === 'day') {
-                        shouldNotify = lesson.date === todayString;
-                    } else if (scope === 'week') {
-                        shouldNotify =
-                            lesson.date >= startOfWeekString &&
-                            lesson.date <= endOfWeekString;
+            if (!options?.onlyUpcoming) {
+                for (const lesson of lessons) {
+                    // Check cancelled lessons based on user's time scope preference
+                    if (
+                        lesson.code === 'cancelled' &&
+                        user.notificationSettings?.cancelledLessonsEnabled
+                    ) {
+                        const scope =
+                            user.notificationSettings
+                                ?.cancelledLessonsTimeScope || 'day';
+                        let shouldNotify = false;
+
+                        if (scope === 'day') {
+                            shouldNotify = lesson.date === todayString;
+                        } else if (scope === 'week') {
+                            shouldNotify =
+                                lesson.date >= startOfWeekString &&
+                                lesson.date <= endOfWeekString;
+                        }
+
+                        if (shouldNotify) {
+                            const subject = lesson.su?.[0]?.name || 'Lesson';
+                            const when = `${formatYmd(lesson.date)} ${formatHm(
+                                lesson.startTime
+                            )}`.trim();
+                            await this.createNotification({
+                                type: 'cancelled_lesson',
+                                title: 'Lesson Cancelled',
+                                message: `${subject} on ${when} has been cancelled`,
+                                userId: user.id,
+                                data: lesson,
+                            });
+                        }
                     }
 
-                    if (shouldNotify) {
-                        await this.createNotification({
-                            type: 'cancelled_lesson',
-                            title: 'Lesson Cancelled',
-                            message: `${
-                                lesson.su?.[0]?.name || 'Lesson'
-                            } has been cancelled`,
-                            userId: user.id,
-                            data: lesson,
-                        });
+                    // Check irregular lessons based on user's time scope preference
+                    if (
+                        (lesson.code === 'irregular' ||
+                            // treat room/teacher orgname markers as irregular too
+                            lesson.te?.some((t: any) => t.orgname) ||
+                            lesson.ro?.some((r: any) => r.orgname)) &&
+                        user.notificationSettings?.irregularLessonsEnabled
+                    ) {
+                        const scope =
+                            user.notificationSettings
+                                ?.irregularLessonsTimeScope || 'day';
+                        let shouldNotify = false;
+
+                        if (scope === 'day') {
+                            shouldNotify = lesson.date === todayString;
+                        } else if (scope === 'week') {
+                            shouldNotify =
+                                lesson.date >= startOfWeekString &&
+                                lesson.date <= endOfWeekString;
+                        }
+
+                        if (shouldNotify) {
+                            const irregularFlags: string[] = [];
+                            if (lesson.code === 'irregular')
+                                irregularFlags.push('schedule');
+                            if (lesson.te?.some((t: any) => t.orgname))
+                                irregularFlags.push('teacher');
+                            if (lesson.ro?.some((r: any) => r.orgname))
+                                irregularFlags.push('room');
+                            const subject = lesson.su?.[0]?.name || 'Lesson';
+                            const when = `${formatYmd(lesson.date)} ${formatHm(
+                                lesson.startTime
+                            )}`.trim();
+                            await this.createNotification({
+                                type: 'irregular_lesson',
+                                title: 'Irregular Lesson',
+                                message: `${subject} on ${when} has irregular changes (${irregularFlags.join(
+                                    ', '
+                                )})`,
+                                userId: user.id,
+                                data: lesson,
+                            });
+                        }
                     }
+
+                    // Room/teacher changes are handled under irregular_lesson above
                 }
-
-                // Check irregular lessons based on user's time scope preference
-                if (
-                    (lesson.code === 'irregular' ||
-                        // treat room/teacher orgname markers as irregular too
-                        lesson.te?.some((t: any) => t.orgname) ||
-                        lesson.ro?.some((r: any) => r.orgname)) &&
-                    user.notificationSettings?.irregularLessonsEnabled
-                ) {
-                    const scope =
-                        user.notificationSettings?.irregularLessonsTimeScope ||
-                        'day';
-                    let shouldNotify = false;
-
-                    if (scope === 'day') {
-                        shouldNotify = lesson.date === todayString;
-                    } else if (scope === 'week') {
-                        shouldNotify =
-                            lesson.date >= startOfWeekString &&
-                            lesson.date <= endOfWeekString;
-                    }
-
-                    if (shouldNotify) {
-                        const irregularFlags: string[] = [];
-                        if (lesson.code === 'irregular')
-                            irregularFlags.push('schedule');
-                        if (lesson.te?.some((t: any) => t.orgname))
-                            irregularFlags.push('teacher');
-                        if (lesson.ro?.some((r: any) => r.orgname))
-                            irregularFlags.push('room');
-                        await this.createNotification({
-                            type: 'irregular_lesson',
-                            title: 'Irregular Lesson',
-                            message: `${
-                                lesson.su?.[0]?.name || 'Lesson'
-                            } has irregular changes (${irregularFlags.join(
-                                ', '
-                            )})`,
-                            userId: user.id,
-                            data: lesson,
-                        });
-                    }
-                }
-
-                // Room/teacher changes are handled under irregular_lesson above
             }
 
             // Upcoming lesson reminders (Beta): send 5 minutes before start time
-            if (user.notificationSettings) {
+            if (options?.onlyUpcoming && user.notificationSettings) {
                 const now = new Date();
                 const nowMinutes = now.getHours() * 60 + now.getMinutes();
                 const todayYmd =
@@ -557,23 +662,6 @@ export class NotificationService {
                 (now.getMonth() + 1) * 100 +
                 now.getDate();
 
-            // Helpers to compute ISO week start/end for given date (local time)
-            const startOfISOWeek = (d: Date) => {
-                const nd = new Date(d);
-                nd.setHours(0, 0, 0, 0);
-                const day = nd.getDay(); // 0=Sun..6=Sat
-                const diff = day === 0 ? -6 : 1 - day; // shift to Monday
-                nd.setDate(nd.getDate() + diff);
-                return nd;
-            };
-            const endOfISOWeek = (d: Date) => {
-                const start = startOfISOWeek(d);
-                const end = new Date(start);
-                end.setDate(start.getDate() + 6);
-                end.setHours(23, 59, 59, 999);
-                return end;
-            };
-
             for (const user of users) {
                 try {
                     // Only process upcoming reminders if any device opted in
@@ -593,40 +681,14 @@ export class NotificationService {
                     const hasToday = lessons.some(
                         (l: any) => Number(l?.date) === todayYmd
                     );
-
-                    // If we don't have today's timetable cached, proactively fetch current week
+                    // Only use cached data for upcoming reminders; if cache is missing today's lessons, skip.
                     if (!hasToday) {
-                        const s = startOfISOWeek(now).toISOString();
-                        const e = endOfISOWeek(now).toISOString();
-                        try {
-                            const fresh = await getOrFetchTimetableRange({
-                                requesterId: user.id,
-                                targetUserId: user.id,
-                                start: s,
-                                end: e,
-                            });
-                            // Use freshly fetched payload for this pass to avoid waiting for DB roundtrip
-                            const tmpUser = {
-                                ...user,
-                                timetables: [
-                                    {
-                                        ...latest,
-                                        payload: fresh?.payload ?? [],
-                                    },
-                                ],
-                            } as any;
-                            await this.checkUserTimetableChanges(tmpUser);
-                            continue;
-                        } catch (fetchErr) {
-                            console.warn(
-                                `Upcoming: fetch current week failed for ${user.id}`,
-                                fetchErr
-                            );
-                            // Fall through to using whatever we have
-                        }
+                        continue;
                     }
 
-                    await this.checkUserTimetableChanges(user);
+                    await this.checkUserTimetableChanges(user, {
+                        onlyUpcoming: true,
+                    });
                 } catch (perUserErr) {
                     console.error(
                         `checkUpcomingLessons user ${user?.id} failed:`,
