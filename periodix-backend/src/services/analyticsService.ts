@@ -720,44 +720,49 @@ async function calculateRetentionRate(): Promise<number> {
     const { start: sevenDaysAgoStart, end: sevenDaysAgoEnd } =
         getLocalDayRange(-7);
 
+    // Helper to fetch distinct active user IDs in a time window
+    const distinctActiveUsers = async (
+        start: Date,
+        end: Date
+    ): Promise<string[]> => {
+        const rows = await (prisma as any).userActivity.groupBy({
+            by: ['userId'],
+            where: {
+                createdAt: { gte: start, lte: end },
+            },
+            _count: { _all: true },
+        });
+        return rows.map((r: any) => r.userId);
+    };
+
     try {
-        // Users active 7 days ago
-        const usersActiveSevenDaysAgo = await (prisma as any).user.findMany({
-            where: {
-                activities: {
-                    some: {
-                        createdAt: {
-                            gte: sevenDaysAgoStart,
-                            lte: sevenDaysAgoEnd,
-                        },
-                    },
-                },
-            },
-            select: { id: true },
-        });
-
-        if (usersActiveSevenDaysAgo.length === 0) return 0;
-
-        // Of those users, how many are active today?
-        const retainedUsers = await (prisma as any).user.count({
-            where: {
-                id: {
-                    in: usersActiveSevenDaysAgo.map((u: any) => u.id),
-                },
-                activities: {
-                    some: {
-                        createdAt: {
-                            gte: todayStart,
-                            lte: todayEnd,
-                        },
-                    },
-                },
-            },
-        });
-
-        return Math.round(
-            (retainedUsers / usersActiveSevenDaysAgo.length) * 100
+        // Users active exactly 7 days ago (local day window)
+        let baseUserIds = await distinctActiveUsers(
+            sevenDaysAgoStart,
+            sevenDaysAgoEnd
         );
+
+        // Grace fallback: if no activity exactly 7 days ago, broaden to ±1 day window
+        if (baseUserIds.length === 0) {
+            const { start: minus8Start } = getLocalDayRange(-8);
+            const { end: minus6End } = getLocalDayRange(-6);
+            baseUserIds = await distinctActiveUsers(minus8Start, minus6End);
+        }
+
+        if (baseUserIds.length === 0) return 0;
+
+        // Distinct users active today
+        const todayUserIds = await distinctActiveUsers(todayStart, todayEnd);
+        if (todayUserIds.length === 0) return 0;
+
+        // Intersection size
+        const todaySet = new Set(todayUserIds);
+        const retained = baseUserIds.reduce(
+            (acc, id) => (todaySet.has(id) ? acc + 1 : acc),
+            0
+        );
+
+        return Math.round((retained / baseUserIds.length) * 100);
     } catch (error) {
         console.error('Failed to calculate retention rate:', error);
         return 0;
