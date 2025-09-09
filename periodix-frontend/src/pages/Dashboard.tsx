@@ -1056,13 +1056,13 @@ export default function Dashboard({
                                 </button>
                             </div>
                             {/* Week picker with calendar week display */}
-                            <div className="flex items-end gap-3 ml-auto sm:mr-0 mr-[max(env(safe-area-inset-right),1.25rem)]">
-                                <div>
-                                    <div className="flex justify-between items-center">
+                            <div className="flex items-end gap-3 ml-auto week-picker-right-gap">
+                                <div className="w-[min(7.5rem,60vw)] sm:w-[min(14rem,80vw)]">
+                                    <div className="relative flex items-center w-full">
                                         <label className="label sm:text-sm text-[11px]">
                                             Week
                                         </label>
-                                        <label className="label sm:text-sm text-[11px]">
+                                        <label className="label sm:text-sm text-[11px] text-right absolute week-cw-right">
                                             CW {calendarWeek}
                                         </label>
                                     </div>

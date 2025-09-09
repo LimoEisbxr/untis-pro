@@ -18,6 +18,9 @@ export interface DashboardStats {
     searchQueriesToday: number;
     avgSessionDuration?: number;
     peakHour?: number;
+    // Server timezone offset in minutes (Date.getTimezoneOffset).
+    // Client can use this to translate hours to the viewer's local timezone.
+    serverOffsetMinutes?: number;
 }
 
 export interface UserEngagementMetrics {
@@ -53,6 +56,52 @@ export interface ActivityTrends {
         count: number;
         percentage: number;
     }>;
+    // Server timezone offset in minutes (Date.getTimezoneOffset)
+    serverOffsetMinutes?: number;
+}
+
+// Details endpoint types
+export type AnalyticsDetailMetric =
+    | 'logins_today'
+    | 'active_today'
+    | 'timetable_views_today'
+    | 'searches_today'
+    | 'new_users_today';
+
+export interface AnalyticsDetailItem {
+    userId: string;
+    username: string;
+    displayName: string | null;
+    count?: number; // number of matching events today
+    firstAt?: Date; // first matching event time today
+    lastAt?: Date; // last matching event time today
+}
+
+export interface AnalyticsDetailsResponse {
+    metric: AnalyticsDetailMetric;
+    items: AnalyticsDetailItem[];
+}
+
+// Local day helpers to avoid UTC boundary issues
+function pad2(n: number): string {
+    return n.toString().padStart(2, '0');
+}
+
+function getLocalDayRange(daysOffset = 0): {
+    start: Date;
+    end: Date;
+    dateKey: string; // YYYY-MM-DD in local time
+} {
+    const d = new Date();
+    d.setDate(d.getDate() + daysOffset);
+    const start = new Date(d);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(d);
+    end.setHours(23, 59, 59, 999);
+    const dateKey = `${start.getFullYear()}-${pad2(
+        start.getMonth() + 1
+    )}-${pad2(start.getDate())}`;
+    return { start, end, dateKey };
 }
 
 /**
@@ -100,9 +149,7 @@ export async function trackActivity(data: TrackingData): Promise<void> {
  * Get dashboard statistics for today
  */
 export async function getDashboardStats(): Promise<DashboardStats> {
-    const today = new Date().toISOString().split('T')[0];
-    const todayStart = new Date(today + 'T00:00:00.000Z');
-    const todayEnd = new Date(today + 'T23:59:59.999Z');
+    const { start: todayStart, end: todayEnd, dateKey } = getLocalDayRange(0);
 
     // Get total users count
     const totalUsers = await (prisma as any).user.count();
@@ -133,14 +180,14 @@ export async function getDashboardStats(): Promise<DashboardStats> {
 
     // Get today's activity stats
     const todayStats = await (prisma as any).dailyStats.findUnique({
-        where: { date: today },
+        where: { date: dateKey },
     });
 
     // Derive peak hour from hourly stats if not yet stored
     let peakHour: number | undefined = todayStats?.peakHour ?? undefined;
     try {
         const hourly = await (prisma as any).hourlyStats.findMany({
-            where: { date: today },
+            where: { date: dateKey },
             orderBy: { hour: 'asc' },
         });
         if (hourly?.length) {
@@ -162,37 +209,39 @@ export async function getDashboardStats(): Promise<DashboardStats> {
         console.error('Failed to derive peak hour:', e);
     }
 
-    // Derive average session duration (very rough): for users with >=2 activities today,
-    // duration = max(createdAt) - min(createdAt); average over users, minutes.
+    // Derive average active session duration: sum gaps <= 5m between consecutive events per user
     let avgSessionDuration: number | undefined =
         todayStats?.avgSessionDuration ?? undefined;
     try {
-        const grouped = await (prisma as any).userActivity.groupBy({
-            by: ['userId'],
+        const ACTIVE_GAP_MS = 5 * 60 * 1000;
+        const activities: Array<{ userId: string; createdAt: Date }> = await (
+            prisma as any
+        ).userActivity.findMany({
             where: { createdAt: { gte: todayStart, lte: todayEnd } },
-            _count: { _all: true },
-            _min: { createdAt: true },
-            _max: { createdAt: true },
+            select: { userId: true, createdAt: true },
+            orderBy: { createdAt: 'asc' },
         });
-        const durations: number[] = [];
-        for (const g of grouped as any[]) {
-            if (
-                (g?._count?._all ?? 0) >= 2 &&
-                g._min?.createdAt &&
-                g._max?.createdAt
-            ) {
-                const diffMs =
-                    new Date(g._max.createdAt).getTime() -
-                    new Date(g._min.createdAt).getTime();
-                if (diffMs > 0) durations.push(diffMs / 60000); // minutes
-            }
+        const byUser = new Map<string, Date[]>();
+        for (const a of activities) {
+            if (!byUser.has(a.userId)) byUser.set(a.userId, []);
+            byUser.get(a.userId)!.push(new Date(a.createdAt));
         }
-        if (durations.length) {
-            avgSessionDuration =
-                Math.round(
-                    (durations.reduce((a, b) => a + b, 0) / durations.length) *
-                        10
-                ) / 10;
+        const perUser: number[] = [];
+        for (const times of byUser.values()) {
+            if (times.length < 2) continue;
+            let activeMs = 0;
+            for (let i = 1; i < times.length; i++) {
+                const prev = times[i - 1];
+                const curr = times[i];
+                if (!prev || !curr) continue;
+                const gap = curr.getTime() - prev.getTime();
+                if (gap > 0 && gap <= ACTIVE_GAP_MS) activeMs += gap;
+            }
+            if (activeMs > 0) perUser.push(activeMs / 60000);
+        }
+        if (perUser.length) {
+            const avg = perUser.reduce((a, b) => a + b, 0) / perUser.length;
+            avgSessionDuration = Math.round(avg * 10) / 10;
         }
     } catch (e) {
         console.error('Failed to derive avg session duration:', e);
@@ -209,6 +258,8 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     if (avgSessionDuration !== undefined)
         (base as any).avgSessionDuration = avgSessionDuration;
     if (peakHour !== undefined) (base as any).peakHour = peakHour;
+    // Expose server offset so the client can convert to its local timezone
+    (base as any).serverOffsetMinutes = new Date().getTimezoneOffset();
     return base;
 }
 
@@ -270,7 +321,7 @@ export async function getUserEngagementMetrics(): Promise<UserEngagementMetrics>
     const dailyUserStats = await (prisma as any).dailyStats.findMany({
         where: {
             date: {
-                gte: thirtyDaysAgo.toISOString().split('T')[0],
+                gte: getLocalDayRange(-30).dateKey,
             },
         },
         orderBy: {
@@ -290,7 +341,6 @@ export async function getUserEngagementMetrics(): Promise<UserEngagementMetrics>
     }));
 
     // Calculate retention rate (users who logged in today and 7 days ago)
-    const today = new Date().toISOString().split('T')[0];
     const retentionRate = await calculateRetentionRate();
 
     return {
@@ -304,7 +354,7 @@ export async function getUserEngagementMetrics(): Promise<UserEngagementMetrics>
  * Get activity trends and patterns
  */
 export async function getActivityTrends(): Promise<ActivityTrends> {
-    const today = new Date().toISOString().split('T')[0];
+    const { dateKey: today } = getLocalDayRange(0);
 
     // Hourly activity for today
     const hourlyStats = await (prisma as any).hourlyStats.findMany({
@@ -332,7 +382,7 @@ export async function getActivityTrends(): Promise<ActivityTrends> {
     const dailyStats = await (prisma as any).dailyStats.findMany({
         where: {
             date: {
-                gte: sevenDaysAgo.toISOString().split('T')[0],
+                gte: getLocalDayRange(-7).dateKey,
             },
         },
         orderBy: { date: 'asc' },
@@ -380,7 +430,138 @@ export async function getActivityTrends(): Promise<ActivityTrends> {
         hourlyActivity,
         dailyActivity,
         featureUsage,
+        serverOffsetMinutes: new Date().getTimezoneOffset(),
     };
+}
+
+/**
+ * Get detailed user lists for selected metric (e.g., who logged in today)
+ */
+export async function getAnalyticsDetails(
+    metric: AnalyticsDetailMetric
+): Promise<AnalyticsDetailsResponse> {
+    const { start: todayStart, end: todayEnd } = getLocalDayRange(0);
+
+    // Helper: join grouped activities with user info
+    const joinUsers = async (
+        grouped: Array<{
+            userId: string;
+            _count?: { _all?: number } | null;
+            _min?: { createdAt?: Date | null } | null;
+            _max?: { createdAt?: Date | null } | null;
+        }>
+    ): Promise<AnalyticsDetailItem[]> => {
+        const ids = grouped.map((g) => g.userId).filter(Boolean);
+        if (!ids.length) return [];
+        const users = await (prisma as any).user.findMany({
+            where: { id: { in: ids } },
+            select: { id: true, username: true, displayName: true },
+        });
+        const map = new Map<
+            string,
+            { id: string; username: string; displayName: string | null }
+        >();
+        for (const u of users) map.set(u.id, u);
+        const items: AnalyticsDetailItem[] = [];
+        for (const g of grouped) {
+            const u = map.get(g.userId);
+            if (!u) continue;
+            const item: AnalyticsDetailItem = {
+                userId: u.id,
+                username: u.username,
+                displayName: u.displayName,
+            };
+            if (g._count && typeof g._count._all === 'number') {
+                (item as any).count = g._count._all;
+            }
+            if (g._min && g._min.createdAt) {
+                (item as any).firstAt = g._min.createdAt as Date;
+            }
+            if (g._max && g._max.createdAt) {
+                (item as any).lastAt = g._max.createdAt as Date;
+            }
+            items.push(item);
+        }
+        // Sort by last activity desc by default
+        items.sort(
+            (a, b) => (b.lastAt?.getTime() ?? 0) - (a.lastAt?.getTime() ?? 0)
+        );
+        return items;
+    };
+
+    switch (metric) {
+        case 'logins_today': {
+            const grouped = await (prisma as any).userActivity.groupBy({
+                by: ['userId'],
+                where: {
+                    action: 'login',
+                    createdAt: { gte: todayStart, lte: todayEnd },
+                },
+                _count: { _all: true },
+                _min: { createdAt: true },
+                _max: { createdAt: true },
+            });
+            return { metric, items: await joinUsers(grouped) };
+        }
+        case 'active_today': {
+            const grouped = await (prisma as any).userActivity.groupBy({
+                by: ['userId'],
+                where: { createdAt: { gte: todayStart, lte: todayEnd } },
+                _count: { _all: true },
+                _min: { createdAt: true },
+                _max: { createdAt: true },
+            });
+            return { metric, items: await joinUsers(grouped) };
+        }
+        case 'timetable_views_today': {
+            const grouped = await (prisma as any).userActivity.groupBy({
+                by: ['userId'],
+                where: {
+                    action: 'timetable_view',
+                    createdAt: { gte: todayStart, lte: todayEnd },
+                },
+                _count: { _all: true },
+                _min: { createdAt: true },
+                _max: { createdAt: true },
+            });
+            return { metric, items: await joinUsers(grouped) };
+        }
+        case 'searches_today': {
+            const grouped = await (prisma as any).userActivity.groupBy({
+                by: ['userId'],
+                where: {
+                    action: 'search',
+                    createdAt: { gte: todayStart, lte: todayEnd },
+                },
+                _count: { _all: true },
+                _min: { createdAt: true },
+                _max: { createdAt: true },
+            });
+            return { metric, items: await joinUsers(grouped) };
+        }
+        case 'new_users_today': {
+            const users = await (prisma as any).user.findMany({
+                where: { createdAt: { gte: todayStart, lte: todayEnd } },
+                select: {
+                    id: true,
+                    username: true,
+                    displayName: true,
+                    createdAt: true,
+                },
+                orderBy: { createdAt: 'desc' },
+            });
+            const items: AnalyticsDetailItem[] = users.map((u: any) => ({
+                userId: u.id,
+                username: u.username,
+                displayName: u.displayName,
+                firstAt: u.createdAt,
+                lastAt: u.createdAt,
+            }));
+            return { metric, items };
+        }
+        default:
+            return { metric, items: [] };
+    }
 }
 
 /**
@@ -388,7 +569,7 @@ export async function getActivityTrends(): Promise<ActivityTrends> {
  */
 async function updateHourlyStats(action: string): Promise<void> {
     const now = new Date();
-    const date = now.toISOString().split('T')[0];
+    const { dateKey: date } = getLocalDayRange(0);
     const hour = now.getHours();
 
     try {
@@ -425,9 +606,11 @@ async function updateHourlyStats(action: string): Promise<void> {
  * Update daily statistics
  */
 async function updateDailyStats(userId: string, action: string): Promise<void> {
-    const today = new Date().toISOString().split('T')[0];
-    const todayStart = new Date(today + 'T00:00:00.000Z');
-    const todayEnd = new Date(today + 'T23:59:59.999Z');
+    const {
+        start: todayStart,
+        end: todayEnd,
+        dateKey: today,
+    } = getLocalDayRange(0);
 
     try {
         // Check if user is new today
@@ -438,7 +621,13 @@ async function updateDailyStats(userId: string, action: string): Promise<void> {
 
         const isNewUser = !!(
             user?.createdAt &&
-            new Date(user.createdAt).toISOString().split('T')[0] === today
+            (() => {
+                const created = new Date(user.createdAt);
+                const key = `${created.getFullYear()}-${pad2(
+                    created.getMonth() + 1
+                )}-${pad2(created.getDate())}`;
+                return key === today;
+            })()
         );
 
         // Get current stats or create new
@@ -527,22 +716,9 @@ async function updateDailyStats(userId: string, action: string): Promise<void> {
  * Calculate 7-day retention rate
  */
 async function calculateRetentionRate(): Promise<number> {
-    const today = new Date();
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-
-    const todayStart = new Date(
-        today.toISOString().split('T')[0] + 'T00:00:00.000Z'
-    );
-    const todayEnd = new Date(
-        today.toISOString().split('T')[0] + 'T23:59:59.999Z'
-    );
-    const sevenDaysAgoStart = new Date(
-        sevenDaysAgo.toISOString().split('T')[0] + 'T00:00:00.000Z'
-    );
-    const sevenDaysAgoEnd = new Date(
-        sevenDaysAgo.toISOString().split('T')[0] + 'T23:59:59.999Z'
-    );
+    const { start: todayStart, end: todayEnd } = getLocalDayRange(0);
+    const { start: sevenDaysAgoStart, end: sevenDaysAgoEnd } =
+        getLocalDayRange(-7);
 
     try {
         // Users active 7 days ago

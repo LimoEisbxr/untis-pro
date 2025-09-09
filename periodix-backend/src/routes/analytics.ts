@@ -9,6 +9,8 @@ import {
     getDashboardStats,
     getUserEngagementMetrics,
     getActivityTrends,
+    getAnalyticsDetails,
+    type AnalyticsDetailMetric,
     type TrackingData,
 } from '../services/analyticsService.js';
 
@@ -94,6 +96,32 @@ router.get('/trends', adminOrUserManagerOnly, async (_req, res) => {
     } catch (error) {
         console.error('Failed to get activity trends:', error);
         res.status(500).json({ error: 'Failed to fetch activity trends' });
+    }
+});
+
+// Get detailed users/events for a metric (e.g., who logged in today)
+router.get('/details', adminOrUserManagerOnly, async (req, res) => {
+    try {
+        const metricParam = String(req.query.metric || '').toLowerCase();
+        const allowed: AnalyticsDetailMetric[] = [
+            'logins_today',
+            'active_today',
+            'timetable_views_today',
+            'searches_today',
+            'new_users_today',
+        ];
+        if (!allowed.includes(metricParam as AnalyticsDetailMetric)) {
+            return res.status(400).json({
+                error: 'Invalid metric. Allowed: ' + allowed.join(', '),
+            });
+        }
+        const data = await getAnalyticsDetails(
+            metricParam as AnalyticsDetailMetric
+        );
+        res.json({ details: data });
+    } catch (error) {
+        console.error('Failed to get analytics details:', error);
+        res.status(500).json({ error: 'Failed to fetch analytics details' });
     }
 });
 

@@ -1,4 +1,5 @@
 import { prisma } from '../store/prisma.js';
+import { getOrFetchTimetableRange } from './untisService.js';
 import webpush from 'web-push';
 
 // Initialize web-push with VAPID keys
@@ -550,8 +551,88 @@ export class NotificationService {
                     timetables: { orderBy: { createdAt: 'desc' }, take: 1 },
                 },
             });
+            const now = new Date();
+            const todayYmd =
+                now.getFullYear() * 10000 +
+                (now.getMonth() + 1) * 100 +
+                now.getDate();
+
+            // Helpers to compute ISO week start/end for given date (local time)
+            const startOfISOWeek = (d: Date) => {
+                const nd = new Date(d);
+                nd.setHours(0, 0, 0, 0);
+                const day = nd.getDay(); // 0=Sun..6=Sat
+                const diff = day === 0 ? -6 : 1 - day; // shift to Monday
+                nd.setDate(nd.getDate() + diff);
+                return nd;
+            };
+            const endOfISOWeek = (d: Date) => {
+                const start = startOfISOWeek(d);
+                const end = new Date(start);
+                end.setDate(start.getDate() + 6);
+                end.setHours(23, 59, 59, 999);
+                return end;
+            };
+
             for (const user of users) {
-                await this.checkUserTimetableChanges(user);
+                try {
+                    // Only process upcoming reminders if any device opted in
+                    const devicePrefs = (user.notificationSettings
+                        ?.devicePreferences || {}) as Record<string, any>;
+                    const anyDeviceEnabled = Object.values(devicePrefs).some(
+                        (p: any) => p?.upcomingLessonsEnabled === true
+                    );
+                    if (!anyDeviceEnabled) {
+                        continue; // skip user entirely to avoid needless Untis fetches
+                    }
+
+                    const latest = user.timetables?.[0];
+                    const lessons: any[] = Array.isArray(latest?.payload)
+                        ? (latest.payload as any[])
+                        : [];
+                    const hasToday = lessons.some(
+                        (l: any) => Number(l?.date) === todayYmd
+                    );
+
+                    // If we don't have today's timetable cached, proactively fetch current week
+                    if (!hasToday) {
+                        const s = startOfISOWeek(now).toISOString();
+                        const e = endOfISOWeek(now).toISOString();
+                        try {
+                            const fresh = await getOrFetchTimetableRange({
+                                requesterId: user.id,
+                                targetUserId: user.id,
+                                start: s,
+                                end: e,
+                            });
+                            // Use freshly fetched payload for this pass to avoid waiting for DB roundtrip
+                            const tmpUser = {
+                                ...user,
+                                timetables: [
+                                    {
+                                        ...latest,
+                                        payload: fresh?.payload ?? [],
+                                    },
+                                ],
+                            } as any;
+                            await this.checkUserTimetableChanges(tmpUser);
+                            continue;
+                        } catch (fetchErr) {
+                            console.warn(
+                                `Upcoming: fetch current week failed for ${user.id}`,
+                                fetchErr
+                            );
+                            // Fall through to using whatever we have
+                        }
+                    }
+
+                    await this.checkUserTimetableChanges(user);
+                } catch (perUserErr) {
+                    console.error(
+                        `checkUpcomingLessons user ${user?.id} failed:`,
+                        perUserErr
+                    );
+                }
             }
         } catch (e) {
             console.error('checkUpcomingLessons failed:', e);

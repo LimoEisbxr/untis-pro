@@ -674,6 +674,7 @@ export interface DashboardStats {
     searchQueriesToday: number;
     avgSessionDuration?: number;
     peakHour?: number;
+    serverOffsetMinutes?: number;
 }
 
 export interface UserEngagementMetrics {
@@ -709,12 +710,32 @@ export interface ActivityTrends {
         count: number;
         percentage: number;
     }>;
+    serverOffsetMinutes?: number;
 }
 
 export interface AnalyticsOverview {
     dashboard: DashboardStats;
     engagement: UserEngagementMetrics;
     trends: ActivityTrends;
+}
+
+export type AnalyticsDetailMetric =
+    | 'logins_today'
+    | 'active_today'
+    | 'timetable_views_today'
+    | 'searches_today'
+    | 'new_users_today';
+export interface AnalyticsDetailItem {
+    userId: string;
+    username: string;
+    displayName: string | null;
+    count?: number;
+    firstAt?: string;
+    lastAt?: string;
+}
+export interface AnalyticsDetailsResponse {
+    metric: AnalyticsDetailMetric;
+    items: AnalyticsDetailItem[];
 }
 
 export async function trackActivity(
@@ -756,6 +777,17 @@ export async function getAnalyticsOverview(
     token: string
 ): Promise<AnalyticsOverview> {
     return api<AnalyticsOverview>('/api/analytics/overview', { token });
+}
+
+export async function getAnalyticsDetails(
+    token: string,
+    metric: AnalyticsDetailMetric
+): Promise<{ details: AnalyticsDetailsResponse }> {
+    const params = new URLSearchParams({ metric });
+    return api<{ details: AnalyticsDetailsResponse }>(
+        `/api/analytics/details?${params.toString()}`,
+        { token }
+    );
 }
 
 export { API_BASE };

@@ -5,6 +5,9 @@ import {
     type DashboardStats,
     type UserEngagementMetrics,
     type ActivityTrends,
+    getAnalyticsDetails,
+    type AnalyticsDetailMetric,
+    type AnalyticsDetailItem,
 } from '../api';
 
 interface AnalyticsTabProps {
@@ -29,6 +32,12 @@ export default function AnalyticsTab({ token }: AnalyticsTabProps) {
         null
     );
     const [refreshing, setRefreshing] = useState(false);
+    const [detailsOpen, setDetailsOpen] = useState(false);
+    const [detailsMetric, setDetailsMetric] =
+        useState<AnalyticsDetailMetric | null>(null);
+    const [detailsItems, setDetailsItems] = useState<AnalyticsDetailItem[]>([]);
+    const [detailsLoading, setDetailsLoading] = useState(false);
+    const [detailsError, setDetailsError] = useState<string | null>(null);
 
     // Track analytics view
     useEffect(() => {
@@ -62,14 +71,43 @@ export default function AnalyticsTab({ token }: AnalyticsTabProps) {
         await loadAnalytics();
     };
 
+    const openDetails = async (metric: AnalyticsDetailMetric) => {
+        try {
+            setDetailsError(null);
+            setDetailsLoading(true);
+            setDetailsMetric(metric);
+            setDetailsOpen(true);
+            const res = await getAnalyticsDetails(token, metric);
+            setDetailsItems(res.details.items);
+        } catch (err) {
+            console.error('Failed to load details:', err);
+            setDetailsError(
+                err instanceof Error ? err.message : 'Failed to load details'
+            );
+        } finally {
+            setDetailsLoading(false);
+        }
+    };
+
     // Chart data preparations
+    // Convert server-hourly buckets to client local time using offset diff
     const hourlyChartData = useMemo((): ChartData => {
         if (!activityTrends?.hourlyActivity) return { labels: [], data: [] };
+        const serverOffset = activityTrends.serverOffsetMinutes ?? 0; // minutes to add to local to get UTC
+        const clientOffset = new Date().getTimezoneOffset();
+        const diffMinutes = serverOffset - clientOffset; // convert server-local buckets to client-local buckets
+        const shiftHours = Math.round(diffMinutes / 60); // assume whole-hour zones for simplicity
 
-        return {
-            labels: activityTrends.hourlyActivity.map((h) => h.label),
-            data: activityTrends.hourlyActivity.map((h) => h.count),
-        };
+        // Build a 24-length array after shifting
+        const buckets = new Array<number>(24).fill(0);
+        for (const h of activityTrends.hourlyActivity) {
+            const shifted = (((h.hour + shiftHours) % 24) + 24) % 24;
+            buckets[shifted] += h.count;
+        }
+        const labels = buckets.map(
+            (_, hour) => `${hour.toString().padStart(2, '0')}:00`
+        );
+        return { labels, data: buckets };
     }, [activityTrends]);
 
     // Precompute maximum once to avoid render-time recomputation jitter
@@ -150,176 +188,243 @@ export default function AnalyticsTab({ token }: AnalyticsTabProps) {
 
     const formatHour = (hour?: number) => {
         if (hour === undefined || hour === null) return 'N/A';
-        return `${hour.toString().padStart(2, '0')}:00`;
+        const serverOffset = dashboardStats?.serverOffsetMinutes ?? 0; // minutes to add to local to get UTC
+        const clientOffset = new Date().getTimezoneOffset();
+        const diffMinutes = serverOffset - clientOffset; // server -> client
+        const shiftHours = Math.round(diffMinutes / 60);
+        const shifted = (((hour + shiftHours) % 24) + 24) % 24;
+        return `${shifted.toString().padStart(2, '0')}:00`;
     };
 
     return (
-        <div className="p-6 space-y-6">
-            {/* Header */}
-            <div className="flex items-center justify-between">
-                <div>
-                    <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
-                        📊 App Statistics
-                    </h2>
-                    <p className="text-slate-600 dark:text-slate-400 text-sm mt-1">
-                        Usage analytics and insights for Periodix
-                    </p>
-                </div>
-                <button
-                    onClick={handleRefresh}
-                    disabled={refreshing}
-                    className="btn-secondary flex items-center gap-2"
-                    title="Refresh data"
-                >
-                    <svg
-                        className={`w-4 h-4 ${
-                            refreshing ? 'animate-spin' : ''
-                        }`}
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
+        <>
+            <div className="p-6 space-y-6">
+                {/* Header */}
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+                            📊 App Statistics
+                        </h2>
+                        <p className="text-slate-600 dark:text-slate-400 text-sm mt-1">
+                            Usage analytics and insights for Periodix
+                        </p>
+                    </div>
+                    <button
+                        onClick={handleRefresh}
+                        disabled={refreshing}
+                        className="btn-secondary flex items-center gap-2"
+                        title="Refresh data"
                     >
-                        <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth="2"
-                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                        />
-                    </svg>
-                    {refreshing ? 'Refreshing...' : 'Refresh'}
-                </button>
-            </div>
+                        <svg
+                            className={`w-4 h-4 ${
+                                refreshing ? 'animate-spin' : ''
+                            }`}
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                        >
+                            <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="2"
+                                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                            />
+                        </svg>
+                        {refreshing ? 'Refreshing...' : 'Refresh'}
+                    </button>
+                </div>
 
-            {/* Dashboard Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-blue-900/20 dark:to-indigo-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-blue-600 dark:text-blue-400 text-sm font-medium">
-                                Total Users
-                            </p>
-                            <p className="text-2xl font-bold text-blue-900 dark:text-blue-100">
-                                {dashboardStats?.totalUsers || 0}
-                            </p>
+                {/* Dashboard Stats Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-blue-900/20 dark:to-indigo-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-blue-600 dark:text-blue-400 text-sm font-medium">
+                                    Total Users
+                                </p>
+                                <p className="text-2xl font-bold text-blue-900 dark:text-blue-100">
+                                    {dashboardStats?.totalUsers || 0}
+                                </p>
+                            </div>
+                            <div className="text-blue-500 text-2xl">👥</div>
                         </div>
-                        <div className="text-blue-500 text-2xl">👥</div>
+                    </div>
+
+                    <div
+                        className="bg-gradient-to-br from-green-50 to-emerald-100 dark:from-green-900/20 dark:to-emerald-900/20 p-4 rounded-lg border border-green-200 dark:border-green-800 cursor-pointer"
+                        onClick={() => openDetails('active_today')}
+                        title="View active users today"
+                    >
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-green-600 dark:text-green-400 text-sm font-medium">
+                                    Active Today
+                                </p>
+                                <p className="text-2xl font-bold text-green-900 dark:text-green-100">
+                                    {dashboardStats?.activeUsersToday || 0}
+                                </p>
+                            </div>
+                            <div className="text-green-500 text-2xl">✨</div>
+                        </div>
+                    </div>
+
+                    <div
+                        className="bg-gradient-to-br from-purple-50 to-violet-100 dark:from-purple-900/20 dark:to-violet-900/20 p-4 rounded-lg border border-purple-200 dark:border-purple-800 cursor-pointer"
+                        onClick={() => openDetails('logins_today')}
+                        title="See who logged in today"
+                    >
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-purple-600 dark:text-purple-400 text-sm font-medium">
+                                    Logins Today
+                                </p>
+                                <p className="text-2xl font-bold text-purple-900 dark:text-purple-100">
+                                    {dashboardStats?.totalLoginsToday || 0}
+                                </p>
+                            </div>
+                            <div className="text-purple-500 text-2xl">🔑</div>
+                        </div>
+                    </div>
+
+                    <div className="bg-gradient-to-br from-amber-50 to-orange-100 dark:from-amber-900/20 dark:to-orange-900/20 p-4 rounded-lg border border-amber-200 dark:border-amber-800">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-amber-600 dark:text-amber-400 text-sm font-medium">
+                                    Retention Rate
+                                </p>
+                                <p className="text-2xl font-bold text-amber-900 dark:text-amber-100">
+                                    {engagementMetrics?.retentionRate || 0}%
+                                </p>
+                            </div>
+                            <div className="text-amber-500 text-2xl">📈</div>
+                        </div>
                     </div>
                 </div>
 
-                <div className="bg-gradient-to-br from-green-50 to-emerald-100 dark:from-green-900/20 dark:to-emerald-900/20 p-4 rounded-lg border border-green-200 dark:border-green-800">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-green-600 dark:text-green-400 text-sm font-medium">
-                                Active Today
-                            </p>
-                            <p className="text-2xl font-bold text-green-900 dark:text-green-100">
-                                {dashboardStats?.activeUsersToday || 0}
-                            </p>
-                        </div>
-                        <div className="text-green-500 text-2xl">✨</div>
+                {/* Additional Stats Row */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div
+                        className="card p-4 cursor-pointer"
+                        onClick={() => openDetails('timetable_views_today')}
+                        title="View users who viewed timetables today"
+                    >
+                        <h3 className="font-semibold text-slate-900 dark:text-slate-100 mb-2">
+                            📅 Timetable Views Today
+                        </h3>
+                        <p className="text-3xl font-bold text-sky-600 dark:text-sky-400">
+                            {dashboardStats?.timetableViewsToday || 0}
+                        </p>
+                    </div>
+
+                    <div
+                        className="card p-4 cursor-pointer"
+                        onClick={() => openDetails('searches_today')}
+                        title="View users who searched today"
+                    >
+                        <h3 className="font-semibold text-slate-900 dark:text-slate-100 mb-2">
+                            🔍 Searches Today
+                        </h3>
+                        <p className="text-3xl font-bold text-indigo-600 dark:text-indigo-400">
+                            {dashboardStats?.searchQueriesToday || 0}
+                        </p>
+                    </div>
+
+                    <div className="card p-4">
+                        <h3 className="font-semibold text-slate-900 dark:text-slate-100 mb-2">
+                            ⏱️ Avg Session
+                        </h3>
+                        <p className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">
+                            {formatDuration(dashboardStats?.avgSessionDuration)}
+                        </p>
                     </div>
                 </div>
 
-                <div className="bg-gradient-to-br from-purple-50 to-violet-100 dark:from-purple-900/20 dark:to-violet-900/20 p-4 rounded-lg border border-purple-200 dark:border-purple-800">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-purple-600 dark:text-purple-400 text-sm font-medium">
-                                Logins Today
-                            </p>
-                            <p className="text-2xl font-bold text-purple-900 dark:text-purple-100">
-                                {dashboardStats?.totalLoginsToday || 0}
-                            </p>
+                {/* Charts Section */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Hourly Activity Chart */}
+                    <div className="card p-6">
+                        <h3 className="font-semibold text-slate-900 dark:text-slate-100 mb-4">
+                            📊 Today's Activity by Hour
+                        </h3>
+                        <div className="overflow-x-auto">
+                            <div className="h-64 flex items-end gap-1 sm:gap-1.5 px-1 min-w-[720px] sm:min-w-0 sm:justify-between">
+                                {hourlyChartData.data.map((value, index) => {
+                                    const height =
+                                        (value / maxHourlyValue) * 100;
+                                    const showLabel = index % 3 === 0; // reduce label density on small screens
+                                    return (
+                                        <div
+                                            key={index}
+                                            className="flex flex-col items-center gap-1 w-6 sm:flex-1"
+                                        >
+                                            <div className="hidden sm:block text-xs text-slate-600 dark:text-slate-400 font-mono">
+                                                {value > 0 ? value : ''}
+                                            </div>
+                                            <div
+                                                className="bg-gradient-to-t from-sky-500 to-sky-300 dark:from-sky-600 dark:to-sky-400 rounded-t min-h-[2px] w-full"
+                                                style={{
+                                                    height: `${Math.max(
+                                                        height,
+                                                        2
+                                                    )}%`,
+                                                }}
+                                                title={`${hourlyChartData.labels[index]}: ${value} activities`}
+                                            ></div>
+                                            <div
+                                                className={`text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 rotate-45 origin-center ${
+                                                    showLabel
+                                                        ? ''
+                                                        : 'invisible sm:visible'
+                                                }`}
+                                            >
+                                                {
+                                                    hourlyChartData.labels[
+                                                        index
+                                                    ]?.split(':')[0]
+                                                }
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
                         </div>
-                        <div className="text-purple-500 text-2xl">🔑</div>
                     </div>
-                </div>
 
-                <div className="bg-gradient-to-br from-amber-50 to-orange-100 dark:from-amber-900/20 dark:to-orange-900/20 p-4 rounded-lg border border-amber-200 dark:border-amber-800">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-amber-600 dark:text-amber-400 text-sm font-medium">
-                                Retention Rate
-                            </p>
-                            <p className="text-2xl font-bold text-amber-900 dark:text-amber-100">
-                                {engagementMetrics?.retentionRate || 0}%
-                            </p>
-                        </div>
-                        <div className="text-amber-500 text-2xl">📈</div>
-                    </div>
-                </div>
-            </div>
-
-            {/* Additional Stats Row */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="card p-4">
-                    <h3 className="font-semibold text-slate-900 dark:text-slate-100 mb-2">
-                        📅 Timetable Views Today
-                    </h3>
-                    <p className="text-3xl font-bold text-sky-600 dark:text-sky-400">
-                        {dashboardStats?.timetableViewsToday || 0}
-                    </p>
-                </div>
-
-                <div className="card p-4">
-                    <h3 className="font-semibold text-slate-900 dark:text-slate-100 mb-2">
-                        🔍 Searches Today
-                    </h3>
-                    <p className="text-3xl font-bold text-indigo-600 dark:text-indigo-400">
-                        {dashboardStats?.searchQueriesToday || 0}
-                    </p>
-                </div>
-
-                <div className="card p-4">
-                    <h3 className="font-semibold text-slate-900 dark:text-slate-100 mb-2">
-                        ⏱️ Avg Session
-                    </h3>
-                    <p className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">
-                        {formatDuration(dashboardStats?.avgSessionDuration)}
-                    </p>
-                </div>
-            </div>
-
-            {/* Charts Section */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Hourly Activity Chart */}
-                <div className="card p-6">
-                    <h3 className="font-semibold text-slate-900 dark:text-slate-100 mb-4">
-                        📊 Today's Activity by Hour
-                    </h3>
-                    <div className="overflow-x-auto">
-                        <div className="h-64 flex items-end gap-1 sm:gap-1.5 px-1 min-w-[720px] sm:min-w-0 sm:justify-between">
-                            {hourlyChartData.data.map((value, index) => {
-                                const height = (value / maxHourlyValue) * 100;
-                                const showLabel = index % 3 === 0; // reduce label density on small screens
+                    {/* User Growth Chart */}
+                    <div className="card p-6">
+                        <h3 className="font-semibold text-slate-900 dark:text-slate-100 mb-4">
+                            📈 User Growth (Last 30 Days)
+                        </h3>
+                        <div className="h-64 flex items-end justify-between gap-1">
+                            {growthChartData.data.map((value, index) => {
+                                const maxValue = Math.max(
+                                    ...growthChartData.data,
+                                    1
+                                );
+                                const height = (value / maxValue) * 100;
                                 return (
                                     <div
                                         key={index}
-                                        className="flex flex-col items-center gap-1 w-6 sm:flex-1"
+                                        className="flex flex-col items-center gap-1 flex-1"
                                     >
-                                        <div className="hidden sm:block text-xs text-slate-600 dark:text-slate-400 font-mono">
-                                            {value > 0 ? value : ''}
+                                        <div className="text-xs text-slate-600 dark:text-slate-400 font-mono">
+                                            {value}
                                         </div>
                                         <div
-                                            className="bg-gradient-to-t from-sky-500 to-sky-300 dark:from-sky-600 dark:to-sky-400 rounded-t min-h-[2px] w-full"
+                                            className="bg-gradient-to-t from-emerald-500 to-emerald-300 dark:from-emerald-600 dark:to-emerald-400 rounded-t min-h-[2px] w-full"
                                             style={{
                                                 height: `${Math.max(
                                                     height,
                                                     2
                                                 )}%`,
                                             }}
-                                            title={`${hourlyChartData.labels[index]}: ${value} activities`}
+                                            title={`${growthChartData.labels[index]}: ${value} total users`}
                                         ></div>
-                                        <div
-                                            className={`text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 rotate-45 origin-center ${
-                                                showLabel
-                                                    ? ''
-                                                    : 'invisible sm:visible'
-                                            }`}
-                                        >
+                                        <div className="text-xs text-slate-500 dark:text-slate-400 rotate-45 origin-center">
                                             {
-                                                hourlyChartData.labels[
+                                                growthChartData.labels[
                                                     index
-                                                ]?.split(':')[0]
+                                                ]?.split(' ')[1]
                                             }
                                         </div>
                                     </div>
@@ -329,174 +434,245 @@ export default function AnalyticsTab({ token }: AnalyticsTabProps) {
                     </div>
                 </div>
 
-                {/* User Growth Chart */}
-                <div className="card p-6">
-                    <h3 className="font-semibold text-slate-900 dark:text-slate-100 mb-4">
-                        📈 User Growth (Last 30 Days)
-                    </h3>
-                    <div className="h-64 flex items-end justify-between gap-1">
-                        {growthChartData.data.map((value, index) => {
-                            const maxValue = Math.max(
-                                ...growthChartData.data,
-                                1
-                            );
-                            const height = (value / maxValue) * 100;
-                            return (
-                                <div
-                                    key={index}
-                                    className="flex flex-col items-center gap-1 flex-1"
-                                >
-                                    <div className="text-xs text-slate-600 dark:text-slate-400 font-mono">
-                                        {value}
-                                    </div>
+                {/* Feature Usage and Most Active Users */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Feature Usage */}
+                    <div className="card p-6">
+                        <h3 className="font-semibold text-slate-900 dark:text-slate-100 mb-4">
+                            🎯 Feature Usage (Last 7 Days)
+                        </h3>
+                        <div className="space-y-3">
+                            {featureUsageData
+                                .slice(0, 8)
+                                .map((feature, index) => (
                                     <div
-                                        className="bg-gradient-to-t from-emerald-500 to-emerald-300 dark:from-emerald-600 dark:to-emerald-400 rounded-t min-h-[2px] w-full"
-                                        style={{
-                                            height: `${Math.max(height, 2)}%`,
-                                        }}
-                                        title={`${growthChartData.labels[index]}: ${value} total users`}
-                                    ></div>
-                                    <div className="text-xs text-slate-500 dark:text-slate-400 rotate-45 origin-center">
-                                        {
-                                            growthChartData.labels[
-                                                index
-                                            ]?.split(' ')[1]
-                                        }
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                </div>
-            </div>
-
-            {/* Feature Usage and Most Active Users */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Feature Usage */}
-                <div className="card p-6">
-                    <h3 className="font-semibold text-slate-900 dark:text-slate-100 mb-4">
-                        🎯 Feature Usage (Last 7 Days)
-                    </h3>
-                    <div className="space-y-3">
-                        {featureUsageData.slice(0, 8).map((feature, index) => (
-                            <div
-                                key={feature.feature}
-                                className="flex items-center justify-between"
-                            >
-                                <div className="flex items-center gap-3">
-                                    <div
-                                        className="w-3 h-3 rounded-full"
-                                        style={{
-                                            backgroundColor: `hsl(${
-                                                (index * 47) % 360
-                                            }, 70%, 50%)`,
-                                        }}
-                                    ></div>
-                                    <span className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                                        {feature.displayName}
-                                    </span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <span className="text-sm text-slate-600 dark:text-slate-400">
-                                        {feature.count}
-                                    </span>
-                                    <span className="text-xs bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded">
-                                        {feature.percentage}%
-                                    </span>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
-                {/* Most Active Users */}
-                <div className="card p-6">
-                    <h3 className="font-semibold text-slate-900 dark:text-slate-100 mb-4">
-                        🏆 Most Active Users (Last 7 Days)
-                    </h3>
-                    <div className="space-y-3">
-                        {engagementMetrics?.mostActiveUsers
-                            .slice(0, 8)
-                            .map((user) => (
-                                <div
-                                    key={user.userId}
-                                    className="flex items-center justify-between"
-                                >
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center text-white font-semibold text-sm">
-                                            {(user.displayName || user.username)
-                                                .charAt(0)
-                                                .toUpperCase()}
+                                        key={feature.feature}
+                                        className="flex items-center justify-between"
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <div
+                                                className="w-3 h-3 rounded-full"
+                                                style={{
+                                                    backgroundColor: `hsl(${
+                                                        (index * 47) % 360
+                                                    }, 70%, 50%)`,
+                                                }}
+                                            ></div>
+                                            <span className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                                                {feature.displayName}
+                                            </span>
                                         </div>
-                                        <div>
-                                            <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                                                {user.displayName ||
-                                                    user.username}
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-sm text-slate-600 dark:text-slate-400">
+                                                {feature.count}
+                                            </span>
+                                            <span className="text-xs bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded">
+                                                {feature.percentage}%
+                                            </span>
+                                        </div>
+                                    </div>
+                                ))}
+                        </div>
+                    </div>
+
+                    {/* Most Active Users */}
+                    <div className="card p-6">
+                        <h3 className="font-semibold text-slate-900 dark:text-slate-100 mb-4">
+                            🏆 Most Active Users (Last 7 Days)
+                        </h3>
+                        <div className="space-y-3">
+                            {engagementMetrics?.mostActiveUsers
+                                .slice(0, 8)
+                                .map((user) => (
+                                    <div
+                                        key={user.userId}
+                                        className="flex items-center justify-between"
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center text-white font-semibold text-sm">
+                                                {(
+                                                    user.displayName ||
+                                                    user.username
+                                                )
+                                                    .charAt(0)
+                                                    .toUpperCase()}
                                             </div>
-                                            {user.displayName && (
-                                                <div className="text-xs text-slate-500 dark:text-slate-400">
-                                                    @{user.username}
+                                            <div>
+                                                <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                                                    {user.displayName ||
+                                                        user.username}
                                                 </div>
-                                            )}
+                                                {user.displayName && (
+                                                    <div className="text-xs text-slate-500 dark:text-slate-400">
+                                                        @{user.username}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="text-right">
+                                            <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                                                {user.activityCount}
+                                            </div>
+                                            <div className="text-xs text-slate-500 dark:text-slate-400">
+                                                activities
+                                            </div>
                                         </div>
                                     </div>
-                                    <div className="text-right">
-                                        <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-                                            {user.activityCount}
-                                        </div>
-                                        <div className="text-xs text-slate-500 dark:text-slate-400">
-                                            activities
-                                        </div>
-                                    </div>
+                                ))}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Peak Usage Info */}
+                <div className="card p-6">
+                    <h3 className="font-semibold text-slate-900 dark:text-slate-100 mb-4">
+                        📊 Usage Insights
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div
+                            className="text-center cursor-pointer"
+                            onClick={() => openDetails('new_users_today')}
+                            title="See new users created today"
+                        >
+                            <div className="text-2xl mb-2">⏰</div>
+                            <div className="text-sm text-slate-600 dark:text-slate-400">
+                                Peak Hour Today
+                            </div>
+                            <div className="text-xl font-semibold text-slate-900 dark:text-slate-100">
+                                {formatHour(dashboardStats?.peakHour)}
+                            </div>
+                        </div>
+                        <div
+                            className="text-center cursor-pointer"
+                            onClick={() => openDetails('new_users_today')}
+                            title="See new users created today"
+                        >
+                            <div className="text-2xl mb-2">🆕</div>
+                            <div className="text-sm text-slate-600 dark:text-slate-400">
+                                New Users Today
+                            </div>
+                            <div className="text-xl font-semibold text-slate-900 dark:text-slate-100">
+                                {dashboardStats?.newUsersToday || 0}
+                            </div>
+                        </div>
+                        <div className="text-center">
+                            <div className="text-2xl mb-2">🔄</div>
+                            <div className="text-sm text-slate-600 dark:text-slate-400">
+                                7-Day Retention
+                            </div>
+                            <div className="text-xl font-semibold text-slate-900 dark:text-slate-100">
+                                {engagementMetrics?.retentionRate || 0}%
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Footer */}
+                <div className="text-center text-sm text-slate-500 dark:text-slate-400">
+                    <p>
+                        Analytics data is updated in real-time. Last refreshed:{' '}
+                        {new Date().toLocaleTimeString()}
+                    </p>
+                </div>
+            </div>
+            {/* Details Modal */}
+            {detailsOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center">
+                    <div
+                        className="absolute inset-0 bg-black/40"
+                        onClick={() => setDetailsOpen(false)}
+                    />
+                    <div className="relative z-10 w-[92vw] max-w-2xl bg-white dark:bg-slate-900 rounded-lg shadow-xl border border-slate-200 dark:border-slate-700">
+                        <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
+                            <h3 className="font-semibold text-slate-900 dark:text-slate-100">
+                                {(() => {
+                                    switch (detailsMetric) {
+                                        case 'logins_today':
+                                            return 'Logins Today — Users';
+                                        case 'active_today':
+                                            return 'Active Users Today';
+                                        case 'timetable_views_today':
+                                            return 'Timetable Views Today — Users';
+                                        case 'searches_today':
+                                            return 'Searches Today — Users';
+                                        case 'new_users_today':
+                                            return 'New Users Today';
+                                        default:
+                                            return 'Details';
+                                    }
+                                })()}
+                            </h3>
+                            <button
+                                className="btn-secondary"
+                                onClick={() => setDetailsOpen(false)}
+                            >
+                                Close
+                            </button>
+                        </div>
+                        <div className="p-4 max-h-[70vh] overflow-y-auto">
+                            {detailsLoading ? (
+                                <div className="text-slate-600 dark:text-slate-300">
+                                    Loading…
                                 </div>
-                            ))}
+                            ) : detailsError ? (
+                                <div className="text-red-600 dark:text-red-300">
+                                    {detailsError}
+                                </div>
+                            ) : detailsItems.length === 0 ? (
+                                <div className="text-slate-600 dark:text-slate-300">
+                                    No data for this metric today.
+                                </div>
+                            ) : (
+                                <ul className="divide-y divide-slate-200 dark:divide-slate-700">
+                                    {detailsItems.map((it) => (
+                                        <li
+                                            key={it.userId}
+                                            className="py-3 flex items-center justify-between"
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center text-white font-semibold text-sm">
+                                                    {(
+                                                        it.displayName ||
+                                                        it.username
+                                                    )
+                                                        .charAt(0)
+                                                        .toUpperCase()}
+                                                </div>
+                                                <div>
+                                                    <div className="text-slate-900 dark:text-slate-100 font-medium">
+                                                        {it.displayName ||
+                                                            it.username}
+                                                    </div>
+                                                    {it.displayName && (
+                                                        <div className="text-xs text-slate-500 dark:text-slate-400">
+                                                            @{it.username}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div className="text-right">
+                                                {typeof it.count ===
+                                                    'number' && (
+                                                    <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                                                        {it.count}
+                                                    </div>
+                                                )}
+                                                <div className="text-xs text-slate-500 dark:text-slate-400">
+                                                    {it.lastAt
+                                                        ? new Date(
+                                                              it.lastAt
+                                                          ).toLocaleTimeString()
+                                                        : ''}
+                                                </div>
+                                            </div>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </div>
                     </div>
                 </div>
-            </div>
-
-            {/* Peak Usage Info */}
-            <div className="card p-6">
-                <h3 className="font-semibold text-slate-900 dark:text-slate-100 mb-4">
-                    📊 Usage Insights
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="text-center">
-                        <div className="text-2xl mb-2">⏰</div>
-                        <div className="text-sm text-slate-600 dark:text-slate-400">
-                            Peak Hour Today
-                        </div>
-                        <div className="text-xl font-semibold text-slate-900 dark:text-slate-100">
-                            {formatHour(dashboardStats?.peakHour)}
-                        </div>
-                    </div>
-                    <div className="text-center">
-                        <div className="text-2xl mb-2">🆕</div>
-                        <div className="text-sm text-slate-600 dark:text-slate-400">
-                            New Users Today
-                        </div>
-                        <div className="text-xl font-semibold text-slate-900 dark:text-slate-100">
-                            {dashboardStats?.newUsersToday || 0}
-                        </div>
-                    </div>
-                    <div className="text-center">
-                        <div className="text-2xl mb-2">🔄</div>
-                        <div className="text-sm text-slate-600 dark:text-slate-400">
-                            7-Day Retention
-                        </div>
-                        <div className="text-xl font-semibold text-slate-900 dark:text-slate-100">
-                            {engagementMetrics?.retentionRate || 0}%
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* Footer */}
-            <div className="text-center text-sm text-slate-500 dark:text-slate-400">
-                <p>
-                    Analytics data is updated in real-time. Last refreshed:{' '}
-                    {new Date().toLocaleTimeString()}
-                </p>
-            </div>
-        </div>
+            )}
+        </>
     );
 }

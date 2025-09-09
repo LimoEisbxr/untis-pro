@@ -164,6 +164,29 @@ html.dark .label {
     @apply text-slate-300;
 }
 
+/* Week selector right gap: smaller in browser, safe-area sized in PWA */
+.week-picker-right-gap {
+    margin-right: 0.2rem; /* default smaller gap for regular browser */
+}
+@media (display-mode: standalone) {
+    .week-picker-right-gap {
+        margin-right: max(
+            env(safe-area-inset-right),
+            1.25rem
+        ); /* comfortable gap in installed PWA */
+    }
+}
+
+/* In PWA, shift the CW label right to negate the outer week picker gap */
+.week-cw-right {
+    right: 0; /* browser default */
+}
+@media (display-mode: standalone) {
+    .week-cw-right {
+        right: calc(-1 * max(env(safe-area-inset-right), 1.25rem));
+    }
+}
+
 /* Animations */
 /* Unified fade-in (used for dynamic list items). Avoids double definitions that caused flicker. */
 .animate-fade-in {
@@ -457,39 +480,34 @@ html.dark .change-highlight-mobile {
 
 /* Onboarding animations */
 @keyframes glow {
-    0%, 100% {
-        box-shadow: 
-            0 0 0 2px rgb(56 189 248),
-            0 0 0 9999px rgba(0, 0, 0, 0.4),
+    0%,
+    100% {
+        box-shadow: 0 0 0 2px rgb(56 189 248), 0 0 0 9999px rgba(0, 0, 0, 0.4),
             inset 0 0 0 2px rgba(56, 189, 248, 0.3),
             0 0 20px rgba(56, 189, 248, 0.6);
     }
     50% {
-        box-shadow: 
-            0 0 0 2px rgb(56 189 248),
-            0 0 0 9999px rgba(0, 0, 0, 0.4),
+        box-shadow: 0 0 0 2px rgb(56 189 248), 0 0 0 9999px rgba(0, 0, 0, 0.4),
             inset 0 0 0 2px rgba(56, 189, 248, 0.5),
             0 0 30px rgba(56, 189, 248, 0.8);
     }
 }
 
 @keyframes pulse-border {
-    0%, 100% {
-        box-shadow: 
-            0 0 0 2px rgb(56 189 248),
-            0 0 0 9999px rgba(0, 0, 0, 0.4),
+    0%,
+    100% {
+        box-shadow: 0 0 0 2px rgb(56 189 248), 0 0 0 9999px rgba(0, 0, 0, 0.4),
             inset 0 0 0 2px rgba(56, 189, 248, 0.3);
     }
     50% {
-        box-shadow: 
-            0 0 0 4px rgb(56 189 248),
-            0 0 0 9999px rgba(0, 0, 0, 0.4),
+        box-shadow: 0 0 0 4px rgb(56 189 248), 0 0 0 9999px rgba(0, 0, 0, 0.4),
             inset 0 0 0 2px rgba(56, 189, 248, 0.5);
     }
 }
 
 @keyframes pointer-click {
-    0%, 100% {
+    0%,
+    100% {
         transform: translate(-50%, -50%) scale(1);
     }
     50% {

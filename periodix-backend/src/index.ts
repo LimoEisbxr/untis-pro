@@ -7,7 +7,7 @@ dotenv.config();
 const port = Number(process.env.PORT || 3001);
 
 app.listen(port, async () => {
-    console.log(`Backend running on http://localhost:${port}`);
+    console.log(`Backend running on ${port}`);
     
     // Start the notification service
     try {
