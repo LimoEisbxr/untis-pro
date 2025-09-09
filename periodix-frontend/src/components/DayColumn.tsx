@@ -32,6 +32,7 @@ export type DayColumnProps = {
     isToday?: boolean;
     gradientOffsets?: Record<string, number>; // subject -> offset (0..1)
     hideHeader?: boolean; // suppress built-in header (used when external sticky header is rendered)
+    mobileTinyLessonThresholdPx?: number; // threshold for tiny single lessons on mobile (px)
 };
 
 const DayColumn: FC<DayColumnProps> = ({
@@ -49,6 +50,7 @@ const DayColumn: FC<DayColumnProps> = ({
     isToday = false,
     gradientOffsets,
     hideHeader = false,
+    mobileTinyLessonThresholdPx = 58,
 }) => {
     // Detect mobile (tailwind sm breakpoint <640px). Responsive hook to decide hiding side-by-side overlaps.
     // Detect mobile synchronously on first render to avoid a second-pass layout jump
@@ -91,6 +93,11 @@ const DayColumn: FC<DayColumnProps> = ({
 
     // Precompute whether we should show denser or sparser grid lines (mobile gets 60‑min lines)
     const gridSlotMinutes = isMobile ? 60 : 30;
+
+    // Mobile tiny-height threshold for single, non-overlapping lessons.
+    // When a block is shorter than this (in px), hide teacher by default and show room only.
+    // Priority: if only teacher changed (and room didn't), show teacher instead; if both changed, show room.
+    // Fine-tune via prop 'mobileTinyLessonThresholdPx'.
 
     type ClusterBlock = {
         l: Lesson;
@@ -391,6 +398,26 @@ const DayColumn: FC<DayColumnProps> = ({
                     const textColorClass =
                         luminance > 0.62 ? 'text-slate-900' : 'text-white';
 
+                    // Decide tiny mobile single layout behavior
+                    const roomInfoMeta = getRoomDisplayText(l);
+                    const roomChanged = !!roomInfoMeta?.hasChanges;
+                    const teacherChanged = !!l.te?.some((t) => !!t.orgname);
+                    const isTinyMobileSingle =
+                        singleMobile && heightPx < mobileTinyLessonThresholdPx;
+                    // In tiny mode:
+                    // - default: show room (if available and not cancelled/irregular)
+                    // - if only teacher changed, show teacher instead
+                    // - if both changed, show room again
+                    const showTeacherTiny =
+                        isTinyMobileSingle &&
+                        ((teacherChanged && !roomChanged) ||
+                            (!roomMobile && (l.te?.length ?? 0) > 0));
+                    const showRoomTiny =
+                        isTinyMobileSingle &&
+                        !!roomMobile &&
+                        !(cancelled || irregular) &&
+                        (!teacherChanged || roomChanged);
+
                     return (
                         <div
                             key={l.id}
@@ -690,7 +717,15 @@ const DayColumn: FC<DayColumnProps> = ({
                                         {displaySubject}
                                     </div>
                                     {(() => {
-                                        if (!l.te || l.te.length === 0)
+                                        const hasTeachers = !!(
+                                            l.te && l.te.length > 0
+                                        );
+                                        if (!hasTeachers) return null;
+                                        // In tiny mobile single mode, only show teacher if it has priority
+                                        if (
+                                            isTinyMobileSingle &&
+                                            !showTeacherTiny
+                                        )
                                             return null;
                                         return (
                                             <div
@@ -700,7 +735,7 @@ const DayColumn: FC<DayColumnProps> = ({
                                                         : ''
                                                 }`}
                                             >
-                                                {l.te.map((t, i) => (
+                                                {(l.te ?? []).map((t, i) => (
                                                     <span
                                                         key={i}
                                                         className={
@@ -719,14 +754,18 @@ const DayColumn: FC<DayColumnProps> = ({
                                     })()}
                                     {(() => {
                                         const roomInfo = getRoomDisplayText(l);
-                                        // Hide room on mobile for cancelled / irregular lessons per request
-                                        if (
-                                            !roomMobile ||
-                                            cancelled ||
-                                            irregular
-                                        )
-                                            return null;
-                                        // Only show short room codes in mobile timetable view
+                                        // Tiny mode decision: show room when allowed by priority
+                                        if (isTinyMobileSingle) {
+                                            if (!showRoomTiny) return null;
+                                        } else {
+                                            // Normal mobile rules
+                                            if (
+                                                !roomMobile ||
+                                                cancelled ||
+                                                irregular
+                                            )
+                                                return null;
+                                        }
                                         return (
                                             <div
                                                 className={`text-[11px] leading-tight truncate max-w-full ${
