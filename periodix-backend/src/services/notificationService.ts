@@ -24,6 +24,8 @@ export interface NotificationData {
     userId: string;
     expiresAt?: Date;
     notificationId?: string;
+    // Optional idempotency key for robust deduplication across intervals/restarts
+    dedupeKey?: string;
 }
 
 export class NotificationService {
@@ -40,46 +42,82 @@ export class NotificationService {
         return NotificationService.instance;
     }
 
-    // Create a notification (with basic deduplication)
+    // Create a notification (with robust deduplication)
     async createNotification(data: NotificationData): Promise<void> {
         try {
-            // Basic dedupe: skip if same (userId, type, title, message) was created recently
-            // This prevents spam after restarts or tight loops.
+            // Prefer a stable event-level dedupe key when available (and column exists)
+            if (data.dedupeKey) {
+                try {
+                    const byKey = await (prisma as any).notification.findFirst({
+                        where: {
+                            dedupeKey: data.dedupeKey,
+                            userId: data.userId,
+                        },
+                        select: { id: true },
+                    });
+                    if (byKey) return;
+                } catch {
+                    // If the column doesn't exist yet, fall back to legacy dedupe below
+                }
+            }
+
+            // Legacy safety net: skip if same (userId, type, title, message) exists recently
             const thirtyDaysAgo = new Date(
                 Date.now() - 30 * 24 * 60 * 60 * 1000
             );
-            const existing = await (prisma as any).notification.findFirst({
-                where: {
-                    userId: data.userId,
-                    type: data.type,
-                    title: data.title,
-                    message: data.message,
-                    createdAt: { gt: thirtyDaysAgo },
-                },
-                select: { id: true },
-            });
-
-            if (existing) {
-                return; // already notified recently
+            try {
+                const existing = await (prisma as any).notification.findFirst({
+                    where: {
+                        userId: data.userId,
+                        type: data.type,
+                        title: data.title,
+                        message: data.message,
+                        createdAt: { gt: thirtyDaysAgo },
+                    },
+                    select: { id: true },
+                });
+                if (existing) return;
+            } catch {
+                // ignore and proceed
             }
 
-            const created = await (prisma as any).notification.create({
-                data: {
-                    userId: data.userId,
-                    type: data.type,
-                    title: data.title,
-                    message: data.message,
-                    data: data.data || null,
-                    expiresAt: data.expiresAt,
-                },
-                select: { id: true },
-            });
+            // Create with dedupeKey when the column exists, otherwise retry without
+            let created: { id: string } | null = null;
+            try {
+                created = await (prisma as any).notification.create({
+                    data: {
+                        userId: data.userId,
+                        type: data.type,
+                        title: data.title,
+                        message: data.message,
+                        data: data.data || null,
+                        expiresAt: data.expiresAt,
+                        dedupeKey: data.dedupeKey,
+                    },
+                    select: { id: true },
+                });
+            } catch (e: any) {
+                // Retry without dedupeKey for older schemas
+                created = await (prisma as any).notification.create({
+                    data: {
+                        userId: data.userId,
+                        type: data.type,
+                        title: data.title,
+                        message: data.message,
+                        data: data.data || null,
+                        expiresAt: data.expiresAt,
+                    },
+                    select: { id: true },
+                });
+            }
 
             // Try to send push notification if user has subscriptions
-            await this.sendPushNotification({
-                ...data,
-                notificationId: created.id,
-            });
+            if (created?.id) {
+                await this.sendPushNotification({
+                    ...data,
+                    notificationId: created.id,
+                });
+            }
         } catch (error) {
             console.error('Failed to create notification:', error);
         }
@@ -420,6 +458,8 @@ export class NotificationService {
                 today.getFullYear() * 10000 +
                 (today.getMonth() + 1) * 100 +
                 today.getDate();
+            // Current time in Untis HHmm for same-day comparisons
+            const nowHm = today.getHours() * 100 + today.getMinutes();
 
             // Calculate week boundaries (assuming week starts on Monday)
             const startOfWeek = new Date(today);
@@ -460,6 +500,28 @@ export class NotificationService {
 
             if (!options?.onlyUpcoming) {
                 for (const lesson of lessons) {
+                    // Skip any lesson whose end time is in the past (no notifications for past lessons)
+                    const lDate: number | undefined =
+                        typeof lesson?.date === 'number'
+                            ? (lesson.date as number)
+                            : undefined;
+                    // Prefer endTime for past detection; fall back to startTime if endTime is missing
+                    const lEnd: number | undefined =
+                        typeof lesson?.endTime === 'number'
+                            ? (lesson.endTime as number)
+                            : typeof lesson?.startTime === 'number'
+                            ? (lesson.startTime as number)
+                            : undefined;
+
+                    if (
+                        typeof lDate === 'number' &&
+                        (lDate < todayString ||
+                            (lDate === todayString &&
+                                typeof lEnd === 'number' &&
+                                lEnd < nowHm))
+                    ) {
+                        continue; // past lesson
+                    }
                     // Check cancelled lessons based on user's time scope preference
                     if (
                         lesson.code === 'cancelled' &&
@@ -483,12 +545,21 @@ export class NotificationService {
                             const when = `${formatYmd(lesson.date)} ${formatHm(
                                 lesson.startTime
                             )}`.trim();
+                            // Build a stable event fingerprint for this cancelled lesson
+                            const dedupeKey = [
+                                'cancelled',
+                                user.id,
+                                lesson?.id ?? lesson?.lessonId ?? subject,
+                                lesson?.date ?? '',
+                                lesson?.startTime ?? '',
+                            ].join(':');
                             await this.createNotification({
                                 type: 'cancelled_lesson',
                                 title: 'Lesson Cancelled',
                                 message: `${subject} on ${when} has been cancelled`,
                                 userId: user.id,
                                 data: lesson,
+                                dedupeKey,
                             });
                         }
                     }
@@ -526,6 +597,14 @@ export class NotificationService {
                             const when = `${formatYmd(lesson.date)} ${formatHm(
                                 lesson.startTime
                             )}`.trim();
+                            const dedupeKey = [
+                                'irregular',
+                                user.id,
+                                lesson?.id ?? lesson?.lessonId ?? subject,
+                                lesson?.date ?? '',
+                                lesson?.startTime ?? '',
+                                irregularFlags.sort().join('|'),
+                            ].join(':');
                             await this.createNotification({
                                 type: 'irregular_lesson',
                                 title: 'Irregular Lesson',
@@ -534,6 +613,7 @@ export class NotificationService {
                                 )})`,
                                 userId: user.id,
                                 data: lesson,
+                                dedupeKey,
                             });
                         }
                     }
@@ -632,6 +712,13 @@ export class NotificationService {
                             },
                             // auto-expire shortly after start time
                             expiresAt: new Date(now.getTime() + 60 * 60 * 1000),
+                            dedupeKey: [
+                                'upcoming',
+                                user.id,
+                                lesson?.id ?? lesson?.lessonId ?? subject,
+                                lesson?.date ?? '',
+                                lesson?.startTime ?? '',
+                            ].join(':'),
                         });
                     }
                 }

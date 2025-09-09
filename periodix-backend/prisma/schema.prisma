@@ -211,6 +211,9 @@ model Notification {
     sent      Boolean   @default(false) // For push notifications
     expiresAt DateTime?
 
+    // Optional idempotency key to prevent duplicates for the same event
+    dedupeKey String? @unique
+
     @@index([userId, createdAt])
     @@index([type, createdAt])
 }
