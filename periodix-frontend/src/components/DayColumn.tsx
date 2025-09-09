@@ -50,7 +50,7 @@ const DayColumn: FC<DayColumnProps> = ({
     isToday = false,
     gradientOffsets,
     hideHeader = false,
-    mobileTinyLessonThresholdPx = 58,
+    mobileTinyLessonThresholdPx = 56,
 }) => {
     // Detect mobile (tailwind sm breakpoint <640px). Responsive hook to decide hiding side-by-side overlaps.
     // Detect mobile synchronously on first render to avoid a second-pass layout jump
