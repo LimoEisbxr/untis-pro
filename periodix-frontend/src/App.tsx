@@ -3,7 +3,7 @@ import './index.css';
 import type { User } from './types';
 import Login from './components/Login';
 import Dashboard from './pages/Dashboard';
-import { setGlobalLogoutHandler } from './api';
+import { setGlobalLogoutHandler, setGlobalTokenUpdateHandler } from './api';
 
 export default function App() {
     const [token, setToken] = useState<string | null>(() =>
@@ -44,9 +44,16 @@ export default function App() {
         setUser(null);
     }
 
+    function onTokenUpdate(newToken: string) {
+        localStorage.setItem('token', newToken);
+        setToken(newToken);
+    }
+
     // Set up global logout handler for automatic logout on invalid token
+    // Set up global token update handler for automatic token refresh
     useEffect(() => {
         setGlobalLogoutHandler(onLogout);
+        setGlobalTokenUpdateHandler(onTokenUpdate);
     }, []);
 
     function onUserUpdate(next: User) {

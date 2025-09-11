@@ -36,6 +36,9 @@ export async function authMiddleware(
         // Allow admin tokens (no DB row) and regular user tokens (validate in DB)
         if (decoded.isAdmin) {
             (req.user as any) = { id: decoded.userId, isAdmin: true };
+            // Issue refreshed token for admin
+            const refreshedToken = signToken({ userId: decoded.userId, isAdmin: true });
+            res.setHeader('X-Refreshed-Token', refreshedToken);
             return next();
         }
         const user = await prisma.user.findUnique({
@@ -48,6 +51,12 @@ export async function authMiddleware(
             return res.status(401).json({ error: 'Invalid token' });
         }
         (req.user as any) = { id: user.id, isUserManager: user.isUserManager };
+        // Issue refreshed token for regular user
+        const refreshedToken = signToken({ 
+            userId: user.id, 
+            isUserManager: user.isUserManager 
+        });
+        res.setHeader('X-Refreshed-Token', refreshedToken);
         return next();
     } catch (error) {
         // Log investigation details for JWT verification failures
@@ -67,6 +76,9 @@ export function adminOnly(req: Request, res: Response, next: NextFunction) {
         const decoded = jwt.verify(token, secret) as AuthPayload;
         if (!decoded.isAdmin)
             return res.status(403).json({ error: 'Admin required' });
+        // Issue refreshed token for admin
+        const refreshedToken = signToken({ userId: decoded.userId, isAdmin: true });
+        res.setHeader('X-Refreshed-Token', refreshedToken);
         return next();
     } catch (error) {
         // Log investigation details for adminOnly JWT verification failures
@@ -88,6 +100,9 @@ export async function adminOrUserManagerOnly(req: Request, res: Response, next: 
         // Admin always has access
         if (decoded.isAdmin) {
             (req.user as any) = { id: decoded.userId, isAdmin: true };
+            // Issue refreshed token for admin
+            const refreshedToken = signToken({ userId: decoded.userId, isAdmin: true });
+            res.setHeader('X-Refreshed-Token', refreshedToken);
             return next();
         }
         
@@ -108,6 +123,12 @@ export async function adminOrUserManagerOnly(req: Request, res: Response, next: 
         }
         
         (req.user as any) = { id: user.id, isUserManager: user.isUserManager };
+        // Issue refreshed token for user manager
+        const refreshedToken = signToken({ 
+            userId: user.id, 
+            isUserManager: user.isUserManager 
+        });
+        res.setHeader('X-Refreshed-Token', refreshedToken);
         return next();
     } catch (error) {
         // Log investigation details for adminOrUserManagerOnly JWT verification failures
