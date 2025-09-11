@@ -64,24 +64,32 @@ export class NotificationService {
                 }
             }
 
-            // Legacy safety net: skip if same (userId, type, title, message) exists recently
-            const thirtyDaysAgo = new Date(
-                Date.now() - 30 * 24 * 60 * 60 * 1000
-            );
-            try {
-                const existing = await (prisma as any).notification.findFirst({
-                    where: {
-                        userId: data.userId,
-                        type: data.type,
-                        title: data.title,
-                        message: data.message,
-                        createdAt: { gt: thirtyDaysAgo },
-                    },
-                    select: { id: true },
-                });
-                if (existing) return;
-            } catch {
-                // ignore and proceed
+            // Legacy safety net: skip if same (userId, type, title, message) exists recently.
+            // IMPORTANT: If a dedupeKey is provided we intentionally bypass this legacy check
+            // so that distinct events with identical messages (e.g. a re-submitted access request
+            // after being declined) still generate a new notification. The unique constraint on
+            // dedupeKey (when present) already protects against true duplicates for the same event.
+            if (!data.dedupeKey) {
+                const thirtyDaysAgo = new Date(
+                    Date.now() - 30 * 24 * 60 * 60 * 1000
+                );
+                try {
+                    const existing = await (
+                        prisma as any
+                    ).notification.findFirst({
+                        where: {
+                            userId: data.userId,
+                            type: data.type,
+                            title: data.title,
+                            message: data.message,
+                            createdAt: { gt: thirtyDaysAgo },
+                        },
+                        select: { id: true },
+                    });
+                    if (existing) return;
+                } catch {
+                    // ignore and proceed
+                }
             }
 
             // Create with dedupeKey when possible. If unique constraint triggers, treat as already created.
