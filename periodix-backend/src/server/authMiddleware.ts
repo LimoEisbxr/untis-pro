@@ -42,10 +42,17 @@ export async function authMiddleware(
             where: { id: decoded.userId },
             select: { id: true, isUserManager: true },
         });
-        if (!user) return res.status(401).json({ error: 'Invalid token' });
+        if (!user) {
+            // Log investigation details for user not found
+            console.warn(`Invalid token: User not found in database. UserId: ${decoded.userId}, IP: ${req.ip}, UserAgent: ${req.get('User-Agent')}`);
+            return res.status(401).json({ error: 'Invalid token' });
+        }
         (req.user as any) = { id: user.id, isUserManager: user.isUserManager };
         return next();
-    } catch {
+    } catch (error) {
+        // Log investigation details for JWT verification failures
+        const errorMsg = error instanceof Error ? error.message : 'Unknown JWT error';
+        console.warn(`Invalid token: JWT verification failed. Error: ${errorMsg}, IP: ${req.ip}, UserAgent: ${req.get('User-Agent')}`);
         return res.status(401).json({ error: 'Invalid token' });
     }
 }
@@ -61,7 +68,10 @@ export function adminOnly(req: Request, res: Response, next: NextFunction) {
         if (!decoded.isAdmin)
             return res.status(403).json({ error: 'Admin required' });
         return next();
-    } catch {
+    } catch (error) {
+        // Log investigation details for adminOnly JWT verification failures
+        const errorMsg = error instanceof Error ? error.message : 'Unknown JWT error';
+        console.warn(`Invalid token (adminOnly): JWT verification failed. Error: ${errorMsg}, IP: ${req.ip}, UserAgent: ${req.get('User-Agent')}`);
         return res.status(401).json({ error: 'Invalid token' });
     }
 }
@@ -88,6 +98,8 @@ export async function adminOrUserManagerOnly(req: Request, res: Response, next: 
         });
         
         if (!user) {
+            // Log investigation details for user not found in adminOrUserManagerOnly
+            console.warn(`Invalid token (adminOrUserManagerOnly): User not found in database. UserId: ${decoded.userId}, IP: ${req.ip}, UserAgent: ${req.get('User-Agent')}`);
             return res.status(401).json({ error: 'Invalid token' });
         }
         
@@ -97,7 +109,10 @@ export async function adminOrUserManagerOnly(req: Request, res: Response, next: 
         
         (req.user as any) = { id: user.id, isUserManager: user.isUserManager };
         return next();
-    } catch {
+    } catch (error) {
+        // Log investigation details for adminOrUserManagerOnly JWT verification failures
+        const errorMsg = error instanceof Error ? error.message : 'Unknown JWT error';
+        console.warn(`Invalid token (adminOrUserManagerOnly): JWT verification failed. Error: ${errorMsg}, IP: ${req.ip}, UserAgent: ${req.get('User-Agent')}`);
         return res.status(401).json({ error: 'Invalid token' });
     }
 }

@@ -11,6 +11,21 @@ import type {
     AdminNotificationSettings,
 } from './types';
 
+// Global logout handler - will be set by App.tsx
+let globalLogoutHandler: (() => void) | null = null;
+
+export function setGlobalLogoutHandler(handler: () => void) {
+    globalLogoutHandler = handler;
+}
+
+function handleAuthError(text: string): void {
+    // Check if this is an "Invalid token" error
+    if (text.includes('Invalid token') && globalLogoutHandler) {
+        console.warn('Invalid token detected, logging out automatically');
+        globalLogoutHandler();
+    }
+}
+
 export async function api<T>(
     path: string,
     opts: RequestInit & { token?: string } = {}
@@ -55,6 +70,10 @@ export async function api<T>(
                         throw new Error(JSON.stringify(payload));
                     }
                 }
+                // Check for authentication errors and trigger auto-logout
+                if (res.status === 401) {
+                    handleAuthError(text);
+                }
                 throw new Error(text);
             }
             return text ? JSON.parse(text) : (undefined as unknown as T);
@@ -93,6 +112,10 @@ export async function api<T>(
                 };
                 throw new Error(JSON.stringify(payload));
             }
+        }
+        // Check for authentication errors and trigger auto-logout
+        if (res.status === 401) {
+            handleAuthError(text);
         }
         throw new Error(text);
     }
