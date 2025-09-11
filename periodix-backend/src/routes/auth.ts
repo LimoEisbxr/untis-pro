@@ -121,6 +121,24 @@ router.post('/login', untisUserLimiter, async (req, res) => {
 
         const isWhitelisted = Boolean(usernameRule);
         if (!isWhitelisted) {
+            // Before telling the user they're not authorized, check if an access request already exists
+            try {
+                const existingAccessRequest = await (
+                    prisma as any
+                ).accessRequest.findFirst({
+                    where: { username },
+                    select: { id: true, createdAt: true },
+                });
+                if (existingAccessRequest) {
+                    return res.status(403).json({
+                        error: 'Your access request is already pending approval.',
+                        code: 'ACCESS_REQUEST_PENDING',
+                        requestedAt: existingAccessRequest.createdAt,
+                    });
+                }
+            } catch (e) {
+                // Non-fatal; fall through to generic not-whitelisted error
+            }
             return res.status(403).json({
                 error: 'Access denied. Your account is not authorized for this beta.',
                 code: 'NOT_WHITELISTED',
