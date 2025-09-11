@@ -68,7 +68,8 @@ self.addEventListener('push', (event) => {
                 // ignore errors closing existing notifications
             }
 
-            return self.registration.showNotification(notificationData.title, {
+            // Show user-visible notification
+            await self.registration.showNotification(notificationData.title, {
                 body: notificationData.body,
                 icon: notificationData.icon,
                 badge: notificationData.badge,
@@ -89,6 +90,29 @@ self.addEventListener('push', (event) => {
                     },
                 ],
             });
+
+            // Broadcast a lightweight message to all controlled clients so in-page state can refresh immediately
+            try {
+                const clientList = await clients.matchAll({
+                    type: 'window',
+                    includeUncontrolled: true,
+                });
+                clientList.forEach((client) => {
+                    // Only signal if page is same origin
+                    try {
+                        client.postMessage({
+                            type: 'periodix:new-notification',
+                            notificationId:
+                                notificationData.data?.notificationId || null,
+                            nType: notificationData.data?.type || null,
+                        });
+                    } catch (e) {
+                        // ignore individual postMessage errors
+                    }
+                });
+            } catch (e) {
+                // ignore broadcast errors
+            }
         })()
     );
 });

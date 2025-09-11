@@ -527,6 +527,24 @@ export default function Dashboard({
         return () => clearInterval(interval);
     }, [loadNotifications]);
 
+    // Listen for push-triggered SW postMessage events to refresh immediately (no 30s delay / manual refresh)
+    useEffect(() => {
+        if (typeof navigator === 'undefined' || !('serviceWorker' in navigator))
+            return;
+        const handler = (event: MessageEvent) => {
+            const data = event.data;
+            if (!data || typeof data !== 'object') return;
+            if (data.type === 'periodix:new-notification') {
+                // Fetch latest notifications; cheaper than trying to reconstruct full object from push payload
+                loadNotifications();
+            }
+        };
+        navigator.serviceWorker.addEventListener('message', handler);
+        return () => {
+            navigator.serviceWorker.removeEventListener('message', handler);
+        };
+    }, [loadNotifications]);
+
     // Cache notification settings for browser notifications gating
     useEffect(() => {
         getNotificationSettings(token)

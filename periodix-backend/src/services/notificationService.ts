@@ -354,14 +354,27 @@ export class NotificationService {
                     manager.notificationSettings?.accessRequestsEnabled !==
                     false
                 ) {
-                    // Build a dedupeKey that allows multiple reminders while preventing exact duplicates
-                    // We hash the base username + message (without reminder suffix) plus current hour to collapse spam bursts
-                    const base = `${username}:${(message || '').slice(0, 120)}`;
-                    const hourBucket = new Date();
-                    hourBucket.setMinutes(0, 0, 0);
+                    // Build a dedupeKey that allows repeated reminders after a decline while still throttling spam.
+                    // Previous implementation bucketed per hour, which suppressed legitimate re-requests within the same hour.
+                    // Strategy: bucket per 5-minute window + hash of base (username+trimmed message) to avoid duplicates caused by retry spam in a very short timeframe.
+                    const base = `${username}:${(message || '')
+                        .replace(/\(reminder[^)]+\)/gi, '')
+                        .trim()
+                        .slice(0, 160)}`; // strip prior reminder suffix to treat same logical message equally
+                    const now = new Date();
+                    const fiveMinBucket = new Date(now);
+                    fiveMinBucket.setSeconds(0, 0);
+                    const bucketIndex = Math.floor(now.getMinutes() / 5); // 0..11 per hour
+                    fiveMinBucket.setMinutes(bucketIndex * 5);
+                    // Simple FNV-1a hash for short stable identifier (no external deps)
+                    let hash = 2166136261;
+                    for (let i = 0; i < base.length; i++) {
+                        hash ^= base.charCodeAt(i);
+                        hash = (hash * 16777619) >>> 0;
+                    }
                     const dedupeKey = `access_req:${
                         manager.id
-                    }:${base}:${hourBucket.toISOString()}`;
+                    }:v2:${hash.toString(36)}:${fiveMinBucket.toISOString()}`;
                     await this.createNotification({
                         type: 'access_request',
                         title: 'New Access Request',
