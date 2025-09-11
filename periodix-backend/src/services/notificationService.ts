@@ -346,6 +346,14 @@ export class NotificationService {
                     manager.notificationSettings?.accessRequestsEnabled !==
                     false
                 ) {
+                    // Build a dedupeKey that allows multiple reminders while preventing exact duplicates
+                    // We hash the base username + message (without reminder suffix) plus current hour to collapse spam bursts
+                    const base = `${username}:${(message || '').slice(0, 120)}`;
+                    const hourBucket = new Date();
+                    hourBucket.setMinutes(0, 0, 0);
+                    const dedupeKey = `access_req:${
+                        manager.id
+                    }:${base}:${hourBucket.toISOString()}`;
                     await this.createNotification({
                         type: 'access_request',
                         title: 'New Access Request',
@@ -357,6 +365,7 @@ export class NotificationService {
                         expiresAt: new Date(
                             Date.now() + 7 * 24 * 60 * 60 * 1000
                         ), // 7 days
+                        dedupeKey,
                     });
                 }
             }

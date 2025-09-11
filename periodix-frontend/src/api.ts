@@ -20,7 +20,9 @@ export function setGlobalLogoutHandler(handler: () => void) {
     globalLogoutHandler = handler;
 }
 
-export function setGlobalTokenUpdateHandler(handler: (newToken: string) => void) {
+export function setGlobalTokenUpdateHandler(
+    handler: (newToken: string) => void
+) {
     globalTokenUpdateHandler = handler;
 }
 
@@ -660,8 +662,9 @@ export async function unsubscribeFromPushNotifications(
     token: string,
     endpoint: string
 ): Promise<{ success: boolean }> {
+    // Single canonical form: query parameter only (prevents accidental legacy path usage)
     return api<{ success: boolean }>(
-        `/api/notifications/subscribe/${encodeURIComponent(endpoint)}`,
+        `/api/notifications/subscribe?endpoint=${encodeURIComponent(endpoint)}`,
         {
             method: 'DELETE',
             token,

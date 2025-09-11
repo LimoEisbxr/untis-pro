@@ -29,45 +29,6 @@ router.get('/', authMiddleware, async (req, res) => {
     }
 });
 
-// Mark notification as read
-const markReadSchema = z.object({
-    notificationId: z.string().uuid(),
-});
-
-router.patch('/:id/read', authMiddleware, async (req, res) => {
-    const parsed = markReadSchema.safeParse({ notificationId: req.params.id });
-    if (!parsed.success) {
-        return res.status(400).json({ error: parsed.error.flatten() });
-    }
-
-    if (!req.user) {
-        return res.status(401).json({ error: 'Unauthorized' });
-    }
-
-    try {
-        const notification = await (prisma as any).notification.findFirst({
-            where: {
-                id: parsed.data.notificationId,
-                userId: req.user.id,
-            },
-        });
-
-        if (!notification) {
-            return res.status(404).json({ error: 'Notification not found' });
-        }
-
-        await (prisma as any).notification.update({
-            where: { id: parsed.data.notificationId },
-            data: { read: true },
-        });
-
-        res.json({ success: true });
-    } catch (e: any) {
-        const msg = e?.message || 'Failed to mark notification as read';
-        res.status(500).json({ error: msg });
-    }
-});
-
 // Mark all notifications as read
 router.patch('/read-all', authMiddleware, async (req, res) => {
     if (!req.user) {
@@ -90,41 +51,7 @@ router.patch('/read-all', authMiddleware, async (req, res) => {
     }
 });
 
-// Delete notification
-router.delete('/:id', authMiddleware, async (req, res) => {
-    const parsed = markReadSchema.safeParse({ notificationId: req.params.id });
-    if (!parsed.success) {
-        return res.status(400).json({ error: parsed.error.flatten() });
-    }
-
-    if (!req.user) {
-        return res.status(401).json({ error: 'Unauthorized' });
-    }
-
-    try {
-        const notification = await (prisma as any).notification.findFirst({
-            where: {
-                id: parsed.data.notificationId,
-                userId: req.user.id,
-            },
-        });
-
-        if (!notification) {
-            return res.status(404).json({ error: 'Notification not found' });
-        }
-
-        // Soft-delete: expire now and mark as read
-        await (prisma as any).notification.update({
-            where: { id: parsed.data.notificationId },
-            data: { expiresAt: new Date(), read: true },
-        });
-
-        res.json({ success: true });
-    } catch (e: any) {
-        const msg = e?.message || 'Failed to delete notification';
-        res.status(500).json({ error: msg });
-    }
-});
+// NOTE: Dynamic notification ID routes moved to bottom to prevent collisions with literal routes like '/subscribe'
 
 // Get notification settings
 router.get('/settings', authMiddleware, async (req, res) => {
@@ -271,42 +198,44 @@ router.post('/subscribe', authMiddleware, async (req, res) => {
     }
 });
 
-// Unsubscribe from push notifications
+// Legacy path-param unsubscribe route (does not work for full URLs with slashes)
+// Returns a guidance error so older clients surface actionable info instead of 404 HTML
 router.delete('/subscribe/:endpoint', authMiddleware, async (req, res) => {
+    return res.status(400).json({
+        error: 'Legacy unsubscribe path is deprecated. Use DELETE /api/notifications/subscribe?endpoint=<encodedEndpoint>',
+    });
+});
+
+// Query-based unsubscribe endpoint to avoid path encoding issues with full URLs
+// Usage: DELETE /api/notifications/subscribe?endpoint=<encoded endpoint>
+router.delete('/subscribe', authMiddleware, async (req, res) => {
     if (!req.user) {
         return res.status(401).json({ error: 'Unauthorized' });
     }
-
-    if (!req.params.endpoint) {
-        return res
-            .status(400)
-            .json({ error: 'Endpoint parameter is required' });
-    }
-
     try {
-        const endpoint = decodeURIComponent(req.params.endpoint);
-
+        const endpointRaw = (req.query.endpoint ||
+            (req.body as any)?.endpoint) as string | undefined;
+        if (!endpointRaw) {
+            return res
+                .status(400)
+                .json({ error: 'Endpoint query parameter is required' });
+        }
+        const endpoint = decodeURIComponent(endpointRaw);
         const subscription = await (
             prisma as any
         ).notificationSubscription.findFirst({
-            where: {
-                endpoint,
-                userId: req.user.id,
-            },
+            where: { endpoint, userId: req.user.id },
         });
-
         if (!subscription) {
             return res.status(404).json({ error: 'Subscription not found' });
         }
-
         await (prisma as any).notificationSubscription.update({
             where: { id: subscription.id },
             data: { active: false },
         });
-
-        res.json({ success: true });
+        res.json({ success: true, method: 'query' });
     } catch (e: any) {
-        const msg = e?.message || 'Failed to unsubscribe';
+        const msg = e?.message || 'Failed to unsubscribe (query)';
         res.status(500).json({ error: msg });
     }
 });
@@ -323,3 +252,63 @@ router.get('/vapid-public-key', (req, res) => {
 });
 
 export default router;
+
+// ---- Dynamic notification ID routes (placed last) ----
+const UUID_REGEX = /^[0-9a-fA-F-]{36}$/;
+const markReadSchema = z.object({ notificationId: z.string().uuid() });
+
+router.patch('/:id/read', authMiddleware, async (req, res) => {
+    const id = (req.params.id || '') as string;
+    if (!UUID_REGEX.test(id)) {
+        return res.status(404).json({ error: 'Not found' });
+    }
+    const parsed = markReadSchema.safeParse({ notificationId: id });
+    if (!parsed.success) {
+        return res.status(400).json({ error: parsed.error.flatten() });
+    }
+    if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
+    try {
+        const notification = await (prisma as any).notification.findFirst({
+            where: { id, userId: req.user.id },
+        });
+        if (!notification) {
+            return res.status(404).json({ error: 'Notification not found' });
+        }
+        await (prisma as any).notification.update({
+            where: { id },
+            data: { read: true },
+        });
+        res.json({ success: true });
+    } catch (e: any) {
+        const msg = e?.message || 'Failed to mark notification as read';
+        res.status(500).json({ error: msg });
+    }
+});
+
+router.delete('/:id', authMiddleware, async (req, res) => {
+    const id = (req.params.id || '') as string;
+    if (!UUID_REGEX.test(id)) {
+        return res.status(404).json({ error: 'Not found' });
+    }
+    const parsed = markReadSchema.safeParse({ notificationId: id });
+    if (!parsed.success) {
+        return res.status(400).json({ error: parsed.error.flatten() });
+    }
+    if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
+    try {
+        const notification = await (prisma as any).notification.findFirst({
+            where: { id, userId: req.user.id },
+        });
+        if (!notification) {
+            return res.status(404).json({ error: 'Notification not found' });
+        }
+        await (prisma as any).notification.update({
+            where: { id },
+            data: { expiresAt: new Date(), read: true },
+        });
+        res.json({ success: true });
+    } catch (e: any) {
+        const msg = e?.message || 'Failed to delete notification';
+        res.status(500).json({ error: msg });
+    }
+});

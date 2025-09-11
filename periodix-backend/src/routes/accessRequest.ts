@@ -15,7 +15,9 @@ const createAccessRequestSchema = z.object({
 router.post('/', async (req, res) => {
     // Only allow access requests when whitelist is enabled
     if (!WHITELIST_ENABLED) {
-        return res.status(400).json({ error: 'Access requests are not available' });
+        return res
+            .status(400)
+            .json({ error: 'Access requests are not available' });
     }
 
     const parsed = createAccessRequestSchema.safeParse(req.body);
@@ -31,9 +33,11 @@ router.post('/', async (req, res) => {
         const existingRule = await (prisma as any).whitelistRule.findFirst({
             where: { value: normalizedUsername },
         });
-        
+
         if (existingRule) {
-            return res.status(400).json({ error: 'User is already authorized' });
+            return res
+                .status(400)
+                .json({ error: 'User is already authorized' });
         }
 
         // Check if request already exists
@@ -42,7 +46,35 @@ router.post('/', async (req, res) => {
         });
 
         if (existingRequest) {
-            return res.status(400).json({ error: 'Access request already exists' });
+            // Instead of silently rejecting, send a reminder notification to user managers.
+            // We keep the 400 response so existing frontend logic (showing a pending modal) still works.
+            try {
+                const now = new Date();
+                // Short human readable tag to differentiate messages and avoid legacy dedupe (title+message match)
+                const hh = String(now.getHours()).padStart(2, '0');
+                const mm = String(now.getMinutes()).padStart(2, '0');
+                const reminderSuffix = `(reminder ${now.getFullYear()}-${String(
+                    now.getMonth() + 1
+                ).padStart(2, '0')}-${String(now.getDate()).padStart(
+                    2,
+                    '0'
+                )} ${hh}:${mm})`;
+                const enrichedMessage = message
+                    ? `${message} ${reminderSuffix}`
+                    : reminderSuffix;
+                await notificationService.notifyAccessRequest(
+                    normalizedUsername,
+                    enrichedMessage
+                );
+            } catch (notifyErr) {
+                console.warn(
+                    'Failed to send reminder access request notification:',
+                    (notifyErr as any)?.message || notifyErr
+                );
+            }
+            return res
+                .status(400)
+                .json({ error: 'Access request already exists' });
         }
 
         // Create the access request
@@ -51,11 +83,19 @@ router.post('/', async (req, res) => {
                 username: normalizedUsername,
                 message: message || null,
             },
-            select: { id: true, username: true, message: true, createdAt: true },
+            select: {
+                id: true,
+                username: true,
+                message: true,
+                createdAt: true,
+            },
         });
 
         // Notify user managers about the new access request
-        await notificationService.notifyAccessRequest(normalizedUsername, message);
+        await notificationService.notifyAccessRequest(
+            normalizedUsername,
+            message
+        );
 
         res.json({ request, success: true });
     } catch (e: any) {
