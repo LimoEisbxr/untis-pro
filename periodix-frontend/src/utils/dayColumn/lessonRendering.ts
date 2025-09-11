@@ -77,14 +77,15 @@ export function getLessonColors(
     lesson: Lesson,
     lessonColors: Record<string, string>,
     defaultLessonColors: Record<string, string>,
-    gradientOffsets: Record<string, number>
+    gradientOffsets: Record<string, number>,
+    hideAdminDefaults: boolean = false
 ): LessonColorInfo {
     const subject = lesson.su?.[0]?.name || lesson.activityType || '';
     const status = getLessonStatus(lesson);
     
     // Get base color
     const customColor = lessonColors[subject];
-    const defaultColor = defaultLessonColors[subject];
+    const defaultColor = hideAdminDefaults ? null : defaultLessonColors[subject];
     const baseColor = customColor || defaultColor;
     
     if (!baseColor) {

@@ -13,6 +13,7 @@ export default function LessonModal({
     isDeveloperMode,
     lessonColors,
     defaultLessonColors,
+    hideAdminDefaults = false,
     isAdmin,
     onColorChange,
     gradientOffsets,
@@ -25,6 +26,7 @@ export default function LessonModal({
     isDeveloperMode: boolean;
     lessonColors?: LessonColors;
     defaultLessonColors?: LessonColors;
+    hideAdminDefaults?: boolean;
     isAdmin?: boolean;
     onColorChange?: (
         lessonName: string,
@@ -552,6 +554,7 @@ export default function LessonModal({
                                                 defaultLessonColors?.[subjectType]
                                             }
                                             canRemoveFallback={!!isAdmin}
+                                            hideAdminDefaults={hideAdminDefaults}
                                             onColorChange={(color) =>
                                                 onColorChange(
                                                     subjectType,

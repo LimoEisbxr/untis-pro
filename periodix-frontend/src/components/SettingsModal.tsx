@@ -8,6 +8,7 @@ import AnalyticsTab from './AnalyticsTab';
 import NicknameChange from './settings/NicknameChange';
 import NotificationSettingsComponent from './settings/NotificationSettings';
 import SharingSettingsComponent from './settings/SharingSettings';
+import GradientPreferences from './settings/GradientPreferences';
 import AdminUserManagement from './settings/AdminUserManagement';
 import UserManagerAccessManagement from './settings/UserManagerAccessManagement';
 import AdminAccessManagement from './settings/AdminAccessManagement';
@@ -226,6 +227,21 @@ export default function SettingsModal({
                                             isVisible={
                                                 activeTab === 'notifications'
                                             }
+                                        />
+                                    </div>
+                                )}
+
+                                {/* Gradient Preferences Tab - Available for Users and User-Managers */}
+                                {!user.isAdmin && (
+                                    <div
+                                        className={`${
+                                            activeTab === 'gradient'
+                                                ? 'block'
+                                                : 'hidden'
+                                        }`}
+                                    >
+                                        <GradientPreferences
+                                            isVisible={activeTab === 'gradient'}
                                         />
                                     </div>
                                 )}

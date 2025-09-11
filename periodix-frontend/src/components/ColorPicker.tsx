@@ -31,6 +31,7 @@ interface ColorPickerProps {
     gradientOffset?: number; // 0..1
     onGradientOffsetChange?: (offset: number) => void;
     isAdmin?: boolean;
+    hideAdminDefaults?: boolean; // New prop to hide admin defaults
 }
 
 export default function ColorPicker({
@@ -43,6 +44,7 @@ export default function ColorPicker({
     gradientOffset = 0.5,
     onGradientOffsetChange,
     isAdmin = false,
+    hideAdminDefaults = false,
 }: ColorPickerProps) {
     const [customColor, setCustomColor] = useState(currentColor || '#3b82f6');
     const [showCustomInput, setShowCustomInput] = useState(false);
@@ -158,8 +160,10 @@ export default function ColorPicker({
                 <div className="flex items-center gap-2">
                     {/* Mini preview swatch */}
                     {(() => {
+                        // Apply the hideAdminDefaults preference
+                        const effectiveFallbackColor = hideAdminDefaults ? null : fallbackColor;
                         const previewColor =
-                            currentColor ?? fallbackColor ?? null;
+                            currentColor ?? effectiveFallbackColor ?? null;
                         const bg = previewColor
                             ? gradientToTailwindClasses(
                                   generateGradient(previewColor, gradientOffset)
@@ -167,13 +171,13 @@ export default function ColorPicker({
                             : gradientToTailwindClasses(getDefaultGradient());
                         const title = currentColor
                             ? `Custom: ${currentColor}`
-                            : fallbackColor
-                            ? `Admin default: ${fallbackColor}`
+                            : effectiveFallbackColor
+                            ? `Admin default: ${effectiveFallbackColor}`
                             : 'Default gradient';
                         const aria = currentColor
                             ? `Custom color ${currentColor}`
-                            : fallbackColor
-                            ? `Admin default color ${fallbackColor}`
+                            : effectiveFallbackColor
+                            ? `Admin default color ${effectiveFallbackColor}`
                             : 'Default color';
                         return (
                             <div
@@ -238,8 +242,10 @@ export default function ColorPicker({
                     {/* Large preview */}
                     <div className="mb-1">
                         {(() => {
+                            // Apply the hideAdminDefaults preference
+                            const effectiveFallbackColor = hideAdminDefaults ? null : fallbackColor;
                             const previewColor =
-                                currentColor ?? fallbackColor ?? null;
+                                currentColor ?? effectiveFallbackColor ?? null;
                             const bg = previewColor
                                 ? gradientToTailwindClasses(
                                       generateGradient(
@@ -252,8 +258,8 @@ export default function ColorPicker({
                                   );
                             const label = currentColor
                                 ? `Preview: ${currentColor}`
-                                : fallbackColor
-                                ? `Preview (admin): ${fallbackColor}`
+                                : effectiveFallbackColor
+                                ? `Preview (admin): ${effectiveFallbackColor}`
                                 : 'Preview: default gradient';
                             return (
                                 <>
@@ -297,7 +303,7 @@ export default function ColorPicker({
                     {/* Gradient Offset Slider: show for admin users, custom colors, or admin-set defaults (hide only for global default) */}
                     {(isAdmin ||
                         currentColor ||
-                        fallbackColor) && (
+                        (!hideAdminDefaults && fallbackColor)) && (
                         <div className="space-y-2 pt-3 mt-3 border-t border-slate-200 dark:border-slate-700">
                             <label className="flex items-center justify-between text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">
                                 <span>Gradient Offset</span>

@@ -222,6 +222,7 @@ export default function Timetable({
     weekStart,
     lessonColors = {},
     defaultLessonColors = {},
+    hideAdminDefaults = false,
     isAdmin = false,
     onColorChange,
     serverLessonOffsets = {},
@@ -237,6 +238,7 @@ export default function Timetable({
     weekStart: Date;
     lessonColors?: LessonColors;
     defaultLessonColors?: LessonColors;
+    hideAdminDefaults?: boolean;
     isAdmin?: boolean;
     onColorChange?: (
         lessonName: string,
@@ -1258,6 +1260,7 @@ export default function Timetable({
                                                 defaultLessonColors={
                                                     defaultLessonColors
                                                 }
+                                                hideAdminDefaults={hideAdminDefaults}
                                                 onLessonClick={
                                                     handleLessonClick
                                                 }
@@ -1393,6 +1396,7 @@ export default function Timetable({
                                                 defaultLessonColors={
                                                     defaultLessonColors
                                                 }
+                                                hideAdminDefaults={hideAdminDefaults}
                                                 onLessonClick={
                                                     handleLessonClick
                                                 }
@@ -1440,6 +1444,7 @@ export default function Timetable({
                                                 defaultLessonColors={
                                                     defaultLessonColors
                                                 }
+                                                hideAdminDefaults={hideAdminDefaults}
                                                 onLessonClick={
                                                     handleLessonClick
                                                 }
@@ -1494,6 +1499,7 @@ export default function Timetable({
                 isDeveloperMode={isDeveloperMode}
                 lessonColors={lessonColors}
                 defaultLessonColors={defaultLessonColors}
+                hideAdminDefaults={hideAdminDefaults}
                 isAdmin={isAdmin}
                 onColorChange={onColorChange}
                 gradientOffsets={gradientOffsets}

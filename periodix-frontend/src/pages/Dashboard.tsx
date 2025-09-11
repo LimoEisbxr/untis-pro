@@ -18,6 +18,7 @@ import {
     subscribeToPushNotifications as apiSubscribeToPush,
     updateNotificationSettings,
 } from '../api';
+import { getHideAdminDefaultsPreference } from '../utils/gradientPreferences';
 import {
     isServiceWorkerSupported,
     isIOS,
@@ -95,6 +96,7 @@ export default function Dashboard({
     const [defaultLessonColors, setDefaultLessonColors] =
         useState<LessonColors>({});
     const [lessonOffsets, setLessonOffsets] = useState<LessonOffsets>({});
+    const [hideAdminDefaults, setHideAdminDefaults] = useState<boolean>(false);
 
     // Initialize timetable cache hook
     const { getTimetableData, getCachedData, invalidateCache } =
@@ -319,6 +321,30 @@ export default function Dashboard({
         loadLessonColors();
         loadDefaults();
     }, [token]);
+
+    // Load hideAdminDefaults preference from localStorage
+    useEffect(() => {
+        setHideAdminDefaults(getHideAdminDefaultsPreference());
+        
+        // Listen for localStorage changes (in case user changes setting in another tab)
+        const handleStorageChange = (e: StorageEvent) => {
+            if (e.key === 'hideAdminDefaultGradients') {
+                setHideAdminDefaults(getHideAdminDefaultsPreference());
+            }
+        };
+        
+        // Listen for custom event (for changes in the same tab)
+        const handleCustomChange = (e: CustomEvent) => {
+            setHideAdminDefaults(e.detail.value);
+        };
+        
+        window.addEventListener('storage', handleStorageChange);
+        window.addEventListener('hideAdminDefaultsChanged', handleCustomChange as EventListener);
+        return () => {
+            window.removeEventListener('storage', handleStorageChange);
+            window.removeEventListener('hideAdminDefaultsChanged', handleCustomChange as EventListener);
+        };
+    }, []);
 
     // Handle lesson color changes
     const handleColorChange = useCallback(
@@ -1128,6 +1154,7 @@ export default function Dashboard({
                             weekStart={weekStartDate}
                             lessonColors={lessonColors}
                             defaultLessonColors={defaultLessonColors}
+                            hideAdminDefaults={hideAdminDefaults}
                             isAdmin={!!user.isAdmin}
                             onColorChange={handleColorChange}
                             serverLessonOffsets={lessonOffsets}
