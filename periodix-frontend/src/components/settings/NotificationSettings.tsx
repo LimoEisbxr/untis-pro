@@ -20,7 +20,6 @@ import {
     getiOSVersion,
     isServiceWorkerSupported,
     subscribeToPushNotifications as utilsSubscribeToPush,
-    unsubscribeFromPushNotifications as utilsUnsubscribeFromPush,
     getDeviceType,
 } from '../../utils/notifications';
 
@@ -49,6 +48,10 @@ export default function NotificationSettings({
     // Notification settings state
     const [notificationSettings, setNotificationSettings] =
         useState<NotificationSettingsType | null>(null);
+    // Preserve device preferences across global disable/enable cycles
+    type DevicePrefsRecord = Record<string, DevicePrefEntry>;
+    const [savedDevicePrefs, setSavedDevicePrefs] =
+        useState<DevicePrefsRecord | null>(null);
     const [notificationLoading, setNotificationLoading] = useState(false);
     const [notificationError, setNotificationError] = useState<string | null>(
         null
@@ -321,6 +324,29 @@ export default function NotificationSettings({
         setToggleInFlight(true);
         try {
             if (enabled) {
+                // If re-enabling and we previously saved device prefs, merge them back optimistically
+                if (
+                    savedDevicePrefs &&
+                    notificationSettings.devicePreferences
+                ) {
+                    setNotificationSettings((prev) =>
+                        prev
+                            ? {
+                                  ...prev,
+                                  devicePreferences: {
+                                      ...savedDevicePrefs,
+                                      ...prev.devicePreferences,
+                                  },
+                              }
+                            : prev
+                    );
+                } else if (savedDevicePrefs) {
+                    setNotificationSettings((prev) =>
+                        prev
+                            ? { ...prev, devicePreferences: savedDevicePrefs }
+                            : prev
+                    );
+                }
                 // Ensure permission first
                 let currentPermission = notificationPermission;
                 if (currentPermission !== 'granted') {
@@ -346,29 +372,41 @@ export default function NotificationSettings({
                     browserNotificationsEnabled: true,
                     pushNotificationsEnabled: pushOK,
                 });
+                // Reload from server so we reflect any server-side merging logic
+                await loadNotificationSettings();
             } else {
-                // Try to remove push subscription (best-effort)
+                // DO NOT unsubscribe push subscription so that the endpoint (and stored devicePreferences) remain stable.
+                // Simply mark push/browser notifications disabled; backend will skip sending while flags are false.
+                // We still snapshot locally in case of unforeseen state changes.
                 try {
-                    if (isStandalonePWA()) {
-                        const registration = await navigator.serviceWorker
-                            .ready;
-                        const existing =
-                            await registration.pushManager.getSubscription();
-                        if (existing) {
-                            await apiUnsubscribeFromPush(
-                                token,
-                                existing.endpoint
-                            ).catch(() => {});
-                        }
+                    if (notificationSettings?.devicePreferences) {
+                        setSavedDevicePrefs(
+                            notificationSettings.devicePreferences as DevicePrefsRecord
+                        );
                     }
-                    await utilsUnsubscribeFromPush();
                 } catch {
-                    // Ignore unsubscribe errors
+                    // ignore snapshot errors
                 }
+                // Persist master disable flags (DB row will remain; devicePreferences intentionally untouched)
                 await handleUpdateNotificationSettings({
                     browserNotificationsEnabled: false,
                     pushNotificationsEnabled: false,
                 });
+                // Best-effort: mark current subscription inactive server-side while KEEPING endpoint & prefs.
+                // We do NOT call subscription.unsubscribe() so that on re-enable the same endpoint (and its stored devicePreferences) still matches.
+                try {
+                    if (endpoint) {
+                        await apiUnsubscribeFromPush(token, endpoint);
+                    }
+                } catch (unsubscribeErr) {
+                    // Non-fatal; logging to console only to avoid user-facing noise
+                    console.warn(
+                        'Failed to mark push subscription inactive:',
+                        unsubscribeErr
+                    );
+                }
+                // After disabling, force a fresh load to reflect true persisted state
+                await loadNotificationSettings();
             }
         } catch (e) {
             setNotificationError(
@@ -404,15 +442,14 @@ export default function NotificationSettings({
                     </p>
                 </div>
 
-                {notificationLoading ? (
-                    <div className="w-5 h-5 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin" />
-                ) : canShowPermissionButton ||
-                  notificationPermission === 'denied' ? (
+                {canShowPermissionButton ||
+                notificationPermission === 'denied' ? (
                     <button
                         onClick={handleRequestPermission}
-                        className="px-3 py-1 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-500 rounded-md"
+                        disabled={notificationLoading}
+                        className="px-3 py-1 text-sm font-medium text-white bg-indigo-600 rounded-md disabled:opacity-60 disabled:cursor-not-allowed hover:bg-indigo-500 disabled:hover:bg-indigo-600"
                     >
-                        Enable
+                        {notificationLoading ? 'Enabling…' : 'Enable'}
                     </button>
                 ) : (
                     canToggleNotifications && (
@@ -426,7 +463,7 @@ export default function NotificationSettings({
                                 onChange={(e) =>
                                     handleToggleNotifications(e.target.checked)
                                 }
-                                disabled={toggleInFlight}
+                                disabled={toggleInFlight || notificationLoading}
                                 className="sr-only peer disabled:opacity-50 disabled:cursor-not-allowed"
                             />
                             <div className="relative w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600"></div>

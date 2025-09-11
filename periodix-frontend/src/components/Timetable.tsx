@@ -530,7 +530,20 @@ export default function Timetable({
         let skipSwipe = false;
         let wheelDeltaX = 0;
         let wheelDeltaY = 0;
-        let wheelTimeout: number | null = null;
+        // (removed legacy wheelTimeout; using wheelChainTimer approach now)
+        // Trackpad gesture management state
+        // We treat a sequence of wheel events with short gaps as one "wheel gesture chain".
+        // Only one week navigation is allowed per chain. Chain ends after inactivity timeout.
+        let wheelChainActive = false;
+        let wheelChainTimer: number | null = null;
+        let hasNavigatedThisWheelChain = false;
+        // Additional global cooldown (belt & suspenders) in case momentum resumes after chain end
+        let lastWheelNavTime = 0;
+        const WHEEL_COOLDOWN_MS = 800; // Slightly longer to avoid rapid accidental double jumps
+        const WHEEL_CHAIN_INACTIVITY_MS = 260; // If no wheel events in this window, new chain may start
+        // Track scroll position at the start of a wheel chain to detect edge overscroll
+        let wheelInitialScrollTop = 0;
+        let wheelInitialMaxScrollTop = 0;
         const INTERACTIVE_SELECTOR =
             'input,textarea,select,button,[contenteditable="true"],[role="textbox"]';
 
@@ -827,6 +840,11 @@ export default function Timetable({
         const handleWheel = (e: WheelEvent) => {
             if (isAnimating) return;
 
+            const nowTs = Date.now();
+            if (nowTs - lastWheelNavTime < WHEEL_COOLDOWN_MS) {
+                return; // Global cooldown
+            }
+
             const target = e.target as HTMLElement | null;
             // Ignore wheel if user is over an interactive control
             if (
@@ -836,48 +854,80 @@ export default function Timetable({
             ) {
                 return;
             }
+            // Establish / extend current wheel gesture chain
+            if (!wheelChainActive) {
+                wheelChainActive = true;
+                hasNavigatedThisWheelChain = false;
+                wheelDeltaX = 0;
+                wheelDeltaY = 0;
+                // Capture vertical scroll context for this chain
+                wheelInitialScrollTop = el.scrollTop;
+                wheelInitialMaxScrollTop = el.scrollHeight - el.clientHeight;
+            }
+            if (wheelChainTimer) clearTimeout(wheelChainTimer);
+            wheelChainTimer = window.setTimeout(() => {
+                wheelChainActive = false;
+                hasNavigatedThisWheelChain = false;
+                wheelDeltaX = 0;
+                wheelDeltaY = 0;
+            }, WHEEL_CHAIN_INACTIVITY_MS);
 
-            // Accumulate wheel delta for trackpad gesture detection
+            // Accumulate deltas
             wheelDeltaX += e.deltaX;
             wheelDeltaY += e.deltaY;
 
-            // Clear previous timeout
-            if (wheelTimeout) {
-                clearTimeout(wheelTimeout);
-            }
+            // If we've already navigated in this chain, ignore (allow vertical scroll)
+            if (hasNavigatedThisWheelChain) return;
 
-            // Check if this is primarily a horizontal gesture
-            const isHorizontalGesture =
-                Math.abs(wheelDeltaX) > Math.abs(wheelDeltaY) * 2;
+            // Stronger horizontal intent requirements:
+            //  - horizontal magnitude threshold
+            //  - horizontal dominates vertical by ratio
+            //  - vertical noise under a soft cap
+            const ABS_X = Math.abs(wheelDeltaX);
+            const ABS_Y = Math.abs(wheelDeltaY);
+            // Dynamic thresholds: require stronger horizontal intent if vertical motion is high
+            const BASE_HORIZONTAL_THRESHOLD = 130;
+            const EXTRA_THRESHOLD = Math.min(120, Math.max(0, ABS_Y - 40));
+            const HORIZONTAL_THRESHOLD =
+                BASE_HORIZONTAL_THRESHOLD + EXTRA_THRESHOLD; // climbs as vertical increases
+            const RATIO_REQUIREMENT = 2.0; // slightly stricter than before
+            const MAX_VERTICAL_ABS = 90; // hard cap; beyond this treat gesture as vertical/diagonal
 
-            if (isHorizontalGesture) {
-                // Prevent default to avoid horizontal scrolling
-                e.preventDefault();
+            // Detect if user is pushing against vertical edges (bounce/overscroll at top or bottom)
+            const atTopStart = wheelInitialScrollTop <= 2;
+            const atBottomStart =
+                wheelInitialScrollTop >= wheelInitialMaxScrollTop - 2;
+            const verticalEdgePush =
+                (atTopStart && wheelDeltaY < -28) ||
+                (atBottomStart && wheelDeltaY > 28);
 
-                // Determine if we've accumulated enough delta for navigation
-                const WHEEL_THRESHOLD = 100;
+            // If a vertical edge push is happening with notable vertical movement, suppress navigation.
+            if (verticalEdgePush && ABS_Y > 24) return;
 
-                if (Math.abs(wheelDeltaX) > WHEEL_THRESHOLD) {
-                    const direction = wheelDeltaX > 0 ? 'next' : 'prev';
-                    // Wheel gestures: approximate speed from accumulated delta & time window
-                    const gestureSpeed = Math.min(
-                        5000,
-                        Math.max(1200, Math.abs(wheelDeltaX) * 12)
-                    );
-                    performNavigation(direction, gestureSpeed);
+            // Also suppress if overall vertical magnitude large relative to horizontal spread or exceeds max
+            if (ABS_Y > MAX_VERTICAL_ABS) return;
 
-                    // Reset wheel delta after navigation
-                    wheelDeltaX = 0;
-                    wheelDeltaY = 0;
-                    return;
-                }
-            }
+            const looksHorizontal =
+                ABS_X >= HORIZONTAL_THRESHOLD &&
+                ABS_X > ABS_Y * RATIO_REQUIREMENT &&
+                ABS_Y <= 60; // soft vertical noise cap for valid horizontal gesture
 
-            // Reset wheel delta after a short delay if no navigation occurred
-            wheelTimeout = window.setTimeout(() => {
-                wheelDeltaX = 0;
-                wheelDeltaY = 0;
-            }, 150);
+            if (!looksHorizontal) return; // Keep collecting / allow normal vertical scroll
+
+            // Prevent native horizontal scroll once we decide it's a navigation gesture
+            e.preventDefault();
+
+            // Decide direction & navigate
+            const direction = wheelDeltaX > 0 ? 'next' : 'prev';
+            hasNavigatedThisWheelChain = true;
+            lastWheelNavTime = nowTs; // start cooldown clock immediately
+
+            const gestureSpeed = Math.min(
+                4800,
+                Math.max(1400, Math.abs(wheelDeltaX) * 10)
+            );
+            performNavigation(direction, gestureSpeed);
+            // Don't reset deltas until chain end; further wheel events during chain are ignored
         };
 
         el.addEventListener('touchstart', handleTouchStart, { passive: true });
@@ -890,9 +940,6 @@ export default function Timetable({
             el.removeEventListener('touchmove', handleTouchMove);
             el.removeEventListener('touchend', handleTouchEnd);
             el.removeEventListener('wheel', handleWheel);
-            if (wheelTimeout) {
-                clearTimeout(wheelTimeout);
-            }
             // Use the captured ref value for cleanup
             if (currentAnimationRef) cancelAnimationFrame(currentAnimationRef);
         };

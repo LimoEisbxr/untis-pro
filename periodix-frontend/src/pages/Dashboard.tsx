@@ -1068,7 +1068,7 @@ export default function Dashboard({
                                     </div>
                                     <input
                                         type="date"
-                                        className="input text-sm"
+                                        className="input text-sm input-week-compact"
                                         value={start}
                                         onChange={(e) =>
                                             setStart(e.target.value)

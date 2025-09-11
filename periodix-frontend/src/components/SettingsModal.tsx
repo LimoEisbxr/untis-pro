@@ -39,8 +39,17 @@ export default function SettingsModal({
         if (typeof window === 'undefined') return;
         const vw = window.innerWidth;
         const vh = window.innerHeight;
-        // Wider modal on large screens, capped for readability
-        const width = Math.min(Math.max(vw * 0.88, 900), 1600);
+        let width: number;
+        if (vw < 640) {
+            // Mobile: use near full width with small horizontal padding allowance
+            width = vw - 24; // account for outer padding
+        } else if (vw < 1024) {
+            // Tablet: slightly constrained but not forced to desktop min
+            width = Math.min(vw * 0.94, 880);
+        } else {
+            // Desktop+: original behavior with sensible min
+            width = Math.min(Math.max(vw * 0.88, 900), 1600);
+        }
         const height = Math.min(Math.max(vh * 0.9, 500), vh - 24); // leave small margin
         setModalDims({ width, height });
     }, []);
@@ -108,7 +117,7 @@ export default function SettingsModal({
             onClick={onClose}
         >
             <div
-                className={`bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full transition-all duration-${ANIM_MS} border border-slate-200 dark:border-slate-700 ${
+                className={`bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-full transition-all duration-${ANIM_MS} border border-slate-200 dark:border-slate-700 ${
                     isVisible
                         ? 'opacity-100 scale-100 translate-y-0'
                         : 'opacity-0 scale-95 translate-y-4'

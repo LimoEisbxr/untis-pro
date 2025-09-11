@@ -1,3 +1,4 @@
+import { useRef, useLayoutEffect, useState, useEffect } from 'react';
 import type { User } from '../../types';
 
 interface Tab {
@@ -18,11 +19,10 @@ export default function TabNavigation({
     onTabChange,
     isMobile,
 }: TabNavigationProps) {
-    // Get available tabs for current user type
     const getAvailableTabs = (): Tab[] => {
         if (user.isAdmin) {
             return [
-                { id: 'access', label: 'Whitelist & Access Request' },
+                { id: 'access', label: 'Access' },
                 { id: 'users', label: 'User Management' },
                 { id: 'global', label: 'Global Settings' },
                 { id: 'analytics', label: 'Analytics' },
@@ -33,11 +33,10 @@ export default function TabNavigation({
                 { id: 'nickname', label: 'Nickname Change' },
                 { id: 'sharing', label: 'Personal Sharing Settings' },
                 { id: 'notifications', label: 'Notification Settings' },
-                { id: 'access', label: 'Whitelist & Access Request' },
+                { id: 'access', label: 'Access' },
                 { id: 'analytics', label: 'Analytics' },
             ];
         }
-        // Regular users
         return [
             { id: 'nickname', label: 'Nickname Change' },
             { id: 'sharing', label: 'Personal Sharing Settings' },
@@ -47,19 +46,67 @@ export default function TabNavigation({
 
     const availableTabs = getAvailableTabs();
 
-    // Mobile layout: horizontal scrollable tabs
+    // Mobile specific logic
+    const containerRef = useRef<HTMLDivElement | null>(null);
+    const rowRef = useRef<HTMLDivElement | null>(null);
+    const [centerTabs, setCenterTabs] = useState(false);
+
+    useLayoutEffect(() => {
+        if (!isMobile) return;
+        const measure = () => {
+            if (!containerRef.current || !rowRef.current) return;
+            const needsScroll =
+                rowRef.current.scrollWidth > containerRef.current.clientWidth;
+            setCenterTabs(!needsScroll);
+        };
+        measure();
+        window.addEventListener('resize', measure);
+        return () => window.removeEventListener('resize', measure);
+    }, [isMobile, availableTabs.length]);
+
+    useEffect(() => {
+        if (!isMobile) return;
+        const t = window.setTimeout(() => {
+            if (!containerRef.current || !rowRef.current) return;
+            const needsScroll =
+                rowRef.current.scrollWidth > containerRef.current.clientWidth;
+            setCenterTabs(!needsScroll);
+        }, 60);
+        return () => window.clearTimeout(t);
+    }, [isMobile, availableTabs.length]);
+
+    const baseTabClasses =
+        'flex-shrink-0 px-4 py-3 rounded-lg text-xs font-medium transition-colors duration-150 whitespace-nowrap min-w-[58px]';
+    const activeClasses =
+        'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 shadow-sm border border-indigo-200 dark:border-indigo-700';
+    const inactiveClasses =
+        'text-slate-600 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-700/50 border border-transparent';
+
     if (isMobile) {
         return (
-            <div className="overflow-x-auto">
-                <div className="flex space-x-1 min-w-max">
+            <div
+                ref={containerRef}
+                className="overflow-x-auto scrollbar-none [-ms-overflow-style:none] [scrollbar-width:none]"
+                style={{ scrollPaddingInline: '12px' }}
+            >
+                <style>{`.scrollbar-none::-webkit-scrollbar { display: none; }`}</style>
+                <div
+                    ref={rowRef}
+                    className={`flex items-stretch gap-2 min-w-max px-3 py-1 select-none ${
+                        centerTabs ? 'justify-center' : ''
+                    }`}
+                >
+                    {!centerTabs && (
+                        <div className="shrink-0 w-[2px]" aria-hidden="true" />
+                    )}
                     {availableTabs.map((tab) => (
                         <button
                             key={tab.id}
                             onClick={() => onTabChange(tab.id)}
-                            className={`flex-shrink-0 px-4 py-3 rounded-lg text-xs font-medium transition-colors duration-150 whitespace-nowrap min-w-[70px] ${
+                            className={`${baseTabClasses} ${
                                 activeTab === tab.id
-                                    ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 shadow-sm border border-indigo-200 dark:border-indigo-700'
-                                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-700/50 border border-transparent'
+                                    ? activeClasses
+                                    : inactiveClasses
                             }`}
                         >
                             <div className="flex flex-col items-center justify-center gap-1">
@@ -169,18 +216,18 @@ export default function TabNavigation({
                                         </svg>
                                     )}
                                 </div>
-                                {/* <span className="truncate leading-tight text-[10px] font-medium tracking-wide"> */}
-                                {/* {tab.label} */}
-                                {/* </span> */}
                             </div>
                         </button>
                     ))}
+                    {!centerTabs && (
+                        <div className="shrink-0 w-[2px]" aria-hidden="true" />
+                    )}
                 </div>
             </div>
         );
     }
 
-    // Desktop layout: vertical sidebar
+    // Desktop layout
     return (
         <div className="space-y-1">
             <h3 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">
@@ -198,7 +245,6 @@ export default function TabNavigation({
                         }`}
                     >
                         <div className="flex items-center space-x-3">
-                            {/* Add icons for each tab */}
                             <div className="flex-shrink-0">
                                 {tab.id === 'nickname' && (
                                     <svg

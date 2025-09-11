@@ -87,6 +87,54 @@ body.scroll-lock {
     pointer-events: auto;
 }
 
+/* The fixed global custom scrollbar was causing layout issues in overlay modals.
+   Provide an optional in-content scroll aesthetic for modal bodies instead. */
+.scroll-area-native {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(100, 116, 139, 0.45) transparent; /* Firefox */
+}
+html.dark .scroll-area-native {
+    scrollbar-color: rgba(148, 163, 184, 0.35) transparent;
+}
+.scroll-area-native::-webkit-scrollbar {
+    width: 10px;
+}
+.scroll-area-native::-webkit-scrollbar-track {
+    background: transparent;
+}
+.scroll-area-native::-webkit-scrollbar-thumb {
+    background: linear-gradient(
+        180deg,
+        rgba(148, 163, 184, 0.55),
+        rgba(148, 163, 184, 0.25)
+    );
+    border-radius: 999px;
+    border: 2px solid transparent; /* creates pill + keeps background visible */
+    background-clip: padding-box;
+    transition: background 160ms ease, box-shadow 160ms ease;
+}
+html.dark .scroll-area-native::-webkit-scrollbar-thumb {
+    background: linear-gradient(
+        180deg,
+        rgba(71, 85, 105, 0.75),
+        rgba(71, 85, 105, 0.35)
+    );
+}
+.scroll-area-native::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(
+        180deg,
+        rgba(79, 70, 229, 0.8),
+        rgba(5, 150, 105, 0.7)
+    );
+}
+html.dark .scroll-area-native::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(
+        180deg,
+        rgba(99, 102, 241, 0.6),
+        rgba(16, 185, 129, 0.55)
+    );
+}
+
 /* Hide custom scrollbar entirely on small/mobile screens */
 @media (max-width: 640px) {
     .custom-scrollbar {
@@ -157,6 +205,14 @@ html.dark .btn-secondary:hover {
 html.dark .input {
     @apply bg-slate-800 border-slate-700 text-slate-100 placeholder:text-slate-400;
 }
+/* Compact variant used selectively (e.g., week selector on mobile) */
+@media (max-width: 640px) {
+    .input-week-compact {
+        padding-top: 0.15rem; /* py-1 */
+        padding-bottom: 0.15rem;
+        line-height: 1.15; /* tighten without cramping */
+    }
+}
 .label {
     @apply block text-sm font-medium text-slate-700;
 }
@@ -172,7 +228,7 @@ html.dark .label {
     .week-picker-right-gap {
         margin-right: max(
             env(safe-area-inset-right),
-            1.25rem
+            1.75rem
         ); /* comfortable gap in installed PWA */
     }
 }

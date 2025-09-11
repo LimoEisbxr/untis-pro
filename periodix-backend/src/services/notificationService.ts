@@ -667,8 +667,34 @@ export class NotificationService {
                     if (lesson.code === 'cancelled') continue; // don't remind cancelled
 
                     const startMin = toMinutes(lesson.startTime);
-                    const diff = startMin - nowMinutes; // minutes until start
-                    if (diff === 5) {
+                    const diff = startMin - nowMinutes; // whole minutes until start
+                    // Allow a tolerance window (4-5 minutes before) to avoid missing due to interval drift.
+                    // The loop runs every ~60s but can drift; requiring exactly 5 could miss if we run late.
+                    if (diff <= 5 && diff >= 4) {
+                        // Check if a notification already exists for this upcoming lesson (dedupeKey logic mirrors creation below)
+                        const dedupeKeyPreview = [
+                            'upcoming',
+                            user.id,
+                            lesson?.id ??
+                                lesson?.lessonId ??
+                                (lesson.su?.[0]?.name || 'Lesson'),
+                            lesson?.date ?? '',
+                            lesson?.startTime ?? '',
+                        ].join(':');
+                        try {
+                            const existingUpcoming = await (
+                                prisma as any
+                            ).notification.findFirst({
+                                where: {
+                                    dedupeKey: dedupeKeyPreview,
+                                    userId: user.id,
+                                },
+                                select: { id: true },
+                            });
+                            if (existingUpcoming) continue; // already queued/sent
+                        } catch {
+                            /* ignore errors */
+                        }
                         // Only send if at least one device opted in for upcoming reminders
                         const devicePrefs = (user.notificationSettings
                             ?.devicePreferences || {}) as Record<string, any>;
@@ -787,17 +813,42 @@ export class NotificationService {
                         continue; // skip user entirely to avoid needless Untis fetches
                     }
 
-                    const latest = user.timetables?.[0];
-                    const lessons: any[] = Array.isArray(latest?.payload)
+                    let latest = user.timetables?.[0];
+                    let lessons: any[] = Array.isArray(latest?.payload)
                         ? (latest.payload as any[])
                         : [];
-                    const hasToday = lessons.some(
+                    let hasToday = lessons.some(
                         (l: any) => Number(l?.date) === todayYmd
                     );
-                    // Only use cached data for upcoming reminders; if cache is missing today's lessons, skip.
                     if (!hasToday) {
-                        continue;
+                        // Attempt a lightweight refresh for just today to populate cache.
+                        try {
+                            const start = new Date();
+                            start.setHours(0, 0, 0, 0);
+                            const end = new Date(start);
+                            end.setHours(23, 59, 59, 999);
+                            const refreshed = await getOrFetchTimetableRange({
+                                requesterId: user.id,
+                                targetUserId: user.id,
+                                start: start.toISOString(),
+                                end: end.toISOString(),
+                            });
+                            if (refreshed?.payload) {
+                                lessons = Array.isArray(refreshed.payload)
+                                    ? (refreshed.payload as any[])
+                                    : [];
+                                hasToday = lessons.some(
+                                    (l: any) => Number(l?.date) === todayYmd
+                                );
+                            }
+                        } catch (refreshErr) {
+                            console.warn(
+                                `Upcoming fast refresh failed for ${user.id}:`,
+                                (refreshErr as any)?.message || refreshErr
+                            );
+                        }
                     }
+                    if (!hasToday) continue;
 
                     await this.checkUserTimetableChanges(user, {
                         onlyUpcoming: true,

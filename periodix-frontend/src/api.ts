@@ -724,7 +724,8 @@ export type AnalyticsDetailMetric =
     | 'active_today'
     | 'timetable_views_today'
     | 'searches_today'
-    | 'new_users_today';
+    | 'new_users_today'
+    | 'session_duration_top';
 export interface AnalyticsDetailItem {
     userId: string;
     username: string;
@@ -732,10 +733,33 @@ export interface AnalyticsDetailItem {
     count?: number;
     firstAt?: string;
     lastAt?: string;
+    avgSessionMinutes?: number;
+    sessionCount?: number;
 }
 export interface AnalyticsDetailsResponse {
     metric: AnalyticsDetailMetric;
     items: AnalyticsDetailItem[];
+}
+
+// Per-user insight types
+export interface UserInsightSummary {
+    userId: string;
+    username: string;
+    displayName: string | null;
+    totalActivities: number;
+    firstActivityAt?: string;
+    lastActivityAt?: string;
+    todayActivityCount: number;
+    avgSessionMinutesToday?: number;
+    featureUsage: Array<{
+        feature: string;
+        count: number;
+        percentage: number;
+    }>;
+    recentActivities: Array<{
+        action: string;
+        createdAt: string;
+    }>;
 }
 
 export async function trackActivity(
@@ -786,6 +810,16 @@ export async function getAnalyticsDetails(
     const params = new URLSearchParams({ metric });
     return api<{ details: AnalyticsDetailsResponse }>(
         `/api/analytics/details?${params.toString()}`,
+        { token }
+    );
+}
+
+export async function getUserInsight(
+    token: string,
+    userId: string
+): Promise<{ insight: UserInsightSummary }> {
+    return api<{ insight: UserInsightSummary }>(
+        `/api/analytics/user/${encodeURIComponent(userId)}`,
         { token }
     );
 }

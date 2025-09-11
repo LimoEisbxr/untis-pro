@@ -4,15 +4,17 @@ import {
     adminOrUserManagerOnly,
     authMiddleware,
 } from '../server/authMiddleware.js';
+// Using modularized analytics service exports
 import {
     trackActivity,
     getDashboardStats,
     getUserEngagementMetrics,
     getActivityTrends,
     getAnalyticsDetails,
+    getUserInsight,
     type AnalyticsDetailMetric,
     type TrackingData,
-} from '../services/analyticsService.js';
+} from '../services/analytics/index.js';
 
 const router = Router();
 
@@ -109,6 +111,7 @@ router.get('/details', adminOrUserManagerOnly, async (req, res) => {
             'timetable_views_today',
             'searches_today',
             'new_users_today',
+            'session_duration_top',
         ];
         if (!allowed.includes(metricParam as AnalyticsDetailMetric)) {
             return res.status(400).json({
@@ -143,6 +146,24 @@ router.get('/overview', adminOrUserManagerOnly, async (_req, res) => {
     } catch (error) {
         console.error('Failed to get analytics overview:', error);
         res.status(500).json({ error: 'Failed to fetch analytics overview' });
+    }
+});
+
+// Get per-user insight summary
+router.get('/user/:userId', adminOrUserManagerOnly, async (req, res) => {
+    try {
+        const { userId } = req.params;
+        if (!userId) {
+            return res.status(400).json({ error: 'Missing userId' });
+        }
+        const insight = await getUserInsight(userId);
+        if (!insight) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+        res.json({ insight });
+    } catch (error) {
+        console.error('Failed to get user insight:', error);
+        res.status(500).json({ error: 'Failed to fetch user insight' });
     }
 });
 

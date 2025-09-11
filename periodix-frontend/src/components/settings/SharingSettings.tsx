@@ -13,14 +13,23 @@ interface SharingSettingsProps {
     isVisible: boolean;
 }
 
-export default function SharingSettings({ token, isVisible }: SharingSettingsProps) {
+export default function SharingSettings({
+    token,
+    isVisible,
+}: SharingSettingsProps) {
     const [settings, setSettings] = useState<SharingSettingsType | null>(null);
     const [loading, setLoading] = useState(false);
+    // We want to avoid flashing a loading indicator for very fast responses.
+    // This flag is turned on only if loading exceeds a small delay threshold.
+    const [showLoadingIndicator, setShowLoadingIndicator] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
-    const [searchResults, setSearchResults] = useState<Array<{ id: string; username: string; displayName?: string }>>([]);
+    const [searchResults, setSearchResults] = useState<
+        Array<{ id: string; username: string; displayName?: string }>
+    >([]);
     const [searchLoading, setSearchLoading] = useState(false);
     const searchTimeoutRef = useRef<number | undefined>(undefined);
+    const loadingDelayRef = useRef<number | undefined>(undefined);
 
     // Load sharing settings when component becomes visible
     useEffect(() => {
@@ -35,11 +44,36 @@ export default function SharingSettings({ token, isVisible }: SharingSettingsPro
             const data = await getSharingSettings(token);
             setSettings(data);
         } catch (e) {
-            setError(e instanceof Error ? e.message : 'Failed to load sharing settings');
+            setError(
+                e instanceof Error
+                    ? e.message
+                    : 'Failed to load sharing settings'
+            );
         } finally {
             setLoading(false);
         }
     };
+
+    // Only show the loading indicator if loading takes longer than the threshold.
+    useEffect(() => {
+        if (loading) {
+            // Start a timer; if still loading after threshold, show the indicator
+            loadingDelayRef.current = window.setTimeout(() => {
+                setShowLoadingIndicator(true);
+            }, 400); // 400ms threshold (tweak as needed)
+        } else {
+            // Loading finished: clear timer and hide indicator immediately
+            if (loadingDelayRef.current) {
+                clearTimeout(loadingDelayRef.current);
+            }
+            setShowLoadingIndicator(false);
+        }
+        return () => {
+            if (loadingDelayRef.current) {
+                clearTimeout(loadingDelayRef.current);
+            }
+        };
+    }, [loading]);
 
     const handleToggleSharing = async (enabled: boolean) => {
         if (!settings) return;
@@ -47,7 +81,11 @@ export default function SharingSettings({ token, isVisible }: SharingSettingsPro
             await updateSharingEnabled(token, enabled);
             setSettings({ ...settings, sharingEnabled: enabled });
         } catch (e) {
-            setError(e instanceof Error ? e.message : 'Failed to update sharing setting');
+            setError(
+                e instanceof Error
+                    ? e.message
+                    : 'Failed to update sharing setting'
+            );
         }
     };
 
@@ -58,7 +96,9 @@ export default function SharingSettings({ token, isVisible }: SharingSettingsPro
             setSearchQuery('');
             setSearchResults([]);
         } catch (e) {
-            setError(e instanceof Error ? e.message : 'Failed to share with user');
+            setError(
+                e instanceof Error ? e.message : 'Failed to share with user'
+            );
         }
     };
 
@@ -84,7 +124,9 @@ export default function SharingSettings({ token, isVisible }: SharingSettingsPro
                 const results = await searchUsersToShare(token, query);
                 setSearchResults(results.users);
             } catch (e) {
-                setError(e instanceof Error ? e.message : 'Failed to search users');
+                setError(
+                    e instanceof Error ? e.message : 'Failed to search users'
+                );
             } finally {
                 setSearchLoading(false);
             }
@@ -110,6 +152,8 @@ export default function SharingSettings({ token, isVisible }: SharingSettingsPro
     }, [searchQuery, handleSearch]);
 
     if (loading) {
+        // While waiting for the threshold, render nothing (avoids flicker)
+        if (!showLoadingIndicator) return null;
         return (
             <div className="p-6 text-center text-slate-600 dark:text-slate-400">
                 Loading settings...
@@ -146,7 +190,9 @@ export default function SharingSettings({ token, isVisible }: SharingSettingsPro
                                 <input
                                     type="text"
                                     value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    onChange={(e) =>
+                                        setSearchQuery(e.target.value)
+                                    }
                                     placeholder="Search for users..."
                                     className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400"
                                 />
@@ -167,7 +213,8 @@ export default function SharingSettings({ token, isVisible }: SharingSettingsPro
                                         >
                                             <div>
                                                 <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                                                    {result.displayName || result.username}
+                                                    {result.displayName ||
+                                                        result.username}
                                                 </div>
                                                 {result.displayName && (
                                                     <div className="text-xs text-slate-500 dark:text-slate-400">
@@ -176,7 +223,11 @@ export default function SharingSettings({ token, isVisible }: SharingSettingsPro
                                                 )}
                                             </div>
                                             <button
-                                                onClick={() => handleShareWithUser(result.id)}
+                                                onClick={() =>
+                                                    handleShareWithUser(
+                                                        result.id
+                                                    )
+                                                }
                                                 className="px-2 py-1 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-500 rounded"
                                             >
                                                 Share
@@ -205,7 +256,8 @@ export default function SharingSettings({ token, isVisible }: SharingSettingsPro
                                         >
                                             <div>
                                                 <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                                                    {sharedUser.displayName || sharedUser.username}
+                                                    {sharedUser.displayName ||
+                                                        sharedUser.username}
                                                 </div>
                                                 {sharedUser.displayName && (
                                                     <div className="text-xs text-slate-500 dark:text-slate-400">
@@ -214,7 +266,11 @@ export default function SharingSettings({ token, isVisible }: SharingSettingsPro
                                                 )}
                                             </div>
                                             <button
-                                                onClick={() => handleStopSharing(sharedUser.id)}
+                                                onClick={() =>
+                                                    handleStopSharing(
+                                                        sharedUser.id
+                                                    )
+                                                }
                                                 className="px-3 py-1 text-xs font-medium text-red-600 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
                                             >
                                                 Remove
@@ -233,15 +289,22 @@ export default function SharingSettings({ token, isVisible }: SharingSettingsPro
                                         Disable Timetable Sharing
                                     </h3>
                                     <p className="text-sm text-slate-600 dark:text-slate-400">
-                                        Stop sharing your timetable with people you've already shared with
+                                        Stop sharing your timetable with people
+                                        you've already shared with
                                     </p>
                                 </div>
                                 <label className="relative inline-flex items-center cursor-pointer">
                                     <input
                                         type="checkbox"
                                         checked={!settings.sharingEnabled}
-                                        onChange={(e) => handleToggleSharing(!e.target.checked)}
-                                        disabled={!settings.globalSharingEnabled}
+                                        onChange={(e) =>
+                                            handleToggleSharing(
+                                                !e.target.checked
+                                            )
+                                        }
+                                        disabled={
+                                            !settings.globalSharingEnabled
+                                        }
                                         className="sr-only peer"
                                     />
                                     <div className="relative w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-red-300 dark:peer-focus:ring-red-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-red-600 peer-disabled:opacity-50"></div>
